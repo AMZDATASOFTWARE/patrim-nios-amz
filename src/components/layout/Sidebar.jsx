@@ -8,14 +8,22 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  Map,
+  QrCode,
+  Truck,
+  Users,
 } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
 const navigation = [
   { name: 'Dashboard', href: '/Dashboard', icon: LayoutDashboard },
   { name: 'Ativos', href: '/Assets', icon: Package },
+  { name: 'Mapa', href: '/AssetMap', icon: Map },
+  { name: 'Etiquetas / QR', href: '/AssetLabel', icon: QrCode },
   { name: 'Depreciação', href: '/Depreciation', icon: TrendingDown },
   { name: 'Relatórios', href: '/Reports', icon: FileText },
+  { name: 'Fornecedores', href: '/Suppliers', icon: Truck },
+  { name: 'Usuários', href: '/UsersManagement', icon: Users },
 ];
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {

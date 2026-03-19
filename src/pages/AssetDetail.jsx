@@ -17,6 +17,8 @@ import {
 } from '@/lib/depreciation';
 import AssetStatusBadge from '@/components/assets/AssetStatusBadge';
 import MaintenanceSection from '@/components/assets/MaintenanceSection';
+import AssignmentSection from '@/components/assets/AssignmentSection';
+import LocationHistoryMini from '@/components/assets/LocationHistoryMini';
 import moment from 'moment';
 
 export default function AssetDetail() {
@@ -206,6 +208,12 @@ export default function AssetDetail() {
           )}
         </div>
       </div>
+
+      {/* Location History + Map */}
+      <LocationHistoryMini assetId={asset.id} />
+
+      {/* Assignment / Responsibility Terms */}
+      <AssignmentSection assetId={asset.id} assetName={asset.name} />
 
       {/* Maintenance History */}
       <MaintenanceSection assetId={asset.id} />

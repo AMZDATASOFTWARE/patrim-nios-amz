@@ -13,6 +13,11 @@ import AssetForm from '@/pages/AssetForm';
 import AssetDetail from '@/pages/AssetDetail';
 import Depreciation from '@/pages/Depreciation';
 import Reports from '@/pages/Reports';
+import AssetMap from '@/pages/AssetMap';
+import AssetLabel from '@/pages/AssetLabel';
+import PublicScan from '@/pages/PublicScan';
+import Suppliers from '@/pages/Suppliers';
+import UsersManagement from '@/pages/UsersManagement';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -37,6 +42,7 @@ const AuthenticatedApp = () => {
   return (
     <Routes>
       <Route path="/" element={<Navigate to="/Dashboard" replace />} />
+      <Route path="/scan" element={<PublicScan />} />
       <Route element={<AppLayout />}>
         <Route path="/Dashboard" element={<Dashboard />} />
         <Route path="/Assets" element={<Assets />} />
@@ -44,6 +50,10 @@ const AuthenticatedApp = () => {
         <Route path="/AssetDetail" element={<AssetDetail />} />
         <Route path="/Depreciation" element={<Depreciation />} />
         <Route path="/Reports" element={<Reports />} />
+        <Route path="/AssetMap" element={<AssetMap />} />
+        <Route path="/AssetLabel" element={<AssetLabel />} />
+        <Route path="/Suppliers" element={<Suppliers />} />
+        <Route path="/UsersManagement" element={<UsersManagement />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
