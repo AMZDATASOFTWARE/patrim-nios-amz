@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -53,11 +53,13 @@ export default function AssetMap() {
   const [loading, setLoading] = useState(true);
   const [selectedAsset, setSelectedAsset] = useState('all');
   const [showHistory, setShowHistory] = useState(true);
+  const AssetEntity = useWorkspaceEntity('Asset');
+  const LocationEntity = useWorkspaceEntity('LocationHistory');
 
   useEffect(() => {
     Promise.all([
-      base44.entities.Asset.list('-created_date', 200),
-      base44.entities.LocationHistory.list('-created_date', 500),
+      AssetEntity.list('-created_date', 200),
+      LocationEntity.list('-created_date', 500),
     ]).then(([a, l]) => { setAssets(a); setLocations(l); setLoading(false); });
   }, []);
 

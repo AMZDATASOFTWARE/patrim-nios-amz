@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
+import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,6 +20,7 @@ export default function AssetForm() {
   const editId = urlParams.get('id');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!!editId);
+  const AssetEntity = useWorkspaceEntity('Asset');
 
   const [form, setForm] = useState({
     name: '',
@@ -96,9 +98,9 @@ export default function AssetForm() {
     };
 
     if (editId) {
-      await base44.entities.Asset.update(editId, data);
+      await AssetEntity.update(editId, data);
     } else {
-      await base44.entities.Asset.create(data);
+      await AssetEntity.create(data);
     }
     
     navigate('/Assets');

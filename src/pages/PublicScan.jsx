@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { base44 } from '@/api/base44Client'; // used directly — public page has no workspace context
 import { formatCurrency, calculateCurrentValue, getUsefulLifeFromRate } from '@/lib/depreciation';
 import { MapPin, Package, CheckCircle, AlertCircle, Loader2, QrCode } from 'lucide-react';
 
@@ -51,6 +51,7 @@ export default function PublicScan() {
 
         // Save to LocationHistory
         await base44.entities.LocationHistory.create({
+          workspace_id: asset?.workspace_id || '',
           asset_id: assetId,
           asset_name: asset?.name || '',
           latitude: lat,

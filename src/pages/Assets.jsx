@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
+import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { Plus, Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -16,10 +16,11 @@ export default function Assets() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todas');
   const [statusFilter, setStatusFilter] = useState('Todos');
+  const AssetEntity = useWorkspaceEntity('Asset');
 
   useEffect(() => {
     const loadAssets = async () => {
-      const data = await base44.entities.Asset.list('-created_date', 200);
+      const data = await AssetEntity.list('-created_date', 200);
       setAssets(data);
       setLoading(false);
     };

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -28,9 +28,10 @@ export default function LocationHistoryMini({ assetId }) {
   const [history, setHistory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
+  const LocationEntity = useWorkspaceEntity('LocationHistory');
 
   useEffect(() => {
-    base44.entities.LocationHistory.filter({ asset_id: assetId }, '-created_date', 20).then(d => {
+    LocationEntity.filter({ asset_id: assetId }, '-created_date', 20).then(d => {
       setHistory(d);
       setLoading(false);
     });

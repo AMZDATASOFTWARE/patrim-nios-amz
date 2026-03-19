@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
+import { useWorkspace } from '@/lib/WorkspaceContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,11 +21,12 @@ export default function AssignmentSection({ assetId, assetName }) {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [expanded, setExpanded] = useState(null);
+  const AssignEntity = useWorkspaceEntity('AssetAssignment');
 
   useEffect(() => { load(); }, [assetId]);
 
   const load = async () => {
-    const data = await base44.entities.AssetAssignment.filter({ asset_id: assetId }, '-assignment_date', 50);
+    const data = await AssignEntity.filter({ asset_id: assetId }, '-assignment_date', 50);
     setRecords(data);
     setLoading(false);
   };
@@ -33,14 +35,14 @@ export default function AssignmentSection({ assetId, assetName }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await base44.entities.AssetAssignment.create({ ...form, asset_id: assetId, asset_name: assetName });
+    await AssignEntity.create({ ...form, asset_id: assetId, asset_name: assetName });
     setOpen(false);
     setForm(EMPTY);
     load();
   };
 
   const handleReturn = async (id) => {
-    await base44.entities.AssetAssignment.update(id, { status: 'Devolvido', return_date: new Date().toISOString().split('T')[0] });
+    await AssignEntity.update(id, { status: 'Devolvido', return_date: new Date().toISOString().split('T')[0] });
     load();
   };
 

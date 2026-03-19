@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -19,11 +19,12 @@ export default function Suppliers() {
   const [form, setForm] = useState(EMPTY);
   const [editId, setEditId] = useState(null);
   const [expanded, setExpanded] = useState(null);
+  const SupplierEntity = useWorkspaceEntity('Supplier');
 
   useEffect(() => { load(); }, []);
 
   const load = async () => {
-    const data = await base44.entities.Supplier.list('-created_date', 100);
+    const data = await SupplierEntity.list('-created_date', 100);
     setSuppliers(data);
     setLoading(false);
   };
@@ -33,14 +34,14 @@ export default function Suppliers() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (editId) await base44.entities.Supplier.update(editId, form);
-    else await base44.entities.Supplier.create(form);
+    if (editId) await SupplierEntity.update(editId, form);
+    else await SupplierEntity.create(form);
     setOpen(false);
     load();
   };
 
   const handleDelete = async (id) => {
-    if (confirm('Excluir fornecedor?')) { await base44.entities.Supplier.delete(id); load(); }
+    if (confirm('Excluir fornecedor?')) { await SupplierEntity.del(id); load(); }
   };
 
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }));

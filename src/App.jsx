@@ -4,6 +4,8 @@ import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
+import { WorkspaceProvider, useWorkspace } from '@/lib/WorkspaceContext';
+import WorkspaceSetup from '@/pages/WorkspaceSetup';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 
 import AppLayout from '@/components/layout/AppLayout';
@@ -18,6 +20,17 @@ import AssetLabel from '@/pages/AssetLabel';
 import PublicScan from '@/pages/PublicScan';
 import Suppliers from '@/pages/Suppliers';
 import UsersManagement from '@/pages/UsersManagement';
+
+const WorkspaceGate = ({ children }) => {
+  const { workspace, loading } = useWorkspace();
+  if (loading) return (
+    <div className="fixed inset-0 flex items-center justify-center">
+      <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
+    </div>
+  );
+  if (!workspace) return <WorkspaceSetup />;
+  return children;
+};
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -40,6 +53,8 @@ const AuthenticatedApp = () => {
   }
 
   return (
+    <WorkspaceProvider>
+      <WorkspaceGate>
     <Routes>
       <Route path="/" element={<Navigate to="/Dashboard" replace />} />
       <Route path="/scan" element={<PublicScan />} />
@@ -57,6 +72,8 @@ const AuthenticatedApp = () => {
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
+      </WorkspaceGate>
+    </WorkspaceProvider>
   );
 };
 

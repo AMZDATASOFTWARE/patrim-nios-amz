@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileText, Download, Table } from 'lucide-react';
@@ -17,10 +17,11 @@ export default function Reports() {
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('Todas');
   const [generating, setGenerating] = useState(false);
+  const AssetEntity = useWorkspaceEntity('Asset');
 
   useEffect(() => {
     const load = async () => {
-      const data = await base44.entities.Asset.list('-created_date', 200);
+      const data = await AssetEntity.list('-created_date', 200);
       setAssets(data);
       setLoading(false);
     };

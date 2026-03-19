@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { 
   calculateCurrentValue, 
   calculateAccumulatedDepreciation, 
@@ -16,15 +16,16 @@ import { Building2, TrendingDown, Package, DollarSign } from 'lucide-react';
 export default function Dashboard() {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
+  const AssetEntity = useWorkspaceEntity('Asset');
 
   useEffect(() => {
     const loadAssets = async () => {
-      const data = await base44.entities.Asset.list('-created_date', 100);
+      const data = await AssetEntity.list('-created_date', 100);
       setAssets(data);
       setLoading(false);
     };
     loadAssets();
-  }, []);
+  }, [AssetEntity.list]);
 
   if (loading) {
     return (

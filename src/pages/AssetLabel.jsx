@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useState, useEffect } from 'react';
+import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
@@ -77,8 +77,10 @@ export default function AssetLabel() {
   const [categoryFilter, setCategoryFilter] = useState('Todas');
   const appUrl = window.location.origin;
 
+  const AssetEntity = useWorkspaceEntity('Asset');
+
   useEffect(() => {
-    base44.entities.Asset.list('-created_date', 200).then(d => { setAssets(d); setLoading(false); });
+    AssetEntity.list('-created_date', 200).then(d => { setAssets(d); setLoading(false); });
   }, []);
 
   const filtered = assets.filter(a => {

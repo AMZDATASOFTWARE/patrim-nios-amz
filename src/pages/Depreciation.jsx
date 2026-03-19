@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { Link } from 'react-router-dom';
 import {
   formatCurrency, calculateCurrentValue, calculateAccumulatedDepreciation,
@@ -15,10 +15,11 @@ export default function Depreciation() {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('Todas');
+  const AssetEntity = useWorkspaceEntity('Asset');
 
   useEffect(() => {
     const load = async () => {
-      const data = await base44.entities.Asset.list('-created_date', 200);
+      const data = await AssetEntity.list('-created_date', 200);
       setAssets(data);
       setLoading(false);
     };
