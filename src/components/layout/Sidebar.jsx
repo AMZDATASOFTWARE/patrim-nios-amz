@@ -12,7 +12,9 @@ import {
   QrCode,
   Truck,
   Users,
+  Settings,
 } from 'lucide-react';
+import { useWorkspace } from '@/lib/WorkspaceContext';
 import { base44 } from '@/api/base44Client';
 
 const navigation = [
@@ -28,6 +30,7 @@ const navigation = [
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
   const location = useLocation();
+  const { workspace } = useWorkspace();
 
   const NavItem = ({ item }) => {
     const isActive = location.pathname === item.href;
@@ -63,8 +66,8 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           </div>
           {!collapsed && (
             <div className="overflow-hidden">
-              <h1 className="text-base font-bold text-sidebar-foreground leading-tight truncate">Patrimônio</h1>
-              <p className="text-xs text-sidebar-foreground/60 truncate">Sistema Contábil</p>
+              <h1 className="text-base font-bold text-sidebar-foreground leading-tight truncate">{workspace?.name || 'Patrimônio'}</h1>
+              <p className="text-xs text-sidebar-foreground/60 truncate">{workspace?.plan === 'personal' ? 'Conta Pessoal' : 'Empresa'}</p>
             </div>
           )}
         </div>
