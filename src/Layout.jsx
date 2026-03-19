@@ -1,0 +1,54 @@
+import { useState } from 'react';
+import Sidebar from './components/layout/Sidebar';
+
+export default function Layout({ children, currentPageName }) {
+  const [collapsed, setCollapsed] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
+
+  // Public pages: no sidebar/layout
+  if (currentPageName === 'PublicScan') {
+    return <>{children}</>;
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      <Sidebar
+        collapsed={collapsed}
+        onToggle={() => setCollapsed(!collapsed)}
+        mobileOpen={mobileOpen}
+        onMobileClose={() => setMobileOpen(false)}
+      />
+
+      <main
+        className={`transition-all duration-300 min-h-screen ${
+          collapsed ? 'lg:pl-16' : 'lg:pl-64'
+        }`}
+      >
+        {/* Mobile top bar */}
+        <div className="lg:hidden flex items-center gap-3 h-14 px-4 border-b border-border bg-card sticky top-0 z-20">
+          <button
+            onClick={() => setMobileOpen(true)}
+            className="p-2 rounded-lg hover:bg-muted transition-colors"
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <span className="font-semibold text-foreground">Patrimônio</span>
+        </div>
+
+        <div className="p-4 sm:p-6 lg:p-8">
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}

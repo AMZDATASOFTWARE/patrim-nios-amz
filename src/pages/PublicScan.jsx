@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { formatCurrency, calculateCurrentValue, getUsefulLifeFromRate } from '@/lib/depreciation';
-import { MapPin, Package, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { MapPin, Package, CheckCircle, AlertCircle, Loader2, QrCode } from 'lucide-react';
 
 export default function PublicScan() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -10,31 +9,41 @@ export default function PublicScan() {
   const [asset, setAsset] = useState(null);
   const [loading, setLoading] = useState(true);
   const [locStatus, setLocStatus] = useState('idle'); // idle | loading | success | denied | error
-  const [position, setPosition] = useState(null);
   const [address, setAddress] = useState('');
   const [scannedBy, setScannedBy] = useState('');
+  const [locationRegistered, setLocationRegistered] = useState(false);
 
   useEffect(() => {
     if (!assetId) { setLoading(false); return; }
-    base44.entities.Asset.filter({ id: assetId }).then(data => {
-      if (data.length > 0) setAsset(data[0]);
+    base44.entities.Asset.list().then(data => {
+      const found = data.find(a => a.id === assetId);
+      if (found) setAsset(found);
       setLoading(false);
     });
   }, [assetId]);
 
+  // Auto-trigger location on page load (QR scan = immediate location capture)
+  useEffect(() => {
+    if (asset && locStatus === 'idle') {
+      registerLocation();
+    }
+  }, [asset]);
+
   const registerLocation = async () => {
-    if (!navigator.geolocation) { setLocStatus('error'); return; }
+    if (!navigator.geolocation || locationRegistered) return;
     setLocStatus('loading');
+
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-        setPosition({ lat, lng });
 
-        // Reverse geocode using Nominatim (free, no key)
+        // Reverse geocode using Nominatim (free, no API key)
         let addr = '';
         try {
-          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&accept-language=pt-BR`
+          );
           const json = await res.json();
           addr = json.display_name || '';
           setAddress(addr);
@@ -52,27 +61,32 @@ export default function PublicScan() {
         });
 
         setLocStatus('success');
+        setLocationRegistered(true);
       },
-      () => setLocStatus('denied'),
-      { enableHighAccuracy: true, timeout: 10000 }
+      (err) => {
+        setLocStatus('denied');
+      },
+      { enableHighAccuracy: true, timeout: 15000 }
     );
   };
 
   const usefulLife = asset ? (asset.useful_life_years || getUsefulLifeFromRate(asset.depreciation_rate)) : 0;
-  const currentValue = asset ? calculateCurrentValue(asset.purchase_date, asset.acquisition_value, asset.residual_value || 0, usefulLife) : 0;
+  const currentValue = asset ? calculateCurrentValue(
+    asset.purchase_date, asset.acquisition_value, asset.residual_value || 0, usefulLife
+  ) : 0;
 
   if (loading) return (
-    <div className="min-h-screen bg-background flex items-center justify-center">
-      <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-blue-900 flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-white/30 border-t-white rounded-full animate-spin" />
     </div>
   );
 
-  if (!asset) return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="bg-card rounded-2xl border border-border p-8 text-center max-w-sm w-full shadow-lg">
-        <AlertCircle className="h-12 w-12 text-destructive mx-auto mb-4" />
-        <h2 className="text-xl font-bold">Ativo não encontrado</h2>
-        <p className="text-muted-foreground mt-2">O QR Code escaneado não corresponde a nenhum ativo cadastrado.</p>
+  if (!assetId || !asset) return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-blue-900 flex items-center justify-center p-4">
+      <div className="bg-white rounded-2xl p-8 text-center max-w-sm w-full shadow-2xl">
+        <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
+        <h2 className="text-xl font-bold text-slate-800">Ativo não encontrado</h2>
+        <p className="text-slate-500 mt-2 text-sm">O QR Code escaneado não corresponde a nenhum ativo cadastrado.</p>
       </div>
     </div>
   );
@@ -80,35 +94,45 @@ export default function PublicScan() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-blue-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
+
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-700 to-blue-500 p-6 text-white">
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-2 mb-4">
+            <QrCode className="h-4 w-4 opacity-70" />
+            <span className="text-xs opacity-70 font-medium uppercase tracking-wider">Patrimônio Escaneado</span>
+          </div>
+          <div className="flex items-center gap-4">
             {asset.photo_url
-              ? <img src={asset.photo_url} alt="" className="h-14 w-14 rounded-xl object-cover border-2 border-white/50" />
-              : <div className="h-14 w-14 rounded-xl bg-white/20 flex items-center justify-center"><Package className="h-7 w-7" /></div>
+              ? <img src={asset.photo_url} alt="" className="h-16 w-16 rounded-xl object-cover border-2 border-white/40 flex-shrink-0" />
+              : <div className="h-16 w-16 rounded-xl bg-white/20 flex items-center justify-center flex-shrink-0">
+                  <Package className="h-8 w-8" />
+                </div>
             }
             <div>
-              <h1 className="text-lg font-bold leading-tight">{asset.name}</h1>
-              <p className="text-blue-200 text-sm">{asset.category}</p>
+              <h1 className="text-xl font-bold leading-tight">{asset.name}</h1>
+              <p className="text-blue-200 text-sm mt-0.5">{asset.category}</p>
+              {asset.status && (
+                <span className="inline-block mt-1 px-2 py-0.5 bg-white/20 rounded-full text-xs font-medium">{asset.status}</span>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Info */}
-        <div className="p-5 space-y-3">
+        {/* Asset Info */}
+        <div className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-slate-50 rounded-xl p-3 text-center">
-              <p className="text-xs text-slate-500">Status</p>
-              <p className="text-sm font-semibold mt-1">{asset.status || 'Ativo'}</p>
+              <p className="text-xs text-slate-500 mb-1">Valor Contábil</p>
+              <p className="text-base font-bold text-blue-700">{formatCurrency(currentValue)}</p>
             </div>
             <div className="bg-slate-50 rounded-xl p-3 text-center">
-              <p className="text-xs text-slate-500">Valor Contábil</p>
-              <p className="text-sm font-semibold text-blue-700 mt-1">{formatCurrency(currentValue)}</p>
+              <p className="text-xs text-slate-500 mb-1">Categoria</p>
+              <p className="text-sm font-semibold text-slate-700">{asset.category}</p>
             </div>
           </div>
 
           {asset.location && (
-            <div className="flex items-start gap-2 text-sm text-slate-600">
+            <div className="flex items-start gap-2 text-sm text-slate-600 bg-slate-50 rounded-xl p-3">
               <MapPin className="h-4 w-4 mt-0.5 text-slate-400 flex-shrink-0" />
               <span>{asset.location}</span>
             </div>
@@ -119,15 +143,15 @@ export default function PublicScan() {
           )}
         </div>
 
-        {/* Location registration */}
-        <div className="px-5 pb-6 space-y-3">
-          <div className="h-px bg-slate-100" />
-          <p className="text-xs text-slate-500 text-center">Ajude a manter o controle registrando sua localização ao escanear</p>
+        {/* Location Section */}
+        <div className="px-5 pb-6">
+          <div className="h-px bg-slate-100 mb-4" />
 
           {locStatus === 'idle' && (
-            <>
+            <div className="space-y-3">
+              <p className="text-xs text-slate-500 text-center">Registre sua localização para atualizar a posição deste patrimônio</p>
               <input
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="Seu nome (opcional)"
                 value={scannedBy}
                 onChange={e => setScannedBy(e.target.value)}
@@ -136,30 +160,45 @@ export default function PublicScan() {
                 onClick={registerLocation}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
               >
-                <MapPin className="h-4 w-4" /> Registrar minha localização
+                <MapPin className="h-4 w-4" /> Registrar localização
               </button>
-            </>
+            </div>
           )}
 
           {locStatus === 'loading' && (
-            <div className="flex items-center justify-center gap-2 py-3 text-slate-600">
-              <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
-              <span className="text-sm">Obtendo localização...</span>
+            <div className="flex flex-col items-center justify-center gap-3 py-4 text-slate-600">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <div className="text-center">
+                <p className="font-medium text-sm">Obtendo sua localização...</p>
+                <p className="text-xs text-slate-400 mt-1">Pode ser necessário permitir o acesso à localização</p>
+              </div>
             </div>
           )}
 
           {locStatus === 'success' && (
-            <div className="bg-emerald-50 rounded-xl p-4 text-center">
-              <CheckCircle className="h-8 w-8 text-emerald-500 mx-auto mb-2" />
-              <p className="font-semibold text-emerald-700">Localização registrada!</p>
-              {address && <p className="text-xs text-emerald-600 mt-1">{address.slice(0, 80)}...</p>}
+            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-center">
+              <CheckCircle className="h-9 w-9 text-emerald-500 mx-auto mb-2" />
+              <p className="font-bold text-emerald-700">Localização registrada!</p>
+              <p className="text-xs text-emerald-600 mt-1">A posição deste patrimônio foi atualizada com sucesso.</p>
+              {address && (
+                <p className="text-xs text-emerald-500 mt-2 line-clamp-2">{address}</p>
+              )}
             </div>
           )}
 
           {locStatus === 'denied' && (
-            <div className="bg-amber-50 rounded-xl p-4 text-center">
-              <AlertCircle className="h-7 w-7 text-amber-500 mx-auto mb-2" />
-              <p className="text-sm text-amber-700">Permissão de localização negada. Libere nas configurações do seu navegador.</p>
+            <div className="space-y-3">
+              <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-center">
+                <AlertCircle className="h-7 w-7 text-amber-500 mx-auto mb-2" />
+                <p className="font-medium text-amber-700 text-sm">Permissão negada</p>
+                <p className="text-xs text-amber-600 mt-1">Libere o acesso à localização nas configurações do navegador e tente novamente.</p>
+              </div>
+              <button
+                onClick={() => { setLocStatus('idle'); }}
+                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
+              >
+                Tentar novamente
+              </button>
             </div>
           )}
         </div>
