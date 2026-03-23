@@ -14,18 +14,30 @@ function LabelCard({ asset, appUrl }) {
   const currentValue = calculateCurrentValue(asset.purchase_date, asset.acquisition_value, asset.residual_value || 0, usefulLife);
 
   const handlePrint = () => {
-    const printContent = document.getElementById(`label-${asset.id}`).innerHTML;
     const w = window.open('', '_blank');
-    w.document.write(`<html><head><title>Etiqueta</title><style>
+    w.document.write(`<!DOCTYPE html><html><head><title>Etiqueta - ${asset.name}</title><style>
       body{font-family:sans-serif;margin:0;display:flex;justify-content:center;padding:20px}
-      .label{border:2px solid #1e293b;border-radius:8px;padding:16px;width:280px;display:flex;gap:12px;align-items:flex-start}
+      .label{border:2px solid #1e293b;border-radius:8px;padding:16px;width:300px;display:flex;gap:12px;align-items:flex-start}
       .info{flex:1} .name{font-size:13px;font-weight:700;color:#1e293b;margin-bottom:4px}
       .cat{font-size:10px;color:#64748b;margin-bottom:6px} .row{font-size:10px;color:#475569;margin-bottom:2px}
       .id{font-size:8px;color:#94a3b8;margin-top:8px;font-family:monospace}
-      .badge{display:inline-block;padding:2px 8px;border-radius:9999px;font-size:9px;font-weight:600;background:#d1fae5;color:#065f46}
-    </style></head><body>${document.getElementById(`label-${asset.id}`).outerHTML}</body></html>`);
+      img{width:96px;height:96px;flex-shrink:0;border:1px solid #e2e8f0;border-radius:8px}
+      @media print { body { margin: 0; padding: 10px; } }
+    </style></head><body>
+      <div class="label">
+        <img src="${qrUrl}" crossorigin="anonymous" />
+        <div class="info">
+          <div class="name">${asset.name}</div>
+          <div class="cat">${asset.category}</div>
+          ${asset.location ? `<div class="row">📍 ${asset.location}</div>` : ''}
+          <div class="row">💰 ${formatCurrency(currentValue)}</div>
+          ${asset.status ? `<div class="row">${asset.status === 'Ativo' ? '🟢' : '🟡'} ${asset.status}</div>` : ''}
+          <div class="id">${asset.id?.slice(0, 16)}...</div>
+        </div>
+      </div>
+      <script>window.onload = function() { setTimeout(function(){ window.print(); }, 500); };<\/script>
+    </body></html>`);
     w.document.close();
-    w.print();
   };
 
   return (
