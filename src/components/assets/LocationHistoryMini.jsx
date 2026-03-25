@@ -14,14 +14,13 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-const latestIcon = L.divIcon({
-  html: `<div style="background:#3b82f6;width:20px;height:20px;border-radius:50%;border:3px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.3)"></div>`,
-  iconSize: [20, 20], iconAnchor: [10, 10], className: '',
-});
-
-const oldIcon = L.divIcon({
-  html: `<div style="background:#94a3b8;width:12px;height:12px;border-radius:50%;border:2px solid white;box-shadow:0 1px 3px rgba(0,0,0,0.2)"></div>`,
-  iconSize: [12, 12], iconAnchor: [6, 6], className: '',
+const makeNumberedIcon = (num, isLatest) => L.divIcon({
+  html: isLatest
+    ? `<div style="background:#2563eb;color:white;width:32px;height:32px;border-radius:50%;border:3px solid white;box-shadow:0 3px 10px rgba(37,99,235,0.5);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;font-family:sans-serif">${num}</div>`
+    : `<div style="background:#64748b;color:white;width:22px;height:22px;border-radius:50%;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.25);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;font-family:sans-serif">${num}</div>`,
+  iconSize: isLatest ? [32, 32] : [22, 22],
+  iconAnchor: isLatest ? [16, 16] : [11, 11],
+  className: '',
 });
 
 export default function LocationHistoryMini({ assetId }) {
@@ -49,10 +48,11 @@ export default function LocationHistoryMini({ assetId }) {
     </div>
   );
 
-  const latest3 = history.slice(0, 3);
   const sorted = [...history].sort((a, b) => new Date(a.created_date) - new Date(b.created_date));
   const center = [history[0].latitude, history[0].longitude];
   const polyPoints = sorted.map(l => [l.latitude, l.longitude]);
+  // For the list, show newest first with descending numbers
+  const total = sorted.length;
 
   return (
     <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
@@ -66,60 +66,76 @@ export default function LocationHistoryMini({ assetId }) {
       </div>
 
       {/* Mini map */}
-      <div style={{ height: 200 }}>
+      <div style={{ height: 240 }}>
         <MapContainer center={center} zoom={13} style={{ height: '100%', width: '100%' }} zoomControl={false} scrollWheelZoom={false}>
           <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          {polyPoints.length > 1 && <Polyline positions={polyPoints} color="#94a3b8" weight={2} dashArray="4,4" />}
-          {sorted.slice(0, -1).map((loc, i) => (
-            <Marker key={i} position={[loc.latitude, loc.longitude]} icon={oldIcon}>
-              <Popup><p className="text-xs">{moment(loc.created_date).format('DD/MM HH:mm')}</p></Popup>
-            </Marker>
-          ))}
-          <Marker position={[history[0].latitude, history[0].longitude]} icon={latestIcon}>
-            <Popup><p className="text-xs font-medium">Posição atual</p></Popup>
-          </Marker>
+          {polyPoints.length > 1 && <Polyline positions={polyPoints} color="#3b82f6" weight={2} opacity={0.5} dashArray="5,5" />}
+          {sorted.map((loc, i) => {
+            const num = i + 1;
+            const isLatest = i === sorted.length - 1;
+            return (
+              <Marker key={i} position={[loc.latitude, loc.longitude]} icon={makeNumberedIcon(num, isLatest)}>
+                <Popup>
+                  <p className="text-xs font-semibold">{isLatest ? '📍 Último local visto' : `Visita #${num}`}</p>
+                  <p className="text-xs text-gray-500">{moment(loc.created_date).format('DD/MM/YYYY HH:mm')}</p>
+                  {loc.address && <p className="text-xs mt-1">{loc.address}</p>}
+                </Popup>
+              </Marker>
+            );
+          })}
         </MapContainer>
       </div>
 
-      {/* Last 3 positions */}
-      <div className="p-4 space-y-2">
-        <p className="text-sm font-medium text-muted-foreground mb-2">Últimas posições</p>
-        {latest3.map((loc, i) => (
-          <div
-            key={loc.id}
-            className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors cursor-default"
-          >
-            <div className={`flex-shrink-0 mt-1 h-2.5 w-2.5 rounded-full ${i === 0 ? 'bg-blue-500' : 'bg-slate-300'}`} />
+      {/* History list — newest first */}
+      <div className="p-4 space-y-1">
+        <p className="text-sm font-medium text-muted-foreground mb-3">Histórico de localizações</p>
+
+        {/* Latest location — highlighted */}
+        {(() => { const loc = history[0]; const num = total; return (
+          <div key={loc.id} className="flex items-start gap-3 p-3 rounded-lg bg-blue-50 border border-blue-200">
+            <div className="flex-shrink-0 flex items-center justify-center w-7 h-7 rounded-full bg-blue-600 text-white text-xs font-bold">{num}</div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm text-card-foreground truncate">{loc.address || `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`}</p>
+              <div className="flex items-center gap-2">
+                <p className="text-sm font-semibold text-blue-800 truncate">{loc.address || `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`}</p>
+                <span className="text-xs bg-blue-600 text-white px-1.5 py-0.5 rounded-full whitespace-nowrap">Último local</span>
+              </div>
               <div className="flex items-center gap-2 mt-0.5">
-                <Clock className="h-3 w-3 text-muted-foreground" />
-                <span className="text-xs text-muted-foreground">{moment(loc.created_date).fromNow()}</span>
-                <span className="text-xs text-muted-foreground">• {loc.source}</span>
-                {loc.scanned_by && <span className="text-xs text-muted-foreground">• {loc.scanned_by}</span>}
+                <Clock className="h-3 w-3 text-blue-500" />
+                <span className="text-xs text-blue-600">{moment(loc.created_date).fromNow()}</span>
+                <span className="text-xs text-blue-500">• {loc.source}</span>
+                {loc.scanned_by && <span className="text-xs text-blue-500">• {loc.scanned_by}</span>}
               </div>
             </div>
           </div>
-        ))}
+        ); })()}
 
-        {history.length > 3 && (
+        {/* Older locations */}
+        {(showAll ? history.slice(1) : history.slice(1, 4)).map((loc, i) => {
+          const num = total - 1 - i;
+          return (
+            <div key={loc.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-muted/30 transition-colors">
+              <div className="flex-shrink-0 flex items-center justify-center w-6 h-6 rounded-full bg-slate-200 text-slate-600 text-xs font-bold">{num}</div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-card-foreground truncate">{loc.address || `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`}</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <Clock className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">{moment(loc.created_date).format('DD/MM/YYYY HH:mm')}</span>
+                  <span className="text-xs text-muted-foreground">• {loc.source}</span>
+                  {loc.scanned_by && <span className="text-xs text-muted-foreground">• {loc.scanned_by}</span>}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+
+        {history.length > 4 && (
           <button
             onClick={() => setShowAll(!showAll)}
             className="w-full flex items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground pt-1 transition-colors"
           >
-            {showAll ? <><ChevronUp className="h-4 w-4" /> Ocultar histórico</> : <><ChevronDown className="h-4 w-4" /> Ver {history.length - 3} posição(ões) anteriores</>}
+            {showAll ? <><ChevronUp className="h-4 w-4" /> Ocultar histórico</> : <><ChevronDown className="h-4 w-4" /> Ver {history.length - 4} posição(ões) anteriores</>}
           </button>
         )}
-
-        {showAll && history.slice(3).map((loc, i) => (
-          <div key={loc.id} className="flex items-start gap-3 p-2 rounded-lg">
-            <div className="flex-shrink-0 mt-1 h-2 w-2 rounded-full bg-slate-200" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs text-muted-foreground truncate">{loc.address || `${loc.latitude.toFixed(4)}, ${loc.longitude.toFixed(4)}`}</p>
-              <p className="text-xs text-muted-foreground/60">{moment(loc.created_date).format('DD/MM/YYYY HH:mm')} • {loc.source}</p>
-            </div>
-          </div>
-        ))}
       </div>
     </div>
   );
