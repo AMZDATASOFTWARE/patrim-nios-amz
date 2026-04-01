@@ -26,6 +26,7 @@ const navigation = [
   { name: 'Relatórios', href: '/Reports', icon: FileText },
   { name: 'Fornecedores', href: '/Suppliers', icon: Truck },
   { name: 'Usuários', href: '/UsersManagement', icon: Users },
+  { name: 'Configurações', href: '/Settings', icon: Settings },
 ];
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {

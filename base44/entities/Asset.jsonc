@@ -1,0 +1,100 @@
+{
+  "name": "Asset",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "name": {
+      "type": "string",
+      "title": "Nome do Ativo"
+    },
+    "description": {
+      "type": "string",
+      "title": "Descri\u00e7\u00e3o"
+    },
+    "category": {
+      "type": "string",
+      "title": "Categoria",
+      "enum": [
+        "Im\u00f3veis",
+        "Ve\u00edculos",
+        "Equipamentos",
+        "Investimentos",
+        "Intang\u00edveis"
+      ]
+    },
+    "acquisition_value": {
+      "type": "number",
+      "title": "Valor de Aquisi\u00e7\u00e3o (R$)"
+    },
+    "purchase_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data de Compra"
+    },
+    "depreciation_rate": {
+      "type": "number",
+      "title": "Taxa de Deprecia\u00e7\u00e3o Anual (%)"
+    },
+    "useful_life_years": {
+      "type": "number",
+      "title": "Vida \u00datil (anos)"
+    },
+    "residual_value": {
+      "type": "number",
+      "title": "Valor Residual (R$)"
+    },
+    "location": {
+      "type": "string",
+      "title": "Localiza\u00e7\u00e3o"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "Ativo",
+        "Em Manuten\u00e7\u00e3o",
+        "Inativo",
+        "Alienado"
+      ]
+    },
+    "supplier_id": {
+      "type": "string",
+      "title": "ID do Fornecedor"
+    },
+    "supplier_name": {
+      "type": "string",
+      "title": "Fornecedor"
+    },
+    "photo_url": {
+      "type": "string",
+      "title": "Foto do Ativo"
+    },
+    "invoice_url": {
+      "type": "string",
+      "title": "Nota Fiscal"
+    },
+    "external_link": {
+      "type": "string",
+      "title": "Link Externo (Consulta de Valor)"
+    },
+    "registry_link": {
+      "type": "string",
+      "title": "Link do Registro (Cart\u00f3rio/Corretora)"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observa\u00e7\u00f5es"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "name",
+    "category",
+    "acquisition_value",
+    "purchase_date",
+    "depreciation_rate"
+  ]
+}

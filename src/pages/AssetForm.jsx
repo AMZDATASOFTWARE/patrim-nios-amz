@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, Upload, Save } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getDefaultDepreciationRate, getUsefulLifeFromRate } from '@/lib/depreciation';
+import SupplierSelect from '@/components/assets/SupplierSelect';
 
 const categories = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
 const statuses = ['Ativo', 'Em Manutenção', 'Inativo', 'Alienado'];
@@ -21,6 +22,7 @@ export default function AssetForm() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!!editId);
   const AssetEntity = useWorkspaceEntity('Asset');
+  const ConfigEntity = useWorkspaceEntity('DepreciationConfig');
 
   const [form, setForm] = useState({
     name: '',
@@ -33,6 +35,8 @@ export default function AssetForm() {
     residual_value: '',
     location: '',
     status: 'Ativo',
+    supplier_id: '',
+    supplier_name: '',
     external_link: '',
     registry_link: '',
     notes: '',
@@ -68,14 +72,18 @@ export default function AssetForm() {
     }
   }, [editId]);
 
-  const handleCategoryChange = (value) => {
-    const rate = getDefaultDepreciationRate(value);
-    setForm({
-      ...form,
-      category: value,
-      depreciation_rate: rate,
-      useful_life_years: getUsefulLifeFromRate(rate),
-    });
+  const handleCategoryChange = async (value) => {
+    // Try to load from saved config first
+    const configs = await ConfigEntity.filter({ category: value });
+    let rate, life;
+    if (configs.length > 0) {
+      rate = configs[0].depreciation_rate;
+      life = configs[0].useful_life_years;
+    } else {
+      rate = getDefaultDepreciationRate(value);
+      life = getUsefulLifeFromRate(rate);
+    }
+    setForm({ ...form, category: value, depreciation_rate: rate, useful_life_years: life });
   };
 
   const handleFileUpload = async (e, field) => {
@@ -95,6 +103,8 @@ export default function AssetForm() {
       depreciation_rate: parseFloat(form.depreciation_rate) || 0,
       useful_life_years: parseFloat(form.useful_life_years) || 0,
       residual_value: parseFloat(form.residual_value) || 0,
+      supplier_id: form.supplier_id || '',
+      supplier_name: form.supplier_name || '',
     };
 
     if (editId) {
@@ -190,6 +200,14 @@ export default function AssetForm() {
                 value={form.location}
                 onChange={(e) => setForm({ ...form, location: e.target.value })}
                 placeholder="Ex: Matriz - Galpão 3"
+              />
+            </div>
+
+            <div className="sm:col-span-2">
+              <Label>Fornecedor</Label>
+              <SupplierSelect
+                value={form.supplier_id}
+                onChange={({ supplier_id, supplier_name }) => setForm({ ...form, supplier_id, supplier_name })}
               />
             </div>
           </div>

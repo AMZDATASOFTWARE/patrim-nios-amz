@@ -1,0 +1,35 @@
+{
+  "name": "DepreciationConfig",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "category": {
+      "type": "string",
+      "title": "Categoria",
+      "enum": [
+        "Im\u00f3veis",
+        "Ve\u00edculos",
+        "Equipamentos",
+        "Investimentos",
+        "Intang\u00edveis"
+      ]
+    },
+    "depreciation_rate": {
+      "type": "number",
+      "title": "Taxa de Deprecia\u00e7\u00e3o Anual (%)"
+    },
+    "useful_life_years": {
+      "type": "number",
+      "title": "Vida \u00datil (anos)"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "category",
+    "depreciation_rate",
+    "useful_life_years"
+  ]
+}

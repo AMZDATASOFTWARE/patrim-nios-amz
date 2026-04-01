@@ -20,6 +20,7 @@ import AssetLabel from '@/pages/AssetLabel';
 import PublicScan from '@/pages/PublicScan';
 import Suppliers from '@/pages/Suppliers';
 import UsersManagement from '@/pages/UsersManagement';
+import Settings from '@/pages/Settings';
 
 const WorkspaceGate = ({ children }) => {
   const { workspace, loading } = useWorkspace();
@@ -69,6 +70,7 @@ const AuthenticatedApp = () => {
         <Route path="/AssetLabel" element={<AssetLabel />} />
         <Route path="/Suppliers" element={<Suppliers />} />
         <Route path="/UsersManagement" element={<UsersManagement />} />
+        <Route path="/Settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
