@@ -26,15 +26,22 @@ export default function AssetForm() {
 
   const [form, setForm] = useState({
     name: '',
+    plaqueta: '',
     description: '',
     category: 'Equipamentos',
+    account: '',
+    cost_center: '',
     acquisition_value: '',
     purchase_date: '',
+    depreciation_start_date: '',
     depreciation_rate: 10,
     useful_life_years: 10,
     residual_value: '',
     location: '',
     status: 'Ativo',
+    conservation_state: 'Novo',
+    serial_number: '',
+    fiscal_document: '',
     supplier_id: '',
     supplier_name: '',
     external_link: '',
@@ -50,15 +57,24 @@ export default function AssetForm() {
           const asset = assets[0];
           setForm({
             name: asset.name || '',
+            plaqueta: asset.plaqueta || '',
             description: asset.description || '',
             category: asset.category || 'Equipamentos',
+            account: asset.account || '',
+            cost_center: asset.cost_center || '',
             acquisition_value: asset.acquisition_value || '',
             purchase_date: asset.purchase_date || '',
+            depreciation_start_date: asset.depreciation_start_date || '',
             depreciation_rate: asset.depreciation_rate || 10,
             useful_life_years: asset.useful_life_years || getUsefulLifeFromRate(asset.depreciation_rate),
             residual_value: asset.residual_value || '',
             location: asset.location || '',
             status: asset.status || 'Ativo',
+            conservation_state: asset.conservation_state || 'Novo',
+            serial_number: asset.serial_number || '',
+            fiscal_document: asset.fiscal_document || '',
+            supplier_id: asset.supplier_id || '',
+            supplier_name: asset.supplier_name || '',
             photo_url: asset.photo_url || '',
             invoice_url: asset.invoice_url || '',
             external_link: asset.external_link || '',
@@ -144,71 +160,72 @@ export default function AssetForm() {
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Info */}
         <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
-          <h2 className="text-lg font-semibold text-card-foreground">Informações Básicas</h2>
+          <h2 className="text-lg font-semibold text-card-foreground">Identificação do Bem</h2>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
-              <Label htmlFor="name">Nome do Ativo *</Label>
-              <Input
-                id="name"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-                placeholder="Ex: Caminhão Mercedes-Benz"
-              />
+              <Label htmlFor="name">Descrição do Bem *</Label>
+              <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="Ex: Caminhão Mercedes-Benz Atego 1719" />
             </div>
-            
-            <div className="sm:col-span-2">
-              <Label htmlFor="description">Descrição</Label>
-              <Textarea
-                id="description"
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                placeholder="Detalhes sobre o ativo..."
-                rows={3}
-              />
-            </div>
-            
+
             <div>
-              <Label>Categoria *</Label>
+              <Label htmlFor="plaqueta">Plaqueta / Código Patrimonial</Label>
+              <Input id="plaqueta" value={form.plaqueta} onChange={(e) => setForm({ ...form, plaqueta: e.target.value })} placeholder="Ex: PAT-00123" />
+            </div>
+
+            <div>
+              <Label htmlFor="serial_number">Número de Série</Label>
+              <Input id="serial_number" value={form.serial_number} onChange={(e) => setForm({ ...form, serial_number: e.target.value })} placeholder="Ex: SN-ABC123456" />
+            </div>
+
+            <div>
+              <Label>Grupo de Patrimônio *</Label>
               <Select value={form.category} onValueChange={handleCategoryChange}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-                  ))}
+                  {categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
-            
+
             <div>
               <Label>Status</Label>
               <Select value={form.status} onValueChange={(v) => setForm({ ...form, status: v })}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
-                  {statuses.map((s) => (
-                    <SelectItem key={s} value={s}>{s}</SelectItem>
-                  ))}
+                  {statuses.map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
-            
-            <div className="sm:col-span-2">
-              <Label htmlFor="location">Localização</Label>
-              <Input
-                id="location"
-                value={form.location}
-                onChange={(e) => setForm({ ...form, location: e.target.value })}
-                placeholder="Ex: Matriz - Galpão 3"
-              />
+
+            <div>
+              <Label>Estado de Conservação</Label>
+              <Select value={form.conservation_state} onValueChange={(v) => setForm({ ...form, conservation_state: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {['Novo','Ótimo','Bom','Regular','Ruim'].map((s) => (<SelectItem key={s} value={s}>{s}</SelectItem>))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="account">Conta Contábil</Label>
+              <Input id="account" value={form.account} onChange={(e) => setForm({ ...form, account: e.target.value })} placeholder="Ex: 1.2.3.01 - Máquinas e Equipamentos" />
+            </div>
+
+            <div>
+              <Label htmlFor="cost_center">Centro de Custo / Departamento</Label>
+              <Input id="cost_center" value={form.cost_center} onChange={(e) => setForm({ ...form, cost_center: e.target.value })} placeholder="Ex: Produção - Galpão 1" />
             </div>
 
             <div className="sm:col-span-2">
-              <Label>Fornecedor</Label>
-              <SupplierSelect
-                value={form.supplier_id}
-                onChange={({ supplier_id, supplier_name }) => setForm({ ...form, supplier_id, supplier_name })}
-              />
+              <Label htmlFor="location">Localização Física</Label>
+              <Input id="location" value={form.location} onChange={(e) => setForm({ ...form, location: e.target.value })} placeholder="Ex: Matriz - Galpão 3, Sala 02" />
+            </div>
+
+            <div className="sm:col-span-2">
+              <Label htmlFor="description">Detalhes Adicionais</Label>
+              <Textarea id="description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Detalhes sobre o bem..." rows={3} />
             </div>
           </div>
         </div>
@@ -232,13 +249,23 @@ export default function AssetForm() {
             </div>
             
             <div>
-              <Label htmlFor="purchase_date">Data de Compra *</Label>
+              <Label htmlFor="purchase_date">Data de Aquisição *</Label>
               <Input
                 id="purchase_date"
                 type="date"
                 value={form.purchase_date}
                 onChange={(e) => setForm({ ...form, purchase_date: e.target.value })}
                 required
+              />
+            </div>
+
+            <div>
+              <Label htmlFor="depreciation_start_date">Início da Depreciação</Label>
+              <Input
+                id="depreciation_start_date"
+                type="date"
+                value={form.depreciation_start_date}
+                onChange={(e) => setForm({ ...form, depreciation_start_date: e.target.value })}
               />
             </div>
             
@@ -288,6 +315,29 @@ export default function AssetForm() {
           </div>
         </div>
 
+        {/* Supplier & Fiscal */}
+        <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+          <h2 className="text-lg font-semibold text-card-foreground">Fornecedor & Documento Fiscal</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="sm:col-span-2">
+              <Label>Fornecedor</Label>
+              <SupplierSelect
+                value={form.supplier_id}
+                onChange={({ supplier_id, supplier_name }) => setForm({ ...form, supplier_id, supplier_name })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="fiscal_document">Número da Nota Fiscal</Label>
+              <Input
+                id="fiscal_document"
+                value={form.fiscal_document}
+                onChange={(e) => setForm({ ...form, fiscal_document: e.target.value })}
+                placeholder="Ex: NF-e 000123"
+              />
+            </div>
+          </div>
+        </div>
+
         {/* Attachments */}
         <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
           <h2 className="text-lg font-semibold text-card-foreground">Anexos e Links</h2>
@@ -299,15 +349,7 @@ export default function AssetForm() {
                 {form.photo_url ? (
                   <div className="relative">
                     <img src={form.photo_url} alt="Foto" className="h-32 w-full object-cover rounded-lg" />
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      className="absolute top-2 right-2"
-                      onClick={() => setForm({ ...form, photo_url: '' })}
-                    >
-                      Remover
-                    </Button>
+                    <Button type="button" variant="destructive" size="sm" className="absolute top-2 right-2" onClick={() => setForm({ ...form, photo_url: '' })}>Remover</Button>
                   </div>
                 ) : (
                   <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
@@ -320,19 +362,12 @@ export default function AssetForm() {
             </div>
             
             <div>
-              <Label>Nota Fiscal</Label>
+              <Label>Nota Fiscal (Arquivo)</Label>
               <div className="mt-1">
                 {form.invoice_url ? (
                   <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
                     <span className="text-sm text-card-foreground flex-1 truncate">Arquivo enviado</span>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => setForm({ ...form, invoice_url: '' })}
-                    >
-                      Remover
-                    </Button>
+                    <Button type="button" variant="destructive" size="sm" onClick={() => setForm({ ...form, invoice_url: '' })}>Remover</Button>
                   </div>
                 ) : (
                   <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
@@ -346,22 +381,12 @@ export default function AssetForm() {
             
             <div>
               <Label htmlFor="external_link">Link Externo (Consulta de Valor)</Label>
-              <Input
-                id="external_link"
-                value={form.external_link}
-                onChange={(e) => setForm({ ...form, external_link: e.target.value })}
-                placeholder="https://..."
-              />
+              <Input id="external_link" value={form.external_link} onChange={(e) => setForm({ ...form, external_link: e.target.value })} placeholder="https://..." />
             </div>
             
             <div>
               <Label htmlFor="registry_link">Link do Registro (Cartório/Corretora)</Label>
-              <Input
-                id="registry_link"
-                value={form.registry_link}
-                onChange={(e) => setForm({ ...form, registry_link: e.target.value })}
-                placeholder="https://..."
-              />
+              <Input id="registry_link" value={form.registry_link} onChange={(e) => setForm({ ...form, registry_link: e.target.value })} placeholder="https://..." />
             </div>
           </div>
           

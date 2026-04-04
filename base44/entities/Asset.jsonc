@@ -8,15 +8,19 @@
     },
     "name": {
       "type": "string",
-      "title": "Nome do Ativo"
+      "title": "Descri\u00e7\u00e3o do Bem"
+    },
+    "plaqueta": {
+      "type": "string",
+      "title": "Plaqueta / C\u00f3digo"
     },
     "description": {
       "type": "string",
-      "title": "Descri\u00e7\u00e3o"
+      "title": "Detalhes Adicionais"
     },
     "category": {
       "type": "string",
-      "title": "Categoria",
+      "title": "Grupo de Patrim\u00f4nio",
       "enum": [
         "Im\u00f3veis",
         "Ve\u00edculos",
@@ -25,6 +29,14 @@
         "Intang\u00edveis"
       ]
     },
+    "account": {
+      "type": "string",
+      "title": "Conta Cont\u00e1bil"
+    },
+    "cost_center": {
+      "type": "string",
+      "title": "Centro de Custo / Departamento"
+    },
     "acquisition_value": {
       "type": "number",
       "title": "Valor de Aquisi\u00e7\u00e3o (R$)"
@@ -32,7 +44,12 @@
     "purchase_date": {
       "type": "string",
       "format": "date",
-      "title": "Data de Compra"
+      "title": "Data de Aquisi\u00e7\u00e3o"
+    },
+    "depreciation_start_date": {
+      "type": "string",
+      "format": "date",
+      "title": "In\u00edcio da Deprecia\u00e7\u00e3o"
     },
     "depreciation_rate": {
       "type": "number",
@@ -48,7 +65,7 @@
     },
     "location": {
       "type": "string",
-      "title": "Localiza\u00e7\u00e3o"
+      "title": "Localiza\u00e7\u00e3o F\u00edsica"
     },
     "status": {
       "type": "string",
@@ -59,6 +76,25 @@
         "Inativo",
         "Alienado"
       ]
+    },
+    "conservation_state": {
+      "type": "string",
+      "title": "Estado de Conserva\u00e7\u00e3o",
+      "enum": [
+        "Novo",
+        "\u00d3timo",
+        "Bom",
+        "Regular",
+        "Ruim"
+      ]
+    },
+    "serial_number": {
+      "type": "string",
+      "title": "N\u00famero de S\u00e9rie"
+    },
+    "fiscal_document": {
+      "type": "string",
+      "title": "N\u00famero da Nota Fiscal"
     },
     "supplier_id": {
       "type": "string",
@@ -74,7 +110,7 @@
     },
     "invoice_url": {
       "type": "string",
-      "title": "Nota Fiscal"
+      "title": "Nota Fiscal (Arquivo)"
     },
     "external_link": {
       "type": "string",
