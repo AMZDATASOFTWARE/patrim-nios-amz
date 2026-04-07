@@ -13,6 +13,7 @@ import {
   Truck,
   Users,
   Settings,
+  Landmark,
 } from 'lucide-react';
 import { useWorkspace } from '@/lib/WorkspaceContext';
 import { base44 } from '@/api/base44Client';
@@ -25,6 +26,7 @@ const navigation = [
   { name: 'Depreciação', href: '/Depreciation', icon: TrendingDown },
   { name: 'Relatórios', href: '/Reports', icon: FileText },
   { name: 'Fornecedores', href: '/Suppliers', icon: Truck },
+  { name: 'Empresa', href: '/CompanyProfile', icon: Landmark },
   { name: 'Usuários', href: '/UsersManagement', icon: Users },
   { name: 'Configurações', href: '/Settings', icon: Settings },
 ];

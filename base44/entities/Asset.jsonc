@@ -96,6 +96,16 @@
       "type": "string",
       "title": "N\u00famero da Nota Fiscal"
     },
+    "warranty_expiry_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Vencimento da Garantia"
+    },
+    "next_review_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data da Pr\u00f3xima Revis\u00e3o"
+    },
     "supplier_id": {
       "type": "string",
       "title": "ID do Fornecedor"

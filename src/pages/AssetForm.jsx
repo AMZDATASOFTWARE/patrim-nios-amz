@@ -328,12 +328,15 @@ export default function AssetForm() {
             </div>
             <div>
               <Label htmlFor="fiscal_document">Número da Nota Fiscal</Label>
-              <Input
-                id="fiscal_document"
-                value={form.fiscal_document}
-                onChange={(e) => setForm({ ...form, fiscal_document: e.target.value })}
-                placeholder="Ex: NF-e 000123"
-              />
+              <Input id="fiscal_document" value={form.fiscal_document} onChange={(e) => setForm({ ...form, fiscal_document: e.target.value })} placeholder="Ex: NF-e 000123" />
+            </div>
+            <div>
+              <Label htmlFor="warranty_expiry_date">Vencimento da Garantia</Label>
+              <Input id="warranty_expiry_date" type="date" value={form.warranty_expiry_date || ''} onChange={(e) => setForm({ ...form, warranty_expiry_date: e.target.value })} />
+            </div>
+            <div>
+              <Label htmlFor="next_review_date">Data da Próxima Revisão</Label>
+              <Input id="next_review_date" type="date" value={form.next_review_date || ''} onChange={(e) => setForm({ ...form, next_review_date: e.target.value })} />
             </div>
           </div>
         </div>

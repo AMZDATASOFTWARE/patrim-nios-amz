@@ -16,6 +16,7 @@ export default function Reports() {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('Todas');
+  const [costCenterFilter, setCostCenterFilter] = useState('Todos');
   const [generating, setGenerating] = useState(false);
   const AssetEntity = useWorkspaceEntity('Asset');
 
@@ -28,9 +29,13 @@ export default function Reports() {
     load();
   }, []);
 
-  const filteredAssets = assets.filter(a =>
-    categoryFilter === 'Todas' || a.category === categoryFilter
-  );
+  const costCenters = ['Todos', ...Array.from(new Set(assets.map(a => a.cost_center).filter(Boolean)))];
+
+  const filteredAssets = assets.filter(a => {
+    const matchCat = categoryFilter === 'Todas' || a.category === categoryFilter;
+    const matchCC = costCenterFilter === 'Todos' || a.cost_center === costCenterFilter;
+    return matchCat && matchCC;
+  });
 
   const getRows = () => {
     return filteredAssets.map((asset) => {
@@ -161,15 +166,17 @@ export default function Reports() {
           <h1 className="text-3xl font-bold text-foreground">Relatórios</h1>
           <p className="text-muted-foreground mt-1">Exporte relatórios do patrimônio em PDF ou Excel</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap gap-3">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-48">
-              <SelectValue />
-            </SelectTrigger>
+            <SelectTrigger className="w-48"><SelectValue /></SelectTrigger>
             <SelectContent>
-              {categories.map((cat) => (
-                <SelectItem key={cat} value={cat}>{cat}</SelectItem>
-              ))}
+              {categories.map((cat) => (<SelectItem key={cat} value={cat}>{cat}</SelectItem>))}
+            </SelectContent>
+          </Select>
+          <Select value={costCenterFilter} onValueChange={setCostCenterFilter}>
+            <SelectTrigger className="w-52"><SelectValue placeholder="Centro de Custo" /></SelectTrigger>
+            <SelectContent>
+              {costCenters.map((cc) => (<SelectItem key={cc} value={cc}>{cc}</SelectItem>))}
             </SelectContent>
           </Select>
         </div>

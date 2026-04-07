@@ -21,6 +21,7 @@ import PublicScan from '@/pages/PublicScan';
 import Suppliers from '@/pages/Suppliers';
 import UsersManagement from '@/pages/UsersManagement';
 import Settings from '@/pages/Settings';
+import CompanyProfile from '@/pages/CompanyProfile';
 
 const WorkspaceGate = ({ children }) => {
   const { workspace, loading } = useWorkspace();
@@ -71,6 +72,7 @@ const AuthenticatedApp = () => {
         <Route path="/Suppliers" element={<Suppliers />} />
         <Route path="/UsersManagement" element={<UsersManagement />} />
         <Route path="/Settings" element={<Settings />} />
+        <Route path="/CompanyProfile" element={<CompanyProfile />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
