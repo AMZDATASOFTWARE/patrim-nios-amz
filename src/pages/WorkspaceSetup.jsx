@@ -14,7 +14,15 @@ export default function WorkspaceSetup() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    await createWorkspace({ ...form, plan });
+    const trialEnd = new Date();
+    trialEnd.setDate(trialEnd.getDate() + 14);
+    await createWorkspace({
+      ...form,
+      plan: 'starter',
+      plan_status: 'trial',
+      trial_ends_at: trialEnd.toISOString().split('T')[0],
+    });
+    setSaving(false);
   };
 
   return (

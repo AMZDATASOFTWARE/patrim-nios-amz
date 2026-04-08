@@ -14,7 +14,9 @@ import {
   Users,
   Settings,
   Landmark,
+  CreditCard,
 } from 'lucide-react';
+import { getPlan } from '@/lib/plans';
 import { useWorkspace } from '@/lib/WorkspaceContext';
 import { base44 } from '@/api/base44Client';
 
@@ -29,6 +31,7 @@ const navigation = [
   { name: 'Empresa', href: '/CompanyProfile', icon: Landmark },
   { name: 'Usuários', href: '/UsersManagement', icon: Users },
   { name: 'Configurações', href: '/Settings', icon: Settings },
+  { name: 'Plano & Cobrança', href: '/Billing', icon: CreditCard },
 ];
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
@@ -81,6 +84,16 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
             <NavItem key={item.name} item={item} />
           ))}
         </nav>
+
+        {/* Plan badge */}
+        {!collapsed && workspace && (
+          <div className="px-3 pb-3">
+            <a href="/Billing" className="block bg-sidebar-accent/60 hover:bg-sidebar-accent rounded-lg px-3 py-2 transition-colors">
+              <p className="text-[10px] uppercase tracking-wide text-sidebar-foreground/50 font-semibold">Plano atual</p>
+              <p className="text-sm font-bold text-sidebar-primary capitalize">{getPlan(workspace?.plan)?.name || 'Starter'}</p>
+            </a>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="border-t border-sidebar-border p-2 space-y-1">

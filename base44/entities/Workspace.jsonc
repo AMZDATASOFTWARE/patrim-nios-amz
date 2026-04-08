@@ -1,0 +1,71 @@
+{
+  "name": "Workspace",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Nome da Empresa / Conta"
+    },
+    "owner_email": {
+      "type": "string",
+      "title": "E-mail do Propriet\u00e1rio"
+    },
+    "plan": {
+      "type": "string",
+      "title": "Plano",
+      "enum": [
+        "starter",
+        "professional",
+        "enterprise"
+      ]
+    },
+    "plan_expires_at": {
+      "type": "string",
+      "format": "date",
+      "title": "Plano v\u00e1lido at\u00e9"
+    },
+    "plan_status": {
+      "type": "string",
+      "title": "Status do Plano",
+      "enum": [
+        "trial",
+        "active",
+        "suspended",
+        "cancelled"
+      ]
+    },
+    "trial_ends_at": {
+      "type": "string",
+      "format": "date",
+      "title": "Trial encerra em"
+    },
+    "member_emails": {
+      "type": "array",
+      "title": "Membros",
+      "items": {
+        "type": "string"
+      }
+    },
+    "logo_url": {
+      "type": "string",
+      "title": "Logo"
+    },
+    "cnpj": {
+      "type": "string",
+      "title": "CNPJ / CPF"
+    },
+    "phone": {
+      "type": "string",
+      "title": "Telefone"
+    },
+    "address": {
+      "type": "string",
+      "title": "Endere\u00e7o"
+    }
+  },
+  "required": [
+    "name",
+    "owner_email",
+    "plan"
+  ]
+}

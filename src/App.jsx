@@ -22,6 +22,8 @@ import Suppliers from '@/pages/Suppliers';
 import UsersManagement from '@/pages/UsersManagement';
 import Settings from '@/pages/Settings';
 import CompanyProfile from '@/pages/CompanyProfile';
+import Plans from '@/pages/Plans';
+import Billing from '@/pages/Billing';
 
 const WorkspaceGate = ({ children }) => {
   const { workspace, loading } = useWorkspace();
@@ -60,6 +62,7 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route path="/" element={<Navigate to="/Dashboard" replace />} />
       <Route path="/scan" element={<PublicScan />} />
+      <Route path="/Plans" element={<Plans />} />
       <Route element={<AppLayout />}>
         <Route path="/Dashboard" element={<Dashboard />} />
         <Route path="/Assets" element={<Assets />} />
@@ -73,6 +76,7 @@ const AuthenticatedApp = () => {
         <Route path="/UsersManagement" element={<UsersManagement />} />
         <Route path="/Settings" element={<Settings />} />
         <Route path="/CompanyProfile" element={<CompanyProfile />} />
+        <Route path="/Billing" element={<Billing />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>
