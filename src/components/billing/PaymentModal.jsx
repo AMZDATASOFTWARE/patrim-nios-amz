@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Copy, CheckCircle2, Clock } from 'lucide-react';
 
-const PIX_KEY = 'contato@seusistema.com.br'; // Troque pela chave PIX real
+const PIX_KEY = '91981342990'; // Celular
 
 export default function PaymentModal({ plan, onClose, onSuccess }) {
   const { workspace, user } = useWorkspace();
@@ -37,7 +37,7 @@ export default function PaymentModal({ plan, onClose, onSuccess }) {
     });
     // Notify admin by email
     await base44.integrations.Core.SendEmail({
-      to: 'contato@seusistema.com.br',
+      to: 'mateus.sg100@gmail.com',
       subject: `💰 Nova solicitação de pagamento — ${workspace.name}`,
       body: `Nova solicitação de pagamento recebida!\n\nEmpresa: ${workspace.name}\nPlano: ${plan.name}\nValor: R$ ${plan.price}/mês\nForma: ${method}\nE-mail: ${user?.email}\n\nObs do cliente:\n${notes || '—'}\n\nConfirme o pagamento em: ${window.location.origin}/AdminPayments`,
     });
@@ -104,10 +104,10 @@ export default function PaymentModal({ plan, onClose, onSuccess }) {
             {method === 'Transferência' && (
               <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-1">
                 <p className="text-sm font-semibold text-slate-800 mb-2">Dados Bancários</p>
-                <p className="text-xs text-slate-600">Banco: <strong>Itaú — 341</strong></p>
+                <p className="text-xs text-slate-600">Banco: <strong>Nu Pagamentos S.A — 260</strong></p>
                 <p className="text-xs text-slate-600">Agência: <strong>0001</strong></p>
-                <p className="text-xs text-slate-600">Conta: <strong>12345-6</strong></p>
-                <p className="text-xs text-slate-600">CNPJ: <strong>00.000.000/0001-00</strong></p>
+                <p className="text-xs text-slate-600">Conta: <strong>47508654-4</strong></p>
+                <p className="text-xs text-slate-600">Titular: <strong>Mateus</strong></p>
               </div>
             )}
 
