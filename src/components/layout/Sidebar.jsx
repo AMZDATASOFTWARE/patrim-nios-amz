@@ -15,7 +15,7 @@ import {
   Settings,
   Landmark,
   CreditCard,
-  BadgeDollarSign,
+  Banknote,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { getPlan } from '@/lib/plans';
@@ -34,7 +34,7 @@ const navigation = [
   { name: 'Usuários', href: '/UsersManagement', icon: Users },
   { name: 'Configurações', href: '/Settings', icon: Settings },
   { name: 'Plano & Cobrança', href: '/Billing', icon: CreditCard },
-  { name: 'Confirmar Pagamentos', href: '/AdminPayments', icon: BadgeDollarSign, adminOnly: true },
+  { name: 'Confirmar Pagamentos', href: '/AdminPayments', icon: Banknote, adminOnly: true },
 ];
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
