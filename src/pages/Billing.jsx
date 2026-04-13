@@ -7,6 +7,7 @@ import { getPlan, PLANS } from '@/lib/plans';
 import { Button } from '@/components/ui/button';
 import { Check, Zap, Star, Crown, Users, Package, ArrowUpRight, ShieldCheck } from 'lucide-react';
 import moment from 'moment';
+import PaymentModal from '@/components/billing/PaymentModal';
 
 const planIcons = { starter: Zap, professional: Star, enterprise: Crown };
 const planColors = {
@@ -20,6 +21,7 @@ export default function Billing() {
   const [assetCount, setAssetCount] = useState(0);
   const [userCount, setUserCount] = useState(0);
   const [upgrading, setUpgrading] = useState(null);
+  const [paymentPlan, setPaymentPlan] = useState(null);
   const AssetEntity = useWorkspaceEntity('Asset');
 
   useEffect(() => {
@@ -30,17 +32,8 @@ export default function Billing() {
   const currentPlan = getPlan(workspace?.plan);
   const PlanIcon = planIcons[currentPlan.id] || Zap;
 
-  const handleUpgrade = async (planId) => {
-    setUpgrading(planId);
-    // Simulate upgrade (in production, integrate Stripe here)
-    await new Promise(r => setTimeout(r, 1200));
-    await base44.entities.Workspace.update(workspace.id, {
-      plan: planId,
-      plan_status: 'active',
-      plan_expires_at: moment().add(1, 'month').format('YYYY-MM-DD'),
-    });
-    await refreshWorkspace();
-    setUpgrading(null);
+  const handleUpgrade = (planId) => {
+    setPaymentPlan(PLANS[planId]);
   };
 
   const trialDaysLeft = workspace?.trial_ends_at
@@ -179,6 +172,14 @@ export default function Billing() {
       <p className="text-xs text-center text-muted-foreground">
         Dúvidas sobre cobrança? Entre em contato: <a href="mailto:contato@seusistema.com.br" className="underline">contato@seusistema.com.br</a>
       </p>
+
+      {paymentPlan && (
+        <PaymentModal
+          plan={paymentPlan}
+          onClose={() => setPaymentPlan(null)}
+          onSuccess={() => { setPaymentPlan(null); refreshWorkspace(); }}
+        />
+      )}
     </div>
   );
 }

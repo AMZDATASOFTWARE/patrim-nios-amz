@@ -24,6 +24,7 @@ import Settings from '@/pages/Settings';
 import CompanyProfile from '@/pages/CompanyProfile';
 import Plans from '@/pages/Plans';
 import Billing from '@/pages/Billing';
+import AdminPayments from '@/pages/AdminPayments';
 
 const WorkspaceGate = ({ children }) => {
   const { workspace, loading } = useWorkspace();
@@ -77,6 +78,7 @@ const AuthenticatedApp = () => {
         <Route path="/Settings" element={<Settings />} />
         <Route path="/CompanyProfile" element={<CompanyProfile />} />
         <Route path="/Billing" element={<Billing />} />
+        <Route path="/AdminPayments" element={<AdminPayments />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

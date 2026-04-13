@@ -1,0 +1,64 @@
+{
+  "name": "PaymentRequest",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace ID"
+    },
+    "workspace_name": {
+      "type": "string",
+      "title": "Nome do Workspace"
+    },
+    "owner_email": {
+      "type": "string",
+      "title": "E-mail do Respons\u00e1vel"
+    },
+    "plan": {
+      "type": "string",
+      "title": "Plano Solicitado",
+      "enum": [
+        "starter",
+        "professional",
+        "enterprise"
+      ]
+    },
+    "amount": {
+      "type": "number",
+      "title": "Valor (R$)"
+    },
+    "payment_method": {
+      "type": "string",
+      "title": "Forma de Pagamento",
+      "enum": [
+        "PIX",
+        "Boleto",
+        "Transfer\u00eancia"
+      ]
+    },
+    "proof_notes": {
+      "type": "string",
+      "title": "Comprovante / Observa\u00e7\u00f5es do Usu\u00e1rio"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "pending",
+        "confirmed",
+        "rejected"
+      ]
+    },
+    "admin_notes": {
+      "type": "string",
+      "title": "Notas do Admin"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "owner_email",
+    "plan",
+    "payment_method",
+    "status"
+  ]
+}

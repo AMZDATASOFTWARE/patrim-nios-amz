@@ -15,7 +15,9 @@ import {
   Settings,
   Landmark,
   CreditCard,
+  BadgeDollarSign,
 } from 'lucide-react';
+import { useAuth } from '@/lib/AuthContext';
 import { getPlan } from '@/lib/plans';
 import { useWorkspace } from '@/lib/WorkspaceContext';
 import { base44 } from '@/api/base44Client';
@@ -32,11 +34,15 @@ const navigation = [
   { name: 'Usuários', href: '/UsersManagement', icon: Users },
   { name: 'Configurações', href: '/Settings', icon: Settings },
   { name: 'Plano & Cobrança', href: '/Billing', icon: CreditCard },
+  { name: 'Confirmar Pagamentos', href: '/AdminPayments', icon: BadgeDollarSign, adminOnly: true },
 ];
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
   const location = useLocation();
   const { workspace } = useWorkspace();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const visibleNav = navigation.filter(item => !item.adminOnly || isAdmin);
 
   const NavItem = ({ item }) => {
     const isActive = location.pathname === item.href;
@@ -80,7 +86,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto">
-          {navigation.map((item) => (
+          {visibleNav.map((item) => (
             <NavItem key={item.name} item={item} />
           ))}
         </nav>
@@ -142,7 +148,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
         {/* Navigation */}
         <nav className="flex-1 space-y-1 px-2 py-4 overflow-y-auto">
-          {navigation.map((item) => {
+          {visibleNav.map((item) => {
             const isActive = location.pathname === item.href;
             return (
               <Link
