@@ -26,7 +26,7 @@ export default function Dashboard() {
       setLoading(false);
     };
     loadAssets();
-  }, [AssetEntity.list]);
+  }, []);
 
   if (loading) {
     return (
