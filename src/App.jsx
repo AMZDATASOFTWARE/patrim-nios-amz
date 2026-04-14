@@ -25,6 +25,7 @@ import CompanyProfile from '@/pages/CompanyProfile';
 import Plans from '@/pages/Plans';
 import Billing from '@/pages/Billing';
 import AdminPayments from '@/pages/AdminPayments';
+import Landing from '@/pages/Landing';
 
 const WorkspaceGate = ({ children }) => {
   const { workspace, loading } = useWorkspace();
@@ -63,6 +64,7 @@ const AuthenticatedApp = () => {
     <Routes>
       <Route path="/" element={<Navigate to="/Dashboard" replace />} />
       <Route path="/scan" element={<PublicScan />} />
+      <Route path="/landing" element={<Landing />} />
       <Route path="/Plans" element={<Plans />} />
       <Route element={<AppLayout />}>
         <Route path="/Dashboard" element={<Dashboard />} />
