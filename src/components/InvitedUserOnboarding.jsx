@@ -18,9 +18,10 @@ export default function InvitedUserOnboarding({ onDone }) {
     try {
       const me = await base44.auth.me();
       const workspaces = await base44.entities.Workspace.list();
+      // Só associa se o e-mail do usuário estiver EXPLICITAMENTE como dono ou membro
       const found = workspaces.find(ws =>
         ws.owner_email === me.email ||
-        (ws.member_emails && ws.member_emails.includes(me.email))
+        (Array.isArray(ws.member_emails) && ws.member_emails.includes(me.email))
       );
       if (found) {
         await base44.auth.updateMe({ workspace_id: found.id });

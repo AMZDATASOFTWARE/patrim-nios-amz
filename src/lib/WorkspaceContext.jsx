@@ -34,11 +34,11 @@ export function WorkspaceProvider({ children }) {
         }
       }
 
-      // 2) Busca workspaces onde o usuário é dono ou membro (via RLS já filtra)
+      // 2) Busca workspaces onde o usuário é EXPLICITAMENTE dono ou membro
       const all = await base44.entities.Workspace.list();
       const found = all.find(w =>
         w.owner_email === me.email ||
-        (w.member_emails && w.member_emails.includes(me.email))
+        (Array.isArray(w.member_emails) && w.member_emails.includes(me.email))
       );
 
       if (found) {
