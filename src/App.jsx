@@ -20,7 +20,7 @@ import AssetMap from '@/pages/AssetMap';
 import AssetLabel from '@/pages/AssetLabel';
 import PublicScan from '@/pages/PublicScan';
 import Suppliers from '@/pages/Suppliers';
-import UsersManagement from '@/pages/UsersManagement.jsx';
+import UsersManagement from '@/pages/UsersManagement';
 import Settings from '@/pages/Settings';
 import CompanyProfile from '@/pages/CompanyProfile';
 import Plans from '@/pages/Plans';
