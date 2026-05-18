@@ -16,6 +16,7 @@ export default function WorkspaceSetup() {
     setSaving(true);
     const trialEnd = new Date();
     trialEnd.setDate(trialEnd.getDate() + 14);
+    // createWorkspace já salva workspace_id e define role: admin no user
     await createWorkspace({
       ...form,
       plan: 'starter',

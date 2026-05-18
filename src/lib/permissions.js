@@ -1,48 +1,107 @@
 /**
- * Permission levels:
- * admin   - full access
- * manager - can manage assets, see financials, generate reports
- * user    - can view assets assigned to them, scan QR codes
+ * Sistema de permissões baseado em roles por workspace.
+ *
+ * Roles:
+ *  admin   - acesso total ao workspace (dono ou administrador designado)
+ *  manager - gerencia ativos, relatórios, fornecedores. Não gerencia usuários nem cobrança
+ *  viewer  - visualização somente leitura de ativos e dashboard
+ *  user    - acesso mínimo: vê ativos atribuídos a si, escaneia QR
+ *
+ * Super-admin (role='admin' no sistema base44 + sem workspace próprio):
+ *  Acessa painel /AdminPayments e vê todos os workspaces.
  */
 
 export const ROLES = {
   ADMIN: 'admin',
   MANAGER: 'manager',
+  VIEWER: 'viewer',
   USER: 'user',
+};
+
+export const ROLE_LABELS = {
+  admin: 'Administrador',
+  manager: 'Gerente',
+  viewer: 'Visualizador',
+  user: 'Usuário',
+};
+
+export const ROLE_COLORS = {
+  admin: 'bg-red-100 text-red-700 border-red-200',
+  manager: 'bg-blue-100 text-blue-700 border-blue-200',
+  viewer: 'bg-purple-100 text-purple-700 border-purple-200',
+  user: 'bg-gray-100 text-gray-600 border-gray-200',
+};
+
+const PERMISSIONS = {
+  admin: [
+    'view_dashboard', 'view_assets', 'create_asset', 'edit_asset', 'delete_asset',
+    'view_financials', 'view_depreciation', 'view_reports', 'export_reports',
+    'view_suppliers', 'manage_suppliers',
+    'view_users', 'manage_users', 'invite_users',
+    'view_map', 'view_assignments', 'manage_assignments',
+    'view_labels', 'manage_labels',
+    'view_settings', 'manage_settings',
+    'view_billing', 'manage_billing',
+    'view_company', 'manage_company',
+  ],
+  manager: [
+    'view_dashboard', 'view_assets', 'create_asset', 'edit_asset',
+    'view_financials', 'view_depreciation', 'view_reports', 'export_reports',
+    'view_suppliers', 'manage_suppliers',
+    'view_users',
+    'view_map', 'view_assignments', 'manage_assignments',
+    'view_labels', 'manage_labels',
+    'view_settings',
+    'view_company',
+  ],
+  viewer: [
+    'view_dashboard', 'view_assets',
+    'view_financials', 'view_depreciation', 'view_reports',
+    'view_suppliers',
+    'view_map', 'view_assignments',
+    'view_labels',
+  ],
+  user: [
+    'view_assets', 'view_assignments', 'view_map',
+  ],
+};
+
+export const ROLE_PERMISSIONS_LABELS = {
+  admin: [
+    'Dashboard completo', 'Gestão de ativos (criar/editar/excluir)',
+    'Relatórios e exportação', 'Gestão de fornecedores',
+    'Gestão de usuários e convites', 'Mapa de ativos',
+    'Termos de responsabilidade', 'Configurações do sistema',
+    'Plano & Cobrança', 'Perfil da empresa',
+  ],
+  manager: [
+    'Dashboard completo', 'Gestão de ativos (criar/editar)',
+    'Relatórios e exportação', 'Gestão de fornecedores',
+    'Visualizar usuários', 'Mapa de ativos',
+    'Termos de responsabilidade',
+  ],
+  viewer: [
+    'Dashboard (leitura)', 'Visualizar ativos', 'Visualizar relatórios',
+    'Mapa de ativos (leitura)', 'Visualizar fornecedores',
+  ],
+  user: [
+    'Visualizar ativos atribuídos', 'Mapa de ativos (leitura)', 'Escanear QR codes',
+  ],
 };
 
 export function can(user, action) {
   const role = user?.role || 'user';
-
-  const permissions = {
-    admin: [
-      'view_dashboard', 'view_assets', 'create_asset', 'edit_asset', 'delete_asset',
-      'view_financials', 'view_depreciation', 'view_reports', 'export_reports',
-      'view_suppliers', 'manage_suppliers',
-      'view_users', 'manage_users',
-      'view_map', 'view_assignments', 'manage_assignments',
-      'view_labels', 'manage_labels',
-    ],
-    manager: [
-      'view_dashboard', 'view_assets', 'create_asset', 'edit_asset',
-      'view_financials', 'view_depreciation', 'view_reports', 'export_reports',
-      'view_suppliers',
-      'view_map', 'view_assignments', 'manage_assignments',
-      'view_labels',
-    ],
-    user: [
-      'view_assets', 'view_assignments', 'view_map',
-    ],
-  };
-
-  return (permissions[role] || permissions.user).includes(action);
+  return (PERMISSIONS[role] || PERMISSIONS.user).includes(action);
 }
 
 export function usePermissions(user) {
+  const role = user?.role || 'user';
   return {
     can: (action) => can(user, action),
-    role: user?.role || 'user',
-    isAdmin: user?.role === 'admin',
-    isManager: user?.role === 'manager' || user?.role === 'admin',
+    role,
+    isAdmin: role === 'admin',
+    isManager: role === 'manager' || role === 'admin',
+    isViewer: role === 'viewer',
+    isUser: role === 'user',
   };
 }

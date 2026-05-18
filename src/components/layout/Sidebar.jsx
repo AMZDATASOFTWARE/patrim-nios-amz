@@ -16,33 +16,44 @@ import {
   Landmark,
   CreditCard,
   Banknote,
+  ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
+import { usePermissions } from '@/lib/permissions';
 import { getPlan } from '@/lib/plans';
 import { useWorkspace } from '@/lib/WorkspaceContext';
 import { base44 } from '@/api/base44Client';
 
+// requiredPermission: permissão necessária para ver o item
+// adminOnly: apenas admin da plataforma (super admin) vê
 const navigation = [
-  { name: 'Dashboard', href: '/Dashboard', icon: LayoutDashboard },
-  { name: 'Ativos', href: '/Assets', icon: Package },
-  { name: 'Mapa', href: '/AssetMap', icon: Map },
-  { name: 'Etiquetas / QR', href: '/AssetLabel', icon: QrCode },
-  { name: 'Depreciação', href: '/Depreciation', icon: TrendingDown },
-  { name: 'Relatórios', href: '/Reports', icon: FileText },
-  { name: 'Fornecedores', href: '/Suppliers', icon: Truck },
-  { name: 'Empresa', href: '/CompanyProfile', icon: Landmark },
-  { name: 'Usuários', href: '/UsersManagement', icon: Users },
-  { name: 'Configurações', href: '/Settings', icon: Settings },
-  { name: 'Plano & Cobrança', href: '/Billing', icon: CreditCard },
-  { name: 'Confirmar Pagamentos', href: '/AdminPayments', icon: Banknote, adminOnly: true },
+  { name: 'Dashboard',       href: '/Dashboard',        icon: LayoutDashboard, requiredPermission: 'view_dashboard' },
+  { name: 'Ativos',          href: '/Assets',            icon: Package,         requiredPermission: 'view_assets' },
+  { name: 'Mapa',            href: '/AssetMap',          icon: Map,             requiredPermission: 'view_map' },
+  { name: 'Etiquetas / QR',  href: '/AssetLabel',        icon: QrCode,          requiredPermission: 'view_labels' },
+  { name: 'Depreciação',     href: '/Depreciation',      icon: TrendingDown,    requiredPermission: 'view_depreciation' },
+  { name: 'Relatórios',      href: '/Reports',           icon: FileText,        requiredPermission: 'view_reports' },
+  { name: 'Fornecedores',    href: '/Suppliers',         icon: Truck,           requiredPermission: 'view_suppliers' },
+  { name: 'Empresa',         href: '/CompanyProfile',    icon: Landmark,        requiredPermission: 'view_company' },
+  { name: 'Usuários',        href: '/UsersManagement',   icon: Users,           requiredPermission: 'view_users' },
+  { name: 'Configurações',   href: '/Settings',          icon: Settings,        requiredPermission: 'view_settings' },
+  { name: 'Plano & Cobrança',href: '/Billing',           icon: CreditCard,      requiredPermission: 'view_billing' },
+  { name: 'Pagamentos',      href: '/AdminPayments',     icon: Banknote,        adminOnly: true },
+  { name: 'Super Admin',     href: '/SuperAdmin',        icon: ShieldAlert,     adminOnly: true },
 ];
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
   const location = useLocation();
   const { workspace } = useWorkspace();
   const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
-  const visibleNav = navigation.filter(item => !item.adminOnly || isAdmin);
+  const { can } = usePermissions(user);
+  const isSuperAdmin = user?.role === 'admin';
+
+  const visibleNav = navigation.filter(item => {
+    if (item.adminOnly) return isSuperAdmin;
+    if (item.requiredPermission) return can(item.requiredPermission);
+    return true;
+  });
 
   const NavItem = ({ item }) => {
     const isActive = location.pathname === item.href;

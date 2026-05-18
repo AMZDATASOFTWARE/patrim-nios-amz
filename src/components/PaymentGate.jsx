@@ -1,4 +1,5 @@
 import { useWorkspace } from '@/lib/WorkspaceContext';
+import { useAuth } from '@/lib/AuthContext';
 import { Link } from 'react-router-dom';
 import { ShieldAlert, CreditCard, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,9 +7,12 @@ import moment from 'moment';
 
 export default function PaymentGate({ children }) {
   const { workspace, loading } = useWorkspace();
+  const { user } = useAuth();
 
   if (loading) return null;
   if (!workspace) return children;
+  // Super admin nunca é bloqueado
+  if (user?.role === 'admin') return children;
 
   const status = workspace.plan_status;
   const trialEnds = workspace.trial_ends_at;

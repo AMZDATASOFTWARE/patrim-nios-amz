@@ -18,8 +18,8 @@ export function WorkspaceProvider({ children }) {
       const me = await base44.auth.me();
       setUser(me);
 
+      // 1) Se o user já tem workspace_id salvo, carrega direto
       if (me.workspace_id) {
-        // Try to load existing workspace
         const workspaces = await base44.entities.Workspace.list();
         const ws = workspaces.find(w => w.id === me.workspace_id);
         if (ws) {
@@ -30,7 +30,7 @@ export function WorkspaceProvider({ children }) {
         }
       }
 
-      // Check if user is a member of any workspace
+      // 2) Busca workspaces onde o usuário é dono ou membro (via RLS já filtra)
       const all = await base44.entities.Workspace.list();
       const found = all.find(w =>
         w.owner_email === me.email ||
@@ -40,9 +40,10 @@ export function WorkspaceProvider({ children }) {
       if (found) {
         setWorkspace(found);
         setWorkspaceId(found.id);
+        // Persiste workspace_id no perfil do usuário para próximos logins
         await base44.auth.updateMe({ workspace_id: found.id });
       }
-      // else: no workspace yet → WorkspaceSetup will be shown
+      // else: sem workspace → WorkspaceSetup será exibido
     } catch (e) {
       console.error(e);
     }
@@ -50,12 +51,13 @@ export function WorkspaceProvider({ children }) {
   };
 
   const createWorkspace = async (data) => {
+    const me = await base44.auth.me();
     const ws = await base44.entities.Workspace.create({
       ...data,
-      owner_email: user.email,
+      owner_email: me.email,
       member_emails: [],
     });
-    await base44.auth.updateMe({ workspace_id: ws.id });
+    await base44.auth.updateMe({ workspace_id: ws.id, role: 'admin' });
     setWorkspace(ws);
     setWorkspaceId(ws.id);
     return ws;
@@ -68,8 +70,23 @@ export function WorkspaceProvider({ children }) {
     if (ws) setWorkspace(ws);
   };
 
+  // Convida membro e já adiciona ao member_emails do workspace
+  const inviteMember = async (email, role = 'user') => {
+    if (!workspace) return;
+    // Convida via plataforma
+    await base44.users.inviteUser(email, role);
+    // Adiciona ao member_emails para que o RLS permita acesso
+    const currentMembers = workspace.member_emails || [];
+    if (!currentMembers.includes(email)) {
+      const updated = await base44.entities.Workspace.update(workspace.id, {
+        member_emails: [...currentMembers, email],
+      });
+      setWorkspace(updated);
+    }
+  };
+
   return (
-    <WorkspaceContext.Provider value={{ workspace, workspaceId, loading, user, createWorkspace, refreshWorkspace }}>
+    <WorkspaceContext.Provider value={{ workspace, workspaceId, loading, user, createWorkspace, refreshWorkspace, inviteMember, init }}>
       {children}
     </WorkspaceContext.Provider>
   );

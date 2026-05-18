@@ -26,8 +26,10 @@ export default function Billing() {
 
   useEffect(() => {
     AssetEntity.list('-created_date', 5000).then(d => setAssetCount(d.length));
-    base44.entities.User.list().then(u => setUserCount(u.length));
-  }, []);
+    // Conta apenas membros do workspace atual
+    const memberCount = 1 + (workspace?.member_emails?.length || 0);
+    setUserCount(memberCount);
+  }, [workspace]);
 
   const currentPlan = getPlan(workspace?.plan);
   const PlanIcon = planIcons[currentPlan.id] || Zap;

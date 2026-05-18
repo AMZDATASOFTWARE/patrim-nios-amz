@@ -1,0 +1,21 @@
+{
+  "name": "User",
+  "type": "object",
+  "properties": {
+    "role": {
+      "type": "string",
+      "title": "Papel no sistema",
+      "enum": [
+        "admin",
+        "manager",
+        "viewer",
+        "user"
+      ],
+      "default": "user"
+    },
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace ID"
+    }
+  }
+}
