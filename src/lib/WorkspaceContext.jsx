@@ -25,6 +25,10 @@ export function WorkspaceProvider({ children }) {
         if (ws) {
           setWorkspace(ws);
           setWorkspaceId(ws.id);
+          // Garante role admin se for o dono
+          if (ws.owner_email === me.email && me.role !== 'admin') {
+            await base44.auth.updateMe({ role: 'admin' });
+          }
           setLoading(false);
           return;
         }
@@ -41,7 +45,12 @@ export function WorkspaceProvider({ children }) {
         setWorkspace(found);
         setWorkspaceId(found.id);
         // Persiste workspace_id no perfil do usuário para próximos logins
-        await base44.auth.updateMe({ workspace_id: found.id });
+        // Se for o dono do workspace, garante role admin
+        const updateData = { workspace_id: found.id };
+        if (found.owner_email === me.email && me.role !== 'admin') {
+          updateData.role = 'admin';
+        }
+        await base44.auth.updateMe(updateData);
       }
       // else: sem workspace → WorkspaceSetup será exibido
     } catch (e) {
