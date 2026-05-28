@@ -40,6 +40,14 @@
       "type": "string",
       "title": "Escaneado por"
     },
+    "scanned_at": {
+      "type": "string",
+      "title": "Data/Hora do Scan"
+    },
+    "device_info": {
+      "type": "string",
+      "title": "Dispositivo"
+    },
     "notes": {
       "type": "string",
       "title": "Observa\u00e7\u00f5es"

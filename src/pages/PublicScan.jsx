@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client'; // used directly — public page has no workspace context
+import { base44 } from '@/api/base44Client';
 import { formatCurrency, calculateCurrentValue, getUsefulLifeFromRate } from '@/lib/depreciation';
-import { MapPin, Package, CheckCircle, AlertCircle, Loader2, QrCode } from 'lucide-react';
+import { MapPin, Package, CheckCircle, AlertCircle, Loader2, QrCode, Clock, User } from 'lucide-react';
 
 export default function PublicScan() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -11,33 +11,35 @@ export default function PublicScan() {
   const [locStatus, setLocStatus] = useState('idle'); // idle | loading | success | denied | error
   const [address, setAddress] = useState('');
   const [scannedBy, setScannedBy] = useState('');
-  const [locationRegistered, setLocationRegistered] = useState(false);
+  const [scanTime, setScanTime] = useState('');
 
   useEffect(() => {
+    // Registra a hora do scan assim que a página abre
+    setScanTime(new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'medium' }));
+
     if (!assetId) { setLoading(false); return; }
-    base44.entities.Asset.filter({ id: assetId }).then(data => {
-      if (data && data.length > 0) setAsset(data[0]);
-      setLoading(false);
-    }).catch(() => setLoading(false));
+    base44.entities.Asset.filter({ id: assetId })
+      .then(data => {
+        if (data && data.length > 0) setAsset(data[0]);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, [assetId]);
 
-  // Auto-trigger location on page load (QR scan = immediate location capture)
-  useEffect(() => {
-    if (asset && locStatus === 'idle') {
-      registerLocation();
+  const registerLocation = () => {
+    if (!navigator.geolocation) {
+      setLocStatus('denied');
+      return;
     }
-  }, [asset]);
-
-  const registerLocation = async () => {
-    if (!navigator.geolocation || locationRegistered) return;
     setLocStatus('loading');
 
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
+        const now = new Date();
 
-        // Reverse geocode using Nominatim (free, no API key)
+        // Reverse geocode
         let addr = '';
         try {
           const res = await fetch(
@@ -48,7 +50,9 @@ export default function PublicScan() {
           setAddress(addr);
         } catch {}
 
-        // Save to LocationHistory
+        // Device info
+        const deviceInfo = navigator.userAgent.substring(0, 200);
+
         await base44.entities.LocationHistory.create({
           workspace_id: asset?.workspace_id || '',
           asset_id: assetId,
@@ -57,15 +61,14 @@ export default function PublicScan() {
           longitude: lng,
           address: addr,
           source: 'QR Scan',
-          scanned_by: scannedBy || 'Anônimo',
+          scanned_by: scannedBy.trim() || 'Anônimo',
+          scanned_at: now.toISOString(),
+          device_info: deviceInfo,
         });
 
         setLocStatus('success');
-        setLocationRegistered(true);
       },
-      (err) => {
-        setLocStatus('denied');
-      },
+      () => setLocStatus('denied'),
       { enableHighAccuracy: true, timeout: 15000 }
     );
   };
@@ -118,6 +121,12 @@ export default function PublicScan() {
           </div>
         </div>
 
+        {/* Scan time banner */}
+        <div className="bg-slate-50 border-b border-slate-100 px-5 py-2.5 flex items-center gap-2">
+          <Clock className="h-3.5 w-3.5 text-slate-400 flex-shrink-0" />
+          <span className="text-xs text-slate-500">{scanTime}</span>
+        </div>
+
         {/* Asset Info */}
         <div className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
@@ -143,25 +152,29 @@ export default function PublicScan() {
           )}
         </div>
 
-        {/* Location Section */}
+        {/* Location Registration */}
         <div className="px-5 pb-6">
           <div className="h-px bg-slate-100 mb-4" />
 
           {locStatus === 'idle' && (
             <div className="space-y-3">
-              <p className="text-xs text-slate-500 text-center">Registre sua localização para atualizar a posição deste patrimônio</p>
-              <input
-                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Seu nome (opcional)"
-                value={scannedBy}
-                onChange={e => setScannedBy(e.target.value)}
-              />
+              <p className="text-xs text-slate-500 text-center font-medium">Confirme sua presença registrando sua localização</p>
+              <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
+                <User className="h-4 w-4 text-slate-400 flex-shrink-0" />
+                <input
+                  className="flex-1 text-sm outline-none bg-transparent"
+                  placeholder="Seu nome (opcional)"
+                  value={scannedBy}
+                  onChange={e => setScannedBy(e.target.value)}
+                />
+              </div>
               <button
                 onClick={registerLocation}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
               >
-                <MapPin className="h-4 w-4" /> Registrar localização
+                <MapPin className="h-4 w-4" /> Confirmar localização
               </button>
+              <p className="text-xs text-slate-400 text-center">Será registrado: data, hora, localização GPS e dispositivo</p>
             </div>
           )}
 
@@ -169,19 +182,19 @@ export default function PublicScan() {
             <div className="flex flex-col items-center justify-center gap-3 py-4 text-slate-600">
               <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
               <div className="text-center">
-                <p className="font-medium text-sm">Obtendo sua localização...</p>
-                <p className="text-xs text-slate-400 mt-1">Pode ser necessário permitir o acesso à localização</p>
+                <p className="font-medium text-sm">Obtendo localização...</p>
+                <p className="text-xs text-slate-400 mt-1">Permita o acesso à localização quando solicitado</p>
               </div>
             </div>
           )}
 
           {locStatus === 'success' && (
-            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-center">
+            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-center space-y-1">
               <CheckCircle className="h-9 w-9 text-emerald-500 mx-auto mb-2" />
-              <p className="font-bold text-emerald-700">Localização registrada!</p>
-              <p className="text-xs text-emerald-600 mt-1">A posição deste patrimônio foi atualizada com sucesso.</p>
+              <p className="font-bold text-emerald-700">Presença registrada!</p>
+              <p className="text-xs text-emerald-600">{scanTime}</p>
               {address && (
-                <p className="text-xs text-emerald-500 mt-2 line-clamp-2">{address}</p>
+                <p className="text-xs text-emerald-500 mt-2 line-clamp-3">{address}</p>
               )}
             </div>
           )}
@@ -190,11 +203,11 @@ export default function PublicScan() {
             <div className="space-y-3">
               <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-center">
                 <AlertCircle className="h-7 w-7 text-amber-500 mx-auto mb-2" />
-                <p className="font-medium text-amber-700 text-sm">Permissão negada</p>
+                <p className="font-medium text-amber-700 text-sm">Permissão de localização negada</p>
                 <p className="text-xs text-amber-600 mt-1">Libere o acesso à localização nas configurações do navegador e tente novamente.</p>
               </div>
               <button
-                onClick={() => { setLocStatus('idle'); }}
+                onClick={() => setLocStatus('idle')}
                 className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
               >
                 Tentar novamente

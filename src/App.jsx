@@ -67,6 +67,15 @@ const WorkspaceSetupOrInvited = () => {
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
+  // Rota pública — sem autenticação necessária
+  if (window.location.pathname === '/scan') {
+    return (
+      <Routes>
+        <Route path="/scan" element={<PublicScan />} />
+      </Routes>
+    );
+  }
+
   if (isLoadingPublicSettings || isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
@@ -89,7 +98,6 @@ const AuthenticatedApp = () => {
       <WorkspaceGate>
     <Routes>
       <Route path="/" element={<Navigate to="/Dashboard" replace />} />
-      <Route path="/scan" element={<PublicScan />} />
       <Route path="/landing" element={<Landing />} />
       <Route path="/Plans" element={<Plans />} />
       <Route element={<AppLayout />}>
