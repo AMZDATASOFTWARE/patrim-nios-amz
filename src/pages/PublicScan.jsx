@@ -1,22 +1,19 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
 import { formatCurrency, calculateCurrentValue, getUsefulLifeFromRate } from '@/lib/depreciation';
-import { MapPin, Package, CheckCircle, AlertCircle, Loader2, QrCode, Clock, User } from 'lucide-react';
+import { MapPin, Package, CheckCircle, AlertCircle, Loader2, QrCode, Clock } from 'lucide-react';
 
 export default function PublicScan() {
   const urlParams = new URLSearchParams(window.location.search);
   const assetId = urlParams.get('id');
   const [asset, setAsset] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [locStatus, setLocStatus] = useState('idle'); // idle | loading | success | denied | error
+  const [locStatus, setLocStatus] = useState('idle'); // idle | loading | success | denied
   const [address, setAddress] = useState('');
-  const [scannedBy, setScannedBy] = useState('');
   const [scanTime, setScanTime] = useState('');
 
   useEffect(() => {
-    // Registra a hora do scan assim que a página abre
     setScanTime(new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'medium' }));
-
     if (!assetId) { setLoading(false); return; }
     base44.entities.Asset.filter({ id: assetId })
       .then(data => {
@@ -25,6 +22,13 @@ export default function PublicScan() {
       })
       .catch(() => setLoading(false));
   }, [assetId]);
+
+  // Auto-registra localização assim que o ativo é carregado
+  useEffect(() => {
+    if (asset && locStatus === 'idle') {
+      registerLocation();
+    }
+  }, [asset]);
 
   const registerLocation = () => {
     if (!navigator.geolocation) {
@@ -61,7 +65,7 @@ export default function PublicScan() {
           longitude: lng,
           address: addr,
           source: 'QR Scan',
-          scanned_by: scannedBy.trim() || 'Anônimo',
+          scanned_by: 'Anônimo',
           scanned_at: now.toISOString(),
           device_info: deviceInfo,
         });
@@ -157,24 +161,9 @@ export default function PublicScan() {
           <div className="h-px bg-slate-100 mb-4" />
 
           {locStatus === 'idle' && (
-            <div className="space-y-3">
-              <p className="text-xs text-slate-500 text-center font-medium">Confirme sua presença registrando sua localização</p>
-              <div className="flex items-center gap-2 border border-slate-200 rounded-xl px-3 py-2 focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-transparent">
-                <User className="h-4 w-4 text-slate-400 flex-shrink-0" />
-                <input
-                  className="flex-1 text-sm outline-none bg-transparent"
-                  placeholder="Seu nome (opcional)"
-                  value={scannedBy}
-                  onChange={e => setScannedBy(e.target.value)}
-                />
-              </div>
-              <button
-                onClick={registerLocation}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-xl flex items-center justify-center gap-2 transition-colors"
-              >
-                <MapPin className="h-4 w-4" /> Confirmar localização
-              </button>
-              <p className="text-xs text-slate-400 text-center">Será registrado: data, hora, localização GPS e dispositivo</p>
+            <div className="flex flex-col items-center justify-center gap-3 py-4 text-slate-600">
+              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+              <p className="font-medium text-sm">Registrando localização...</p>
             </div>
           )}
 
