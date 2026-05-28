@@ -117,7 +117,7 @@ export default function AssetMap() {
         </div>
       </div>
 
-      <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm" style={{ height: '60vh', minHeight: 400 }}>
+      <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm" style={{ height: '60vh', minHeight: 400, isolation: 'isolate' }}>
         <MapContainer center={defaultCenter} zoom={5} style={{ height: '100%', width: '100%' }}>
           <TileLayer
             attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
