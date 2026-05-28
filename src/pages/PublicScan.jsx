@@ -15,11 +15,10 @@ export default function PublicScan() {
 
   useEffect(() => {
     if (!assetId) { setLoading(false); return; }
-    base44.entities.Asset.list().then(data => {
-      const found = data.find(a => a.id === assetId);
-      if (found) setAsset(found);
+    base44.entities.Asset.filter({ id: assetId }).then(data => {
+      if (data && data.length > 0) setAsset(data[0]);
       setLoading(false);
-    });
+    }).catch(() => setLoading(false));
   }, [assetId]);
 
   // Auto-trigger location on page load (QR scan = immediate location capture)

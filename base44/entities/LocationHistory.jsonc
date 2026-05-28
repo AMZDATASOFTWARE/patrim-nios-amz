@@ -1,0 +1,66 @@
+{
+  "name": "LocationHistory",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "asset_id": {
+      "type": "string",
+      "title": "ID do Ativo"
+    },
+    "asset_name": {
+      "type": "string",
+      "title": "Nome do Ativo"
+    },
+    "latitude": {
+      "type": "number",
+      "title": "Latitude"
+    },
+    "longitude": {
+      "type": "number",
+      "title": "Longitude"
+    },
+    "address": {
+      "type": "string",
+      "title": "Endere\u00e7o (reverso)"
+    },
+    "source": {
+      "type": "string",
+      "title": "Origem",
+      "enum": [
+        "QR Scan",
+        "Manual",
+        "GPS",
+        "Sistema"
+      ]
+    },
+    "scanned_by": {
+      "type": "string",
+      "title": "Escaneado por"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observa\u00e7\u00f5es"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "asset_id",
+    "latitude",
+    "longitude"
+  ],
+  "rls": {
+    "create": true,
+    "read": {
+      "data.workspace_id": "{{user.workspace_id}}"
+    },
+    "update": {
+      "data.workspace_id": "{{user.workspace_id}}"
+    },
+    "delete": {
+      "data.workspace_id": "{{user.workspace_id}}"
+    }
+  }
+}
