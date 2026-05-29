@@ -34,6 +34,7 @@ const navigation = [
   { name: 'Depreciação',     href: '/Depreciation',      icon: TrendingDown,    requiredPermission: 'view_depreciation' },
   { name: 'Relatórios',      href: '/Reports',           icon: FileText,        requiredPermission: 'view_reports' },
   { name: 'Fornecedores',    href: '/Suppliers',         icon: Truck,           requiredPermission: 'view_suppliers' },
+  { name: 'Colaboradores',   href: '/Collaborators',     icon: Users,           requiredPermission: 'view_users' },
   { name: 'Empresa',         href: '/CompanyProfile',    icon: Landmark,        requiredPermission: 'view_company' },
   { name: 'Usuários',        href: '/UsersManagement',   icon: Users,           requiredPermission: 'view_users' },
   { name: 'Configurações',   href: '/Settings',          icon: Settings,        requiredPermission: 'view_settings' },
