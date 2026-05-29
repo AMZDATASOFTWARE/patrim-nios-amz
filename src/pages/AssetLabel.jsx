@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { QrCode, Search, Printer, Download } from 'lucide-react';
 
 function LabelCard({ asset, appUrl, workspace }) {
-  const scanUrl = `${appUrl}/scan?id=${asset.id}`;
+  const scanUrl = `${appUrl}/scan?id=${asset.id}&wid=${asset.workspace_id}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(scanUrl)}&bgcolor=ffffff&color=1e3a5f&margin=6`;
   const patrimonioNum = asset.plaqueta || asset.id?.slice(-8).toUpperCase();
 
@@ -127,7 +127,7 @@ function LabelCard({ asset, appUrl, workspace }) {
         <p className="text-xs text-muted-foreground truncate flex-1">{asset.name}</p>
         <div className="flex gap-2">
           <a
-            href={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`${appUrl}/scan?id=${asset.id}`)}&bgcolor=ffffff&color=1e3a5f&margin=8`}
+            href={`https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`${appUrl}/scan?id=${asset.id}&wid=${asset.workspace_id}`)}&bgcolor=ffffff&color=1e3a5f&margin=8`}
             download={`qr-${asset.plaqueta || asset.id}.png`}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-muted hover:bg-muted/80 transition-colors"
           >

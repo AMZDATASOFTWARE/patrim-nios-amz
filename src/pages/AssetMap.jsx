@@ -63,10 +63,11 @@ export default function AssetMap() {
     ]).then(([a, l]) => { setAssets(a); setLocations(l); setLoading(false); });
   }, []);
 
-  // Build latest position per asset
+  // Build latest position per asset (usa scanned_at quando disponível, senão created_date)
+  const getLocDate = (l) => new Date(l.scanned_at || l.created_date);
   const latestByAsset = {};
   locations.forEach(l => {
-    if (!latestByAsset[l.asset_id] || new Date(l.created_date) > new Date(latestByAsset[l.asset_id].created_date)) {
+    if (!latestByAsset[l.asset_id] || getLocDate(l) > getLocDate(latestByAsset[l.asset_id])) {
       latestByAsset[l.asset_id] = l;
     }
   });
@@ -81,7 +82,7 @@ export default function AssetMap() {
 
   // History per selected asset for polyline
   const historyForSelected = selectedAsset !== 'all'
-    ? locations.filter(l => l.asset_id === selectedAsset).sort((a, b) => new Date(a.created_date) - new Date(b.created_date))
+    ? locations.filter(l => l.asset_id === selectedAsset).sort((a, b) => getLocDate(a) - getLocDate(b))
     : [];
 
   const allPositions = filteredLatest.map(l => [l.latitude, l.longitude]);
