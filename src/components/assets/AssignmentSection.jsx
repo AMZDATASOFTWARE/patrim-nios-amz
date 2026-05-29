@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, UserCheck, FileText, Printer, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react';
+import { Plus, UserCheck, FileText, ChevronDown, ChevronUp, CheckCircle, Search } from 'lucide-react';
 import moment from 'moment';
 import jsPDF from 'jspdf';
 
@@ -17,27 +17,49 @@ const statusColors = { Ativo: 'bg-emerald-100 text-emerald-700', Devolvido: 'bg-
 
 export default function AssignmentSection({ assetId, assetName }) {
   const [records, setRecords] = useState([]);
+  const [collaborators, setCollaborators] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [expanded, setExpanded] = useState(null);
+  const [collabSearch, setCollabSearch] = useState('');
+  const [showCollabDropdown, setShowCollabDropdown] = useState(false);
   const AssignEntity = useWorkspaceEntity('AssetAssignment');
+  const CollabEntity = useWorkspaceEntity('Collaborator');
 
   useEffect(() => { load(); }, [assetId]);
 
   const load = async () => {
-    const data = await AssignEntity.filter({ asset_id: assetId }, '-assignment_date', 50);
+    const [data, collabs] = await Promise.all([
+      AssignEntity.filter({ asset_id: assetId }, '-assignment_date', 50),
+      CollabEntity.list('-name', 200),
+    ]);
     setRecords(data);
+    setCollaborators(collabs);
     setLoading(false);
   };
 
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  const selectCollaborator = (collab) => {
+    setForm(p => ({
+      ...p,
+      collaborator_name: collab.name,
+      collaborator_cpf: collab.cpf || '',
+      collaborator_email: collab.email || '',
+      collaborator_department: collab.department || '',
+      collaborator_phone: collab.phone || '',
+    }));
+    setCollabSearch(collab.name);
+    setShowCollabDropdown(false);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     await AssignEntity.create({ ...form, asset_id: assetId, asset_name: assetName });
     setOpen(false);
     setForm(EMPTY);
+    setCollabSearch('');
     load();
   };
 
@@ -88,6 +110,11 @@ export default function AssignmentSection({ assetId, assetName }) {
     doc.save(`termo-${rec.collaborator_name.replace(/ /g, '_')}-${rec.asset_name.replace(/ /g, '_')}.pdf`);
   };
 
+  const filteredCollabs = collaborators.filter(c =>
+    !collabSearch || c.name.toLowerCase().includes(collabSearch.toLowerCase()) ||
+    (c.cpf && c.cpf.includes(collabSearch))
+  );
+
   const active = records.filter(r => r.status === 'Ativo');
 
   return (
@@ -97,7 +124,7 @@ export default function AssignmentSection({ assetId, assetName }) {
           <h2 className="text-lg font-semibold text-card-foreground">Termos de Responsabilidade</h2>
           <p className="text-sm text-muted-foreground">{records.length} registro(s) • {active.length} ativo(s)</p>
         </div>
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) { setCollabSearch(''); setShowCollabDropdown(false); } }}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-2"><Plus className="h-4 w-4" /> Novo Termo</Button>
           </DialogTrigger>
@@ -105,7 +132,45 @@ export default function AssignmentSection({ assetId, assetName }) {
             <DialogHeader><DialogTitle>Atribuir Patrimônio</DialogTitle></DialogHeader>
             <form onSubmit={handleSubmit} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2"><Label>Nome do Colaborador *</Label><Input value={form.collaborator_name} onChange={e => f('collaborator_name', e.target.value)} required /></div>
+
+                {/* Busca de colaborador cadastrado */}
+                <div className="col-span-2">
+                  <Label>Colaborador *</Label>
+                  <div className="relative">
+                    <div className="flex items-center border border-input rounded-md px-3 py-2 gap-2 focus-within:ring-1 focus-within:ring-ring bg-background">
+                      <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                      <input
+                        className="flex-1 text-sm outline-none bg-transparent"
+                        placeholder="Buscar colaborador cadastrado..."
+                        value={collabSearch}
+                        onChange={e => { setCollabSearch(e.target.value); setShowCollabDropdown(true); f('collaborator_name', e.target.value); }}
+                        onFocus={() => setShowCollabDropdown(true)}
+                        required
+                      />
+                    </div>
+                    {showCollabDropdown && filteredCollabs.length > 0 && (
+                      <div className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        {filteredCollabs.map(c => (
+                          <button
+                            key={c.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2.5 hover:bg-muted transition-colors flex items-center justify-between"
+                            onClick={() => selectCollaborator(c)}
+                          >
+                            <div>
+                              <p className="text-sm font-medium text-foreground">{c.name}</p>
+                              <p className="text-xs text-muted-foreground">{c.department || ''} {c.cpf ? `• CPF: ${c.cpf}` : ''}</p>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {collaborators.length === 0 && (
+                    <p className="text-xs text-amber-600 mt-1">Nenhum colaborador cadastrado. <a href="/Collaborators" className="underline font-medium">Cadastre aqui</a> antes de criar um termo.</p>
+                  )}
+                </div>
+
                 <div><Label>CPF *</Label><Input value={form.collaborator_cpf} onChange={e => f('collaborator_cpf', e.target.value)} required placeholder="000.000.000-00" /></div>
                 <div><Label>E-mail</Label><Input type="email" value={form.collaborator_email} onChange={e => f('collaborator_email', e.target.value)} /></div>
                 <div><Label>Departamento</Label><Input value={form.collaborator_department} onChange={e => f('collaborator_department', e.target.value)} /></div>

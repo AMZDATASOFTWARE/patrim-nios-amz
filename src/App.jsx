@@ -27,6 +27,7 @@ import Plans from '@/pages/Plans';
 import Billing from '@/pages/Billing';
 import AdminPayments from '@/pages/AdminPayments';
 import SuperAdmin from '@/pages/SuperAdmin';
+import Collaborators from '@/pages/Collaborators';
 import Landing from '@/pages/Landing';
 import InvitedUserOnboarding from '@/components/InvitedUserOnboarding';
 
@@ -110,6 +111,7 @@ const AuthenticatedApp = () => {
         <Route path="/AssetMap" element={<AssetMap />} />
         <Route path="/AssetLabel" element={<AssetLabel />} />
         <Route path="/Suppliers" element={<Suppliers />} />
+        <Route path="/Collaborators" element={<Collaborators />} />
         <Route path="/UsersManagement" element={<UsersManagement />} />
         <Route path="/Settings" element={<Settings />} />
         <Route path="/CompanyProfile" element={<CompanyProfile />} />

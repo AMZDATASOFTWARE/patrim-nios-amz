@@ -6,18 +6,21 @@ import { MapPin, Package, CheckCircle, AlertCircle, Loader2, QrCode, Clock } fro
 export default function PublicScan() {
   const urlParams = new URLSearchParams(window.location.search);
   const assetId = urlParams.get('id');
+  const workspaceId = urlParams.get('wid');
   const [asset, setAsset] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [locStatus, setLocStatus] = useState('idle'); // idle | loading | success | denied
+  const [locStatus, setLocStatus] = useState('idle');
   const [address, setAddress] = useState('');
   const [scanTime, setScanTime] = useState('');
 
   useEffect(() => {
     setScanTime(new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'medium' }));
     if (!assetId) { setLoading(false); return; }
-    base44.entities.Asset.filter({ id: assetId })
+    // Busca por lista e filtra pelo id (filter({id}) não funciona com campos internos)
+    base44.entities.Asset.list()
       .then(data => {
-        if (data && data.length > 0) setAsset(data[0]);
+        const found = (data || []).find(a => a.id === assetId);
+        if (found) setAsset(found);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -43,7 +46,6 @@ export default function PublicScan() {
         const lng = pos.coords.longitude;
         const now = new Date();
 
-        // Reverse geocode
         let addr = '';
         try {
           const res = await fetch(
@@ -54,11 +56,11 @@ export default function PublicScan() {
           setAddress(addr);
         } catch {}
 
-        // Device info
         const deviceInfo = navigator.userAgent.substring(0, 200);
+        const wsId = asset?.workspace_id || workspaceId || '';
 
         await base44.entities.LocationHistory.create({
-          workspace_id: asset?.workspace_id || '',
+          workspace_id: wsId,
           asset_id: assetId,
           asset_name: asset?.name || '',
           latitude: lat,
@@ -151,8 +153,11 @@ export default function PublicScan() {
             </div>
           )}
 
-          {asset.description && (
-            <p className="text-sm text-slate-600 leading-relaxed">{asset.description}</p>
+          {asset.serial_number && (
+            <div className="flex items-start gap-2 text-sm text-slate-600 bg-slate-50 rounded-xl p-3">
+              <span className="text-slate-400 font-mono text-xs">S/N</span>
+              <span>{asset.serial_number}</span>
+            </div>
           )}
         </div>
 
