@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
+import { useWorkspace } from '@/lib/WorkspaceContext';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -28,13 +29,16 @@ export default function LocationHistoryMini({ assetId }) {
   const [loading, setLoading] = useState(true);
   const [showAll, setShowAll] = useState(false);
   const LocationEntity = useWorkspaceEntity('LocationHistory');
+  const { workspaceId } = useWorkspace();
 
   useEffect(() => {
+    if (!workspaceId || !assetId) return;
+    setLoading(true);
     LocationEntity.filter({ asset_id: assetId }, '-created_date', 20).then(d => {
       setHistory(d);
       setLoading(false);
     });
-  }, [assetId]);
+  }, [assetId, workspaceId]);
 
   if (loading) return null;
   if (history.length === 0) return (

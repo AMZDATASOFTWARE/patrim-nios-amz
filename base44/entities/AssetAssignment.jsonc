@@ -1,0 +1,96 @@
+{
+  "name": "AssetAssignment",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "asset_id": {
+      "type": "string",
+      "title": "ID do Ativo"
+    },
+    "asset_name": {
+      "type": "string",
+      "title": "Nome do Ativo"
+    },
+    "collaborator_name": {
+      "type": "string",
+      "title": "Nome do Colaborador"
+    },
+    "collaborator_email": {
+      "type": "string",
+      "title": "E-mail do Colaborador"
+    },
+    "collaborator_cpf": {
+      "type": "string",
+      "title": "CPF do Colaborador"
+    },
+    "collaborator_department": {
+      "type": "string",
+      "title": "Departamento"
+    },
+    "collaborator_phone": {
+      "type": "string",
+      "title": "Telefone do Colaborador"
+    },
+    "assignment_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data de Atribui\u00e7\u00e3o"
+    },
+    "expected_return_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data Prevista de Devolu\u00e7\u00e3o"
+    },
+    "return_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data de Devolu\u00e7\u00e3o"
+    },
+    "purpose": {
+      "type": "string",
+      "title": "Finalidade de Uso"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "Ativo",
+        "Devolvido",
+        "Atrasado",
+        "Cancelado"
+      ]
+    },
+    "condition_on_assignment": {
+      "type": "string",
+      "title": "Estado na Entrega"
+    },
+    "condition_on_return": {
+      "type": "string",
+      "title": "Estado na Devolu\u00e7\u00e3o"
+    },
+    "supervisor_name": {
+      "type": "string",
+      "title": "Nome do Respons\u00e1vel/Supervisor"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observa\u00e7\u00f5es"
+    },
+    "signed": {
+      "type": "boolean",
+      "title": "Termo Assinado"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "asset_id",
+    "asset_name",
+    "collaborator_name",
+    "collaborator_cpf",
+    "assignment_date",
+    "purpose"
+  ]
+}

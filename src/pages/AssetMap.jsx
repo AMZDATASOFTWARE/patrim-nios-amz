@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
+import { useWorkspace } from '@/lib/WorkspaceContext';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -55,13 +56,16 @@ export default function AssetMap() {
   const [showHistory, setShowHistory] = useState(true);
   const AssetEntity = useWorkspaceEntity('Asset');
   const LocationEntity = useWorkspaceEntity('LocationHistory');
+  const { workspaceId } = useWorkspace();
 
   useEffect(() => {
+    if (!workspaceId) return;
+    setLoading(true);
     Promise.all([
       AssetEntity.list('-created_date', 200),
       LocationEntity.list('-created_date', 500),
     ]).then(([a, l]) => { setAssets(a); setLocations(l); setLoading(false); });
-  }, []);
+  }, [workspaceId]);
 
   // Build latest position per asset (usa scanned_at quando disponível, senão created_date)
   const getLocDate = (l) => new Date(l.scanned_at || l.created_date);

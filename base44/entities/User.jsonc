@@ -17,5 +17,8 @@
       "type": "string",
       "title": "Workspace ID"
     }
-  }
+  },
+  "required": [
+    "workspace_id"
+  ]
 }

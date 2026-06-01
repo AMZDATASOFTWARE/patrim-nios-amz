@@ -1,0 +1,162 @@
+{
+  "name": "Supplier",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "name": {
+      "type": "string",
+      "title": "Raz\u00e3o Social"
+    },
+    "trade_name": {
+      "type": "string",
+      "title": "Nome Fantasia"
+    },
+    "cnpj": {
+      "type": "string",
+      "title": "CNPJ"
+    },
+    "email": {
+      "type": "string",
+      "title": "E-mail"
+    },
+    "phone": {
+      "type": "string",
+      "title": "Telefone"
+    },
+    "website": {
+      "type": "string",
+      "title": "Site"
+    },
+    "contact_name": {
+      "type": "string",
+      "title": "Nome do Contato"
+    },
+    "address": {
+      "type": "string",
+      "title": "Endere\u00e7o"
+    },
+    "city": {
+      "type": "string",
+      "title": "Cidade"
+    },
+    "state": {
+      "type": "string",
+      "title": "Estado"
+    },
+    "zip_code": {
+      "type": "string",
+      "title": "CEP"
+    },
+    "category": {
+      "type": "string",
+      "title": "Categoria",
+      "enum": [
+        "Tecnologia",
+        "Ve\u00edculos",
+        "Im\u00f3veis",
+        "Manuten\u00e7\u00e3o",
+        "Seguros",
+        "Outros"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "Ativo",
+        "Inativo",
+        "Bloqueado"
+      ]
+    },
+    "payment_terms": {
+      "type": "string",
+      "title": "Condi\u00e7\u00f5es de Pagamento"
+    },
+    "bank_info": {
+      "type": "string",
+      "title": "Dados Banc\u00e1rios"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observa\u00e7\u00f5es"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "name",
+    "cnpj"
+  ],
+  "rls": {
+    "create": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "manager"
+          }
+        },
+        {
+          "data.workspace_id": "{{user.workspace_id}}"
+        }
+      ]
+    },
+    "read": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "manager"
+          }
+        },
+        {
+          "data.workspace_id": "{{user.workspace_id}}"
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "manager"
+          }
+        },
+        {
+          "data.workspace_id": "{{user.workspace_id}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        },
+        {
+          "user_condition": {
+            "role": "manager"
+          }
+        },
+        {
+          "data.workspace_id": "{{user.workspace_id}}"
+        }
+      ]
+    }
+  }
+}

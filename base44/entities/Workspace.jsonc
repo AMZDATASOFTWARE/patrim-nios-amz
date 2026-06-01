@@ -67,5 +67,40 @@
     "name",
     "owner_email",
     "plan"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.owner_email": "{{user.email}}"
+    },
+    "read": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "data.member_emails": {
+            "$in": [
+              "{{user.email}}"
+            ]
+          }
+        }
+      ]
+    },
+    "update": {
+      "$or": [
+        {
+          "data.owner_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          },
+          "id": "{{user.workspace_id}}"
+        }
+      ]
+    },
+    "delete": {
+      "data.owner_email": "{{user.email}}"
+    }
+  }
 }
