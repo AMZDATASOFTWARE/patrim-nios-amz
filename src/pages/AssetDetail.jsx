@@ -19,23 +19,49 @@ import AssetStatusBadge from '@/components/assets/AssetStatusBadge';
 import MaintenanceSection from '@/components/assets/MaintenanceSection';
 import AssignmentSection from '@/components/assets/AssignmentSection';
 import LocationHistoryMini from '@/components/assets/LocationHistoryMini';
+import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
+import { useWorkspace } from '@/lib/WorkspaceContext';
 import moment from 'moment';
 
 export default function AssetDetail() {
   const navigate = useNavigate();
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get('id');
+  const pendingLat = urlParams.get('lat');
+  const pendingLng = urlParams.get('lng');
+  const pendingAddr = urlParams.get('addr');
   const [asset, setAsset] = useState(null);
   const [loading, setLoading] = useState(true);
+  const LocationEntity = useWorkspaceEntity('LocationHistory');
+  const { workspaceId } = useWorkspace();
 
   useEffect(() => {
     const load = async () => {
       const data = await base44.entities.Asset.filter({ id });
-      if (data.length > 0) setAsset(data[0]);
+      if (data.length > 0) {
+        const found = data[0];
+        setAsset(found);
+        // Se veio de um QR Scan com localização pendente, registra agora (usuário logado)
+        if (pendingLat && pendingLng && workspaceId) {
+          LocationEntity.create({
+            asset_id: id,
+            asset_name: found.name || '',
+            latitude: parseFloat(pendingLat),
+            longitude: parseFloat(pendingLng),
+            address: pendingAddr ? decodeURIComponent(pendingAddr) : '',
+            source: 'QR Scan',
+            scanned_by: 'Usuário',
+            scanned_at: new Date().toISOString(),
+          }).catch(() => {});
+          // Limpa os parâmetros da URL sem recarregar
+          const cleanUrl = `/AssetDetail?id=${id}`;
+          window.history.replaceState({}, '', cleanUrl);
+        }
+      }
       setLoading(false);
     };
-    load();
-  }, [id]);
+    if (workspaceId) load();
+  }, [id, workspaceId]);
 
   const handleDelete = async () => {
     await base44.entities.Asset.delete(id);
