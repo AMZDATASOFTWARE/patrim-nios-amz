@@ -59,33 +59,20 @@ export default function PublicScan() {
         const deviceInfo = navigator.userAgent.substring(0, 200);
         const wsId = asset?.workspace_id || workspaceId || '';
 
-        // Verifica se o usuário está autenticado
-        let isAuth = false;
-        try {
-          await base44.auth.me();
-          isAuth = true;
-        } catch {}
+        await base44.entities.LocationHistory.create({
+          workspace_id: wsId,
+          asset_id: assetId,
+          asset_name: asset?.name || '',
+          latitude: lat,
+          longitude: lng,
+          address: addr,
+          source: 'QR Scan',
+          scanned_by: 'Anônimo',
+          scanned_at: now.toISOString(),
+          device_info: deviceInfo,
+        });
 
-        if (isAuth) {
-          // Usuário logado: salva diretamente
-          await base44.entities.LocationHistory.create({
-            workspace_id: wsId,
-            asset_id: assetId,
-            asset_name: asset?.name || '',
-            latitude: lat,
-            longitude: lng,
-            address: addr,
-            source: 'QR Scan',
-            scanned_by: 'QR Scan',
-            scanned_at: now.toISOString(),
-            device_info: deviceInfo,
-          });
-          setLocStatus('success');
-        } else {
-          // Não logado: redireciona para login e depois para AssetDetail que salva
-          const returnUrl = `/AssetDetail?id=${assetId}&lat=${lat}&lng=${lng}&addr=${encodeURIComponent(addr)}`;
-          base44.auth.redirectToLogin(returnUrl);
-        }
+        setLocStatus('success');
       },
       () => setLocStatus('denied'),
       { enableHighAccuracy: true, timeout: 15000 }
