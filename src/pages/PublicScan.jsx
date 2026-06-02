@@ -16,11 +16,9 @@ export default function PublicScan() {
   useEffect(() => {
     setScanTime(new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'medium' }));
     if (!assetId) { setLoading(false); return; }
-    // Busca por lista e filtra pelo id (filter({id}) não funciona com campos internos)
-    base44.entities.Asset.list()
+    base44.entities.Asset.filter({ id: assetId })
       .then(data => {
-        const found = (data || []).find(a => a.id === assetId);
-        if (found) setAsset(found);
+        if (data && data.length > 0) setAsset(data[0]);
         setLoading(false);
       })
       .catch(() => setLoading(false));
