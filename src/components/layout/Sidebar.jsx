@@ -14,33 +14,24 @@ import {
   Users,
   Settings,
   Landmark,
-  CreditCard,
-  Banknote,
-  ShieldAlert,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { usePermissions } from '@/lib/permissions';
-import { getPlan } from '@/lib/plans';
 import { useWorkspace } from '@/lib/WorkspaceContext';
 import { base44 } from '@/api/base44Client';
 
-// requiredPermission: permissão necessária para ver o item
-// adminOnly: apenas admin da plataforma (super admin) vê
 const navigation = [
-  { name: 'Dashboard',       href: '/Dashboard',        icon: LayoutDashboard, requiredPermission: 'view_dashboard' },
-  { name: 'Ativos',          href: '/Assets',            icon: Package,         requiredPermission: 'view_assets' },
-  { name: 'Mapa',            href: '/AssetMap',          icon: Map,             requiredPermission: 'view_map' },
-  { name: 'Etiquetas / QR',  href: '/AssetLabel',        icon: QrCode,          requiredPermission: 'view_labels' },
-  { name: 'Depreciação',     href: '/Depreciation',      icon: TrendingDown,    requiredPermission: 'view_depreciation' },
-  { name: 'Relatórios',      href: '/Reports',           icon: FileText,        requiredPermission: 'view_reports' },
-  { name: 'Fornecedores',    href: '/Suppliers',         icon: Truck,           requiredPermission: 'view_suppliers' },
-  { name: 'Colaboradores',   href: '/Collaborators',     icon: Users,           requiredPermission: 'view_users' },
-  { name: 'Empresa',         href: '/CompanyProfile',    icon: Landmark,        requiredPermission: 'view_company' },
-  { name: 'Usuários',        href: '/UsersManagement',   icon: Users,           requiredPermission: 'view_users' },
-  { name: 'Configurações',   href: '/Settings',          icon: Settings,        requiredPermission: 'view_settings' },
-  { name: 'Plano & Cobrança',href: '/Billing',           icon: CreditCard,      requiredPermission: 'view_billing' },
-  { name: 'Pagamentos',      href: '/AdminPayments',     icon: Banknote,        adminOnly: true },
-  { name: 'Super Admin',     href: '/SuperAdmin',        icon: ShieldAlert,     adminOnly: true },
+  { name: 'Dashboard',      href: '/Dashboard',       icon: LayoutDashboard, requiredPermission: 'view_dashboard' },
+  { name: 'Ativos',         href: '/Assets',           icon: Package,         requiredPermission: 'view_assets' },
+  { name: 'Mapa',           href: '/AssetMap',         icon: Map,             requiredPermission: 'view_map' },
+  { name: 'Etiquetas / QR', href: '/AssetLabel',       icon: QrCode,          requiredPermission: 'view_labels' },
+  { name: 'Depreciação',    href: '/Depreciation',     icon: TrendingDown,    requiredPermission: 'view_depreciation' },
+  { name: 'Relatórios',     href: '/Reports',          icon: FileText,        requiredPermission: 'view_reports' },
+  { name: 'Fornecedores',   href: '/Suppliers',        icon: Truck,           requiredPermission: 'view_suppliers' },
+  { name: 'Colaboradores',  href: '/Collaborators',    icon: Users,           requiredPermission: 'view_users' },
+  { name: 'Empresa',        href: '/CompanyProfile',   icon: Landmark,        requiredPermission: 'view_company' },
+  { name: 'Usuários',       href: '/UsersManagement',  icon: Users,           requiredPermission: 'view_users' },
+  { name: 'Configurações',  href: '/Settings',         icon: Settings,        requiredPermission: 'view_settings' },
 ];
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
@@ -48,10 +39,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   const { workspace } = useWorkspace();
   const { user } = useAuth();
   const { can } = usePermissions(user);
-  const isSuperAdmin = user?.role === 'admin';
-
   const visibleNav = navigation.filter(item => {
-    if (item.adminOnly) return isSuperAdmin;
     if (item.requiredPermission) return can(item.requiredPermission);
     return true;
   });
@@ -102,16 +90,6 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
             <NavItem key={item.name} item={item} />
           ))}
         </nav>
-
-        {/* Plan badge */}
-        {!collapsed && workspace && (
-          <div className="px-3 pb-3">
-            <a href="/Billing" className="block bg-sidebar-accent/60 hover:bg-sidebar-accent rounded-lg px-3 py-2 transition-colors">
-              <p className="text-[10px] uppercase tracking-wide text-sidebar-foreground/50 font-semibold">Plano atual</p>
-              <p className="text-sm font-bold text-sidebar-primary capitalize">{getPlan(workspace?.plan)?.name || 'Starter'}</p>
-            </a>
-          </div>
-        )}
 
         {/* Footer */}
         <div className="border-t border-sidebar-border p-2 space-y-1">

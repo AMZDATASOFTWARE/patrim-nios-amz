@@ -34,7 +34,6 @@ export function WorkspaceProvider({ children }) {
           name: 'Patrimônio',
           owner_email: me.email,
           plan: 'starter',
-          plan_status: 'trial',
           member_emails: [],
         });
       }
