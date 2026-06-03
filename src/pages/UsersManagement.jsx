@@ -29,16 +29,12 @@ export default function UsersManagement() {
 
   useEffect(() => {
     loadMembers();
-  }, [workspace]);
+  }, []);
 
   const loadMembers = async () => {
-    if (!workspace) return;
     setLoading(true);
-    // Load all users and filter to workspace members
     const allUsers = await base44.entities.User.list();
-    const memberEmails = [workspace.owner_email, ...(workspace.member_emails || [])];
-    const workspaceMembers = allUsers.filter(u => memberEmails.includes(u.email));
-    setMembers(workspaceMembers);
+    setMembers(allUsers);
     setLoading(false);
   };
 
@@ -49,6 +45,7 @@ export default function UsersManagement() {
     toast.success(`Convite enviado para ${inviteEmail}`);
     setInviteEmail('');
     setInviting(false);
+    await loadMembers();
   };
 
   const filtered = members.filter(m =>
@@ -61,7 +58,7 @@ export default function UsersManagement() {
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
         <h1 className="text-3xl font-bold text-foreground">Gerenciar Usuários</h1>
-        <p className="text-muted-foreground mt-1">Membros do workspace {workspace?.name}</p>
+        <p className="text-muted-foreground mt-1">Todos os usuários do sistema</p>
       </div>
 
       {/* Invite section */}
@@ -128,7 +125,7 @@ export default function UsersManagement() {
           <div className="divide-y divide-border">
             {filtered.map(member => {
               const role = roleLabels[member.role] || roleLabels.user;
-              const isOwner = member.email === workspace?.owner_email;
+              const isOwner = member.role === 'admin';
               return (
                 <div key={member.id} className="flex items-center justify-between p-4 hover:bg-muted/30 transition-colors">
                   <div className="flex items-center gap-3">
