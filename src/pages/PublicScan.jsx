@@ -55,11 +55,14 @@ export default function PublicScan() {
         } catch {}
 
         const deviceInfo = navigator.userAgent.substring(0, 200);
-        const wsId = asset?.workspace_id || workspaceId || '';
+        // workspace_id: prioridade ao do próprio ativo, depois ao parâmetro da URL
+        const wsId = (asset?.workspace_id && asset.workspace_id !== '')
+          ? asset.workspace_id
+          : (workspaceId || '');
 
         await base44.entities.LocationHistory.create({
           workspace_id: wsId,
-          asset_id: assetId,
+          asset_id: asset?.id || assetId,
           asset_name: asset?.name || '',
           latitude: lat,
           longitude: lng,
