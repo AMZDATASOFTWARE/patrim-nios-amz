@@ -23,6 +23,7 @@ import Settings from '@/pages/Settings';
 import CompanyProfile from '@/pages/CompanyProfile';
 import Collaborators from '@/pages/Collaborators';
 import Landing from '@/pages/Landing';
+import ImportExport from '@/pages/ImportExport';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -72,6 +73,7 @@ const AuthenticatedApp = () => {
           <Route path="/UsersManagement" element={<UsersManagement />} />
           <Route path="/Settings" element={<Settings />} />
           <Route path="/CompanyProfile" element={<CompanyProfile />} />
+          <Route path="/ImportExport" element={<ImportExport />} />
         </Route>
         <Route path="*" element={<PageNotFound />} />
       </Routes>

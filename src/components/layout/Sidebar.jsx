@@ -14,6 +14,7 @@ import {
   Users,
   Settings,
   Landmark,
+  ArrowUpDown,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { usePermissions } from '@/lib/permissions';
@@ -31,6 +32,7 @@ const navigation = [
   { name: 'Colaboradores',  href: '/Collaborators',    icon: Users,           requiredPermission: 'view_users' },
   { name: 'Empresa',        href: '/CompanyProfile',   icon: Landmark,        requiredPermission: 'view_company' },
   { name: 'Usuários',       href: '/UsersManagement',  icon: Users,           requiredPermission: 'view_users' },
+  { name: 'Importar/Exportar', href: '/ImportExport',  icon: ArrowUpDown,     requiredPermission: 'view_reports' },
   { name: 'Configurações',  href: '/Settings',         icon: Settings,        requiredPermission: 'view_settings' },
 ];
 
