@@ -27,7 +27,7 @@ import Landing from '@/pages/Landing';
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
-  // Rota pública — sem autenticação necessária
+  // Rota pública — sem autenticação necessária (deve vir ANTES de qualquer verificação de auth)
   if (window.location.pathname === '/scan') {
     return (
       <Routes>
@@ -80,6 +80,20 @@ const AuthenticatedApp = () => {
 };
 
 function App() {
+  // Rota /scan é completamente pública — renderiza sem AuthProvider
+  if (window.location.pathname === '/scan') {
+    return (
+      <QueryClientProvider client={queryClientInstance}>
+        <Router>
+          <Routes>
+            <Route path="/scan" element={<PublicScan />} />
+          </Routes>
+        </Router>
+        <Toaster />
+      </QueryClientProvider>
+    );
+  }
+
   return (
     <AuthProvider>
       <QueryClientProvider client={queryClientInstance}>
