@@ -18,15 +18,16 @@ export default function Dashboard() {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const AssetEntity = useWorkspaceEntity('Asset');
+  const { workspaceId } = AssetEntity;
 
   useEffect(() => {
-    const loadAssets = async () => {
-      const data = await AssetEntity.list('-created_date', 100);
+    if (!workspaceId) return;
+    setLoading(true);
+    AssetEntity.list('-created_date', 500).then(data => {
       setAssets(data);
       setLoading(false);
-    };
-    loadAssets();
-  }, []);
+    });
+  }, [workspaceId]);
 
   if (loading) {
     return (

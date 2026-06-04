@@ -20,8 +20,9 @@ export default function Suppliers() {
   const [editId, setEditId] = useState(null);
   const [expanded, setExpanded] = useState(null);
   const SupplierEntity = useWorkspaceEntity('Supplier');
+  const { workspaceId } = SupplierEntity;
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (workspaceId) load(); }, [workspaceId]);
 
   const load = async () => {
     const data = await SupplierEntity.list('-created_date', 100);

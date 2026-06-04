@@ -22,8 +22,9 @@ export default function Collaborators() {
   const [form, setForm] = useState(EMPTY);
   const CollabEntity = useWorkspaceEntity('Collaborator');
   const AssignEntity = useWorkspaceEntity('AssetAssignment');
+  const { workspaceId } = CollabEntity;
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (workspaceId) load(); }, [workspaceId]);
 
   const load = async () => {
     const [c, a] = await Promise.all([

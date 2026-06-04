@@ -8,8 +8,10 @@ import { base44 } from '@/api/base44Client';
 export function useWorkspaceEntity(entityName) {
   const { workspaceId } = useWorkspace();
 
-  const list = (sort = '-created_date', limit = 200) =>
-    base44.entities[entityName].filter({ workspace_id: workspaceId }, sort, limit);
+  const list = (sort = '-created_date', limit = 200) => {
+    if (!workspaceId) return Promise.resolve([]);
+    return base44.entities[entityName].filter({ workspace_id: workspaceId }, sort, limit);
+  };
 
   const create = (data) =>
     base44.entities[entityName].create({ ...data, workspace_id: workspaceId });
@@ -20,8 +22,10 @@ export function useWorkspaceEntity(entityName) {
   const del = (id) =>
     base44.entities[entityName].delete(id);
 
-  const filter = (query, sort = '-created_date', limit = 200) =>
-    base44.entities[entityName].filter({ ...query, workspace_id: workspaceId }, sort, limit);
+  const filter = (query, sort = '-created_date', limit = 200) => {
+    if (!workspaceId) return Promise.resolve([]);
+    return base44.entities[entityName].filter({ ...query, workspace_id: workspaceId }, sort, limit);
+  };
 
-  return { list, create, update, del, filter };
+  return { list, create, update, del, filter, workspaceId };
 }

@@ -19,15 +19,16 @@ export default function Reports() {
   const [costCenterFilter, setCostCenterFilter] = useState('Todos');
   const [generating, setGenerating] = useState(false);
   const AssetEntity = useWorkspaceEntity('Asset');
+  const { workspaceId } = AssetEntity;
 
   useEffect(() => {
-    const load = async () => {
-      const data = await AssetEntity.list('-created_date', 200);
+    if (!workspaceId) return;
+    setLoading(true);
+    AssetEntity.list('-created_date', 200).then(data => {
       setAssets(data);
       setLoading(false);
-    };
-    load();
-  }, []);
+    });
+  }, [workspaceId]);
 
   const costCenters = ['Todos', ...Array.from(new Set(assets.map(a => a.cost_center).filter(Boolean)))];
 

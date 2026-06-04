@@ -17,15 +17,16 @@ export default function Assets() {
   const [categoryFilter, setCategoryFilter] = useState('Todas');
   const [statusFilter, setStatusFilter] = useState('Todos');
   const AssetEntity = useWorkspaceEntity('Asset');
+  const { workspaceId } = AssetEntity;
 
   useEffect(() => {
-    const loadAssets = async () => {
-      const data = await AssetEntity.list('-created_date', 200);
+    if (!workspaceId) return;
+    setLoading(true);
+    AssetEntity.list('-created_date', 200).then(data => {
       setAssets(data);
       setLoading(false);
-    };
-    loadAssets();
-  }, []);
+    });
+  }, [workspaceId]);
 
   const filteredAssets = assets.filter((asset) => {
     const matchesSearch = !search || 
