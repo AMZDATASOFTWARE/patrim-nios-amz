@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
@@ -53,18 +53,22 @@ export default function AssetMap() {
   const [loading, setLoading] = useState(true);
   const [selectedAsset, setSelectedAsset] = useState('all');
   const [showHistory, setShowHistory] = useState(true);
+  const AssetEntity = useWorkspaceEntity('Asset');
+  const LocationEntity = useWorkspaceEntity('LocationHistory');
+  const { workspaceId } = AssetEntity;
 
   useEffect(() => {
+    if (!workspaceId) return;
     setLoading(true);
     Promise.all([
-      base44.entities.Asset.list('-created_date', 500),
-      base44.entities.LocationHistory.list('-created_date', 1000),
+      AssetEntity.list('-created_date', 1000),
+      LocationEntity.list('-created_date', 1000),
     ]).then(([a, l]) => {
       setAssets(a);
       setLocations(l.filter(loc => loc.latitude != null && loc.longitude != null));
       setLoading(false);
     });
-  }, []);
+  }, [workspaceId]);
 
   // Build latest position per asset (usa scanned_at quando disponível, senão created_date)
   const getLocDate = (l) => new Date(l.scanned_at || l.created_date);
