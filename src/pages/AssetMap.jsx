@@ -7,7 +7,8 @@ import { Link } from 'react-router-dom';
 import { formatCurrency, calculateCurrentValue, getUsefulLifeFromRate } from '@/lib/depreciation';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, History } from 'lucide-react';
+import { MapPin, History, Calendar, X } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 // Fix leaflet default icon
 delete L.Icon.Default.prototype._getIconUrl;
@@ -53,6 +54,8 @@ export default function AssetMap() {
   const [loading, setLoading] = useState(true);
   const [selectedAsset, setSelectedAsset] = useState('all');
   const [showHistory, setShowHistory] = useState(true);
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const AssetEntity = useWorkspaceEntity('Asset');
   const LocationEntity = useWorkspaceEntity('LocationHistory');
   const { workspaceId } = AssetEntity;
@@ -70,18 +73,26 @@ export default function AssetMap() {
     });
   }, [workspaceId]);
 
-  // Build latest position per asset (usa scanned_at quando disponível, senão created_date)
+  // Filtro por intervalo de datas (compara scanned_at ou created_date)
   const getLocDate = (l) => new Date(l.scanned_at || l.created_date);
+  const dateFilteredLocations = locations.filter(l => {
+    const d = getLocDate(l);
+    if (dateFrom && d < new Date(dateFrom + 'T00:00:00')) return false;
+    if (dateTo && d > new Date(dateTo + 'T23:59:59')) return false;
+    return true;
+  });
+
+  // Build latest position per asset (usa scanned_at quando disponível, senão created_date)
   const latestByAsset = {};
-  locations.forEach(l => {
+  dateFilteredLocations.forEach(l => {
     if (!latestByAsset[l.asset_id] || getLocDate(l) > getLocDate(latestByAsset[l.asset_id])) {
       latestByAsset[l.asset_id] = l;
     }
   });
 
   const filteredLocations = selectedAsset === 'all'
-    ? locations
-    : locations.filter(l => l.asset_id === selectedAsset);
+    ? dateFilteredLocations
+    : dateFilteredLocations.filter(l => l.asset_id === selectedAsset);
 
   const filteredLatest = selectedAsset === 'all'
     ? Object.values(latestByAsset)
@@ -89,7 +100,7 @@ export default function AssetMap() {
 
   // History per selected asset for polyline
   const historyForSelected = selectedAsset !== 'all'
-    ? locations.filter(l => l.asset_id === selectedAsset).sort((a, b) => getLocDate(a) - getLocDate(b))
+    ? dateFilteredLocations.filter(l => l.asset_id === selectedAsset).sort((a, b) => getLocDate(a) - getLocDate(b))
     : [];
 
   const allPositions = filteredLatest.map(l => [l.latitude, l.longitude]);
@@ -123,6 +134,43 @@ export default function AssetMap() {
             <History className="h-4 w-4" /> Histórico
           </button>
         </div>
+      </div>
+
+      {/* Filtros de data */}
+      <div className="flex flex-wrap items-end gap-3 bg-card rounded-xl border border-border p-4 shadow-sm">
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+            <Calendar className="h-3 w-3" /> Data inicial
+          </label>
+          <Input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="w-44"
+          />
+        </div>
+        <div className="flex flex-col gap-1">
+          <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
+            <Calendar className="h-3 w-3" /> Data final
+          </label>
+          <Input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="w-44"
+          />
+        </div>
+        {(dateFrom || dateTo) && (
+          <button
+            onClick={() => { setDateFrom(''); setDateTo(''); }}
+            className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium border bg-card text-muted-foreground border-border hover:bg-muted transition-colors"
+          >
+            <X className="h-4 w-4" /> Limpar
+          </button>
+        )}
+        <span className="text-xs text-muted-foreground ml-auto">
+          {filteredLocations.length} registro(s) no período
+        </span>
       </div>
 
       <div className="bg-card rounded-xl border border-border overflow-hidden shadow-sm" style={{ height: '60vh', minHeight: 400, isolation: 'isolate' }}>
