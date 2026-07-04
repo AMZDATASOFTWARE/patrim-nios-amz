@@ -61,14 +61,8 @@
   ],
   "rls": {
     "create": true,
-    "read": {
-      "data.workspace_id": "{{user.workspace_id}}"
-    },
-    "update": {
-      "data.workspace_id": "{{user.workspace_id}}"
-    },
-    "delete": {
-      "data.workspace_id": "{{user.workspace_id}}"
-    }
+    "read": true,
+    "update": true,
+    "delete": true
   }
 }
