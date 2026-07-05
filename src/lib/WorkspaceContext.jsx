@@ -3,14 +3,12 @@ import { base44 } from '@/api/base44Client';
 
 const WorkspaceContext = createContext(null);
 
-// ID fixo do workspace central — criado automaticamente na primeira vez
-const CENTRAL_WORKSPACE_KEY = 'central_workspace_id';
-
 export function WorkspaceProvider({ children }) {
   const [workspace, setWorkspace] = useState(null);
   const [workspaceId, setWorkspaceId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [needsSetup, setNeedsSetup] = useState(false);
 
   useEffect(() => {
     init();
@@ -21,32 +19,28 @@ export function WorkspaceProvider({ children }) {
       const me = await base44.auth.me();
       setUser(me);
 
-      // Busca o workspace central (primeiro disponível ou cria um)
-      const all = await base44.entities.Workspace.list();
-
-      let ws = null;
-      if (all.length > 0) {
-        // Usa o primeiro workspace encontrado (workspace central)
-        ws = all[0];
-      } else {
-        // Cria o workspace central automaticamente
-        ws = await base44.entities.Workspace.create({
-          name: 'Patrimônio',
-          owner_email: me.email,
-          plan: 'starter',
-          member_emails: [],
-        });
+      if (me.workspace_id) {
+        const wsList = await base44.entities.Workspace.filter({ id: me.workspace_id });
+        if (wsList.length > 0) {
+          setWorkspace(wsList[0]);
+          setWorkspaceId(wsList[0].id);
+        }
+        setLoading(false);
+        return;
       }
 
-      setWorkspace(ws);
-      setWorkspaceId(ws.id);
-
-      // Garante que o usuário tem workspace_id e role correto
-      const updates = {};
-      if (me.workspace_id !== ws.id) updates.workspace_id = ws.id;
-      if (ws.owner_email === me.email && me.role !== 'admin') updates.role = 'admin';
-      if (Object.keys(updates).length > 0) await base44.auth.updateMe(updates);
-
+      // No workspace yet — try to auto-associate with a pending invite (email already
+      // present in some workspace's member_emails). This never creates a new workspace.
+      const inviteResult = await base44.functions.invoke('acceptWorkspaceInvite', {});
+      if (inviteResult?.data?.ok && inviteResult.data.workspace) {
+        setWorkspace(inviteResult.data.workspace);
+        setWorkspaceId(inviteResult.data.workspace.id);
+        const freshMe = await base44.auth.me();
+        setUser(freshMe);
+      } else {
+        // Genuinely a brand-new user — App.jsx should route them to WorkspaceSetup.
+        setNeedsSetup(true);
+      }
     } catch (e) {
       console.error(e);
     }
@@ -55,25 +49,35 @@ export function WorkspaceProvider({ children }) {
 
   const refreshWorkspace = async () => {
     if (!workspaceId) return;
-    const all = await base44.entities.Workspace.list();
-    const ws = all.find(w => w.id === workspaceId);
-    if (ws) setWorkspace(ws);
+    const wsList = await base44.entities.Workspace.filter({ id: workspaceId });
+    if (wsList.length > 0) setWorkspace(wsList[0]);
+  };
+
+  const createWorkspace = async (data) => {
+    const res = await base44.functions.invoke('createWorkspace', data);
+    if (!res?.data?.ok) {
+      throw new Error(res?.data?.error || 'Não foi possível criar o workspace.');
+    }
+    setWorkspace(res.data.workspace);
+    setWorkspaceId(res.data.workspace.id);
+    setNeedsSetup(false);
+    const freshMe = await base44.auth.me();
+    setUser(freshMe);
+    return res.data.workspace;
   };
 
   const inviteMember = async (email, role = 'user') => {
-    if (!workspace) return;
-    await base44.users.inviteUser(email, role);
-    const currentMembers = workspace.member_emails || [];
-    if (!currentMembers.includes(email)) {
-      const updated = await base44.entities.Workspace.update(workspace.id, {
-        member_emails: [...currentMembers, email],
-      });
-      setWorkspace(updated);
+    const res = await base44.functions.invoke('inviteMember', { email, role });
+    if (!res?.data?.ok) {
+      throw new Error(res?.data?.error || 'Não foi possível convidar este membro.');
     }
+    await refreshWorkspace();
   };
 
   return (
-    <WorkspaceContext.Provider value={{ workspace, workspaceId, loading, user, refreshWorkspace, inviteMember, init }}>
+    <WorkspaceContext.Provider
+      value={{ workspace, workspaceId, loading, user, needsSetup, refreshWorkspace, inviteMember, createWorkspace, init }}
+    >
       {children}
     </WorkspaceContext.Provider>
   );
