@@ -92,10 +92,16 @@
           "data.owner_email": "{{user.email}}"
         },
         {
-          "user_condition": {
-            "role": "admin"
-          },
-          "id": "{{user.workspace_id}}"
+          "$and": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "id": "{{user.data.workspace_id}}"
+            }
+          ]
         }
       ]
     },
