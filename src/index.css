@@ -86,3 +86,12 @@
     @apply bg-background text-foreground font-inter;
   }
 }
+
+/* Leaflet define z-index alto (400–1000) nos painéis internos do mapa. Sem um
+   stacking context próprio, esses painéis sobem acima de diálogos/modais (que
+   ficam em z-50) e o mapa acaba renderizando por cima do conteúdo. Fixar o
+   container em z-index:0 cria o contexto e mantém tudo do mapa abaixo dos overlays. */
+.leaflet-container {
+  position: relative;
+  z-index: 0;
+}
