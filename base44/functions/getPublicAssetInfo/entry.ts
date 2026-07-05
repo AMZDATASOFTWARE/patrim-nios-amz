@@ -24,24 +24,19 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Ativo não encontrado.' }, { status: 404, headers: corsHeaders });
     }
 
+    // Minimal public projection — identification only. No financial/depreciation
+    // fields, no internal workspace id, no location or serial number (security audit A2).
     const publicAsset = {
       id: asset.id,
-      workspace_id: asset.workspace_id,
       name: asset.name,
       category: asset.category,
       status: asset.status,
       photo_url: asset.photo_url,
-      location: asset.location,
-      serial_number: asset.serial_number,
-      acquisition_value: asset.acquisition_value,
-      residual_value: asset.residual_value,
-      purchase_date: asset.purchase_date,
-      depreciation_rate: asset.depreciation_rate,
-      useful_life_years: asset.useful_life_years,
+      plaqueta: asset.plaqueta,
     };
 
     return Response.json({ ok: true, asset: publicAsset }, { headers: corsHeaders });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+  } catch (_error) {
+    return Response.json({ error: 'Não foi possível carregar o ativo.' }, { status: 500, headers: corsHeaders });
   }
 });
