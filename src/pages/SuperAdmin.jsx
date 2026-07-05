@@ -47,22 +47,20 @@ export default function SuperAdmin() {
 
   const load = async () => {
     setLoading(true);
-    // Admin do sistema consegue listar todos os workspaces via RLS admin
-    const data = await base44.entities.Workspace.list('-created_date', 500);
-    setWorkspaces(data);
+    // Listagem cross-workspace só via função backend (validada por is_platform_admin no servidor).
+    const res = await base44.functions.invoke('adminApi', { action: 'listWorkspaces' });
+    setWorkspaces(res?.data?.workspaces || []);
     setLoading(false);
   };
 
   const handleStatusUpdate = async (wsId, newStatus, planId) => {
     setUpdating(wsId);
-    const updates = { plan_status: newStatus };
-    if (newStatus === 'active') {
-      const expires = new Date();
-      expires.setMonth(expires.getMonth() + 1);
-      updates.plan_expires_at = expires.toISOString().split('T')[0];
-      if (planId) updates.plan = planId;
-    }
-    await base44.entities.Workspace.update(wsId, updates);
+    await base44.functions.invoke('adminApi', {
+      action: 'updateWorkspacePlan',
+      workspaceId: wsId,
+      plan_status: newStatus,
+      plan: newStatus === 'active' ? planId || undefined : undefined,
+    });
     toast.success('Workspace atualizado!');
     setUpdating(null);
     load();
@@ -264,10 +262,10 @@ export default function SuperAdmin() {
                           disabled={updating === ws.id}
                           onClick={async () => {
                             setUpdating(ws.id);
-                            const newEnd = new Date();
-                            newEnd.setDate(newEnd.getDate() + 14);
-                            await base44.entities.Workspace.update(ws.id, {
-                              trial_ends_at: newEnd.toISOString().split('T')[0],
+                            await base44.functions.invoke('adminApi', {
+                              action: 'updateWorkspacePlan',
+                              workspaceId: ws.id,
+                              extendTrialDays: 14,
                             });
                             toast.success('Trial estendido por 14 dias!');
                             setUpdating(null);
