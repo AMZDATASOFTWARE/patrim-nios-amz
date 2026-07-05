@@ -31,9 +31,9 @@ export default function SuperAdmin() {
   const [expanded, setExpanded] = useState(null);
   const [updating, setUpdating] = useState(null);
 
-  useEffect(() => { if (user?.role === 'admin') load(); }, [user]);
+  useEffect(() => { if (user?.is_platform_admin) load(); }, [user]);
 
-  if (user && user.role !== 'admin') {
+  if (user && !user.is_platform_admin) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
