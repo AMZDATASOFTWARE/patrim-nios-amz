@@ -251,7 +251,7 @@ export default function AssetDetail() {
       <AssignmentSection assetId={asset.id} assetName={asset.name} />
 
       {/* Maintenance History */}
-      <MaintenanceSection assetId={asset.id} />
+      <MaintenanceSection assetId={asset.id} assetName={asset.name} />
     </div>
   );
 }

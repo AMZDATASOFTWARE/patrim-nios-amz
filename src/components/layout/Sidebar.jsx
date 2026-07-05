@@ -17,6 +17,8 @@ import {
   ArrowUpDown,
   ClipboardCheck,
   History,
+  Wrench,
+  FileSignature,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { usePermissions } from '@/lib/permissions';
@@ -29,6 +31,8 @@ const navigation = [
   { name: 'Inventário',     href: '/Inventory',        icon: ClipboardCheck,  requiredPermission: 'view_inventory' },
   { name: 'Mapa',           href: '/AssetMap',         icon: Map,             requiredPermission: 'view_map' },
   { name: 'Etiquetas / QR', href: '/AssetLabel',       icon: QrCode,          requiredPermission: 'view_labels' },
+  { name: 'Manutenções',    href: '/Maintenance',      icon: Wrench,          requiredPermission: 'view_maintenance' },
+  { name: 'Contratos',      href: '/Contracts',        icon: FileSignature,   requiredPermission: 'view_contracts' },
   { name: 'Depreciação',    href: '/Depreciation',     icon: TrendingDown,    requiredPermission: 'view_depreciation' },
   { name: 'Relatórios',     href: '/Reports',          icon: FileText,        requiredPermission: 'view_reports' },
   { name: 'Fornecedores',   href: '/Suppliers',        icon: Truck,           requiredPermission: 'view_suppliers' },

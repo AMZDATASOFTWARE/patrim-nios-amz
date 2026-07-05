@@ -12,6 +12,8 @@ import AppLayout from '@/components/layout/AppLayout';
 import Dashboard from '@/pages/Dashboard';
 import Assets from '@/pages/Assets';
 import Inventory from '@/pages/Inventory';
+import Maintenance from '@/pages/Maintenance';
+import Contracts from '@/pages/Contracts';
 import AssetForm from '@/pages/AssetForm';
 import AssetDetail from '@/pages/AssetDetail';
 import Depreciation from '@/pages/Depreciation';
@@ -100,6 +102,8 @@ const WorkspaceRoutes = () => {
           <Route path="/Dashboard" element={<Dashboard />} />
           <Route path="/Assets" element={<Assets />} />
           <Route path="/Inventory" element={<Inventory />} />
+          <Route path="/Maintenance" element={<Maintenance />} />
+          <Route path="/Contracts" element={<Contracts />} />
           <Route path="/AssetForm" element={<AssetForm />} />
           <Route path="/AssetDetail" element={<AssetDetail />} />
           <Route path="/Depreciation" element={<Depreciation />} />

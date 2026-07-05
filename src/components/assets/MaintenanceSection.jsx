@@ -10,7 +10,7 @@ import { Plus, Wrench, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/depreciation';
 import moment from 'moment';
 
-export default function MaintenanceSection({ assetId }) {
+export default function MaintenanceSection({ assetId, assetName = '' }) {
   const MaintenanceEntity = useWorkspaceEntity('MaintenanceRecord');
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -39,6 +39,8 @@ export default function MaintenanceSection({ assetId }) {
     await MaintenanceEntity.create({
       ...form,
       asset_id: assetId,
+      asset_name: assetName,
+      status: 'concluida',
       cost: parseFloat(form.cost) || 0,
     });
     setForm({ date: new Date().toISOString().split('T')[0], description: '', cost: '', provider: '', type: 'Corretiva' });

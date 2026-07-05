@@ -1,66 +1,72 @@
 {
-  "name": "MaintenanceRecord",
+  "name": "Contract",
   "type": "object",
   "properties": {
     "workspace_id": {
       "type": "string",
       "title": "Workspace"
     },
+    "type": {
+      "type": "string",
+      "title": "Tipo",
+      "enum": [
+        "garantia",
+        "seguro",
+        "contrato",
+        "locacao"
+      ],
+      "default": "garantia"
+    },
+    "title": {
+      "type": "string",
+      "title": "Título / Descrição"
+    },
     "asset_id": {
       "type": "string",
-      "title": "ID do Ativo"
-    },
-    "date": {
-      "type": "string",
-      "format": "date",
-      "title": "Data da Manuten\u00e7\u00e3o"
-    },
-    "scheduled_date": {
-      "type": "string",
-      "format": "date",
-      "title": "Agendada para"
-    },
-    "status": {
-      "type": "string",
-      "title": "Situa\u00e7\u00e3o",
-      "enum": [
-        "agendada",
-        "concluida"
-      ],
-      "default": "concluida"
+      "title": "Ativo vinculado"
     },
     "asset_name": {
       "type": "string",
       "title": "Ativo"
     },
-    "description": {
-      "type": "string",
-      "title": "Descri\u00e7\u00e3o"
-    },
-    "cost": {
-      "type": "number",
-      "title": "Custo (R$)"
-    },
     "provider": {
       "type": "string",
-      "title": "Fornecedor"
+      "title": "Fornecedor / Seguradora"
     },
-    "type": {
+    "policy_number": {
       "type": "string",
-      "title": "Tipo",
-      "enum": [
-        "Preventiva",
-        "Corretiva",
-        "Melhoria"
-      ]
+      "title": "Nº da Apólice / Contrato"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Início da Vigência"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Fim da Vigência"
+    },
+    "value": {
+      "type": "number",
+      "title": "Valor (R$)"
+    },
+    "document_url": {
+      "type": "string",
+      "title": "Documento (arquivo)"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observações"
     }
   },
   "required": [
     "workspace_id",
-    "asset_id"
+    "type",
+    "title"
   ],
   "rls": {
-    "//": "Tenant + papel: admin/manager lançam manutenção; viewer/user somente leitura.",
+    "//": "Tenant + papel: admin/manager gerenciam contratos/garantias/seguros; viewer/user somente leitura.",
     "create": {
       "$and": [
         { "data.workspace_id": "{{user.data.workspace_id}}" },
