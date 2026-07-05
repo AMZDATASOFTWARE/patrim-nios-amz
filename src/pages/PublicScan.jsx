@@ -11,7 +11,6 @@ export default function PublicScan() {
   const [loading, setLoading] = useState(true);
   const [locStatus, setLocStatus] = useState('idle'); // idle | loading | success | denied | error
   const [address, setAddress] = useState('');
-  const [scannerEmail, setScannerEmail] = useState('');
   const [scanTime] = useState(() =>
     new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'medium' })
   );
@@ -71,7 +70,6 @@ export default function PublicScan() {
             longitude: lng,
             address: addr,
             deviceInfo,
-            scannerEmail: scannerEmail || undefined,
           });
           setLocStatus('success');
         } catch (err) {
@@ -173,26 +171,6 @@ export default function PublicScan() {
               <span>{asset.serial_number}</span>
             </div>
           )}
-        </div>
-
-        {/* Identificação opcional de quem escaneou — nunca bloqueia o registro da localização */}
-        <div className="px-5">
-          <label className="text-xs text-slate-500 mb-1 block">Seu e-mail (opcional)</label>
-          <div className="flex gap-2">
-            <input
-              type="email"
-              value={scannerEmail}
-              onChange={(e) => setScannerEmail(e.target.value)}
-              placeholder="nome@exemplo.com"
-              className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button
-              onClick={() => { registeredRef.current = false; registerLocation(); }}
-              className="text-xs font-medium text-blue-600 hover:underline px-2"
-            >
-              Confirmar
-            </button>
-          </div>
         </div>
 
         <div className="pb-6" />
