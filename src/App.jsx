@@ -6,6 +6,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { WorkspaceProvider, useWorkspace } from '@/lib/WorkspaceContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
+import PaymentGate from '@/components/PaymentGate';
 
 import AppLayout from '@/components/layout/AppLayout';
 import Dashboard from '@/pages/Dashboard';
@@ -24,6 +25,11 @@ import CompanyProfile from '@/pages/CompanyProfile';
 import Collaborators from '@/pages/Collaborators';
 import Landing from '@/pages/Landing';
 import ImportExport from '@/pages/ImportExport';
+import WorkspaceSetup from '@/pages/WorkspaceSetup';
+import Billing from '@/pages/Billing';
+import Plans from '@/pages/Plans';
+import SuperAdmin from '@/pages/SuperAdmin';
+import AdminPayments from '@/pages/AdminPayments';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -56,9 +62,37 @@ const AuthenticatedApp = () => {
 
   return (
     <WorkspaceProvider>
+      <WorkspaceRoutes />
+    </WorkspaceProvider>
+  );
+};
+
+// Decides between: loading spinner, first-time workspace setup, or the real app routes.
+const WorkspaceRoutes = () => {
+  const { loading, needsSetup } = useWorkspace();
+
+  if (loading) {
+    return (
+      <div className="fixed inset-0 flex items-center justify-center">
+        <div className="w-8 h-8 border-4 border-slate-200 border-t-slate-800 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (needsSetup) {
+    return (
+      <Routes>
+        <Route path="*" element={<WorkspaceSetup />} />
+      </Routes>
+    );
+  }
+
+  return (
+    <PaymentGate>
       <Routes>
         <Route path="/" element={<Navigate to="/Dashboard" replace />} />
         <Route path="/landing" element={<Landing />} />
+        <Route path="/Plans" element={<Plans />} />
         <Route element={<AppLayout />}>
           <Route path="/Dashboard" element={<Dashboard />} />
           <Route path="/Assets" element={<Assets />} />
@@ -74,10 +108,13 @@ const AuthenticatedApp = () => {
           <Route path="/Settings" element={<Settings />} />
           <Route path="/CompanyProfile" element={<CompanyProfile />} />
           <Route path="/ImportExport" element={<ImportExport />} />
+          <Route path="/Billing" element={<Billing />} />
+          <Route path="/SuperAdmin" element={<SuperAdmin />} />
+          <Route path="/AdminPayments" element={<AdminPayments />} />
         </Route>
         <Route path="*" element={<PageNotFound />} />
       </Routes>
-    </WorkspaceProvider>
+    </PaymentGate>
   );
 };
 
