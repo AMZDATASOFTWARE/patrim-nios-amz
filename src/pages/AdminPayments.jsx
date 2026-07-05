@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { base44 } from '@/api/base44Client';
+import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { CheckCircle2, XCircle, Clock, CreditCard } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, XCircle, Clock, CreditCard } from 'lucide-react';
 import moment from 'moment';
 import { PLANS } from '@/lib/plans';
 
@@ -13,13 +14,26 @@ const statusConfig = {
 };
 
 export default function AdminPayments() {
+  const { user } = useAuth();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(null);
   const [adminNote, setAdminNote] = useState('');
   const [acting, setActing] = useState(null);
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { if (user?.is_platform_admin) load(); }, [user]);
+
+  if (user && !user.is_platform_admin) {
+    return (
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="text-center">
+          <AlertTriangle className="h-12 w-12 text-destructive mx-auto mb-3" />
+          <h2 className="text-xl font-bold text-foreground">Acesso Negado</h2>
+          <p className="text-muted-foreground mt-1">Esta área é restrita a administradores do sistema.</p>
+        </div>
+      </div>
+    );
+  }
 
   const load = async () => {
     const data = await base44.entities.PaymentRequest.list('-created_date', 100);
