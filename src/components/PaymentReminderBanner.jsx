@@ -26,19 +26,12 @@ export default function PaymentReminderBanner() {
     if (!user?.email || emailSent || !workspace) return;
     if (showTrialWarning && trialDaysLeft <= 3) {
       setEmailSent(true);
-      base44.integrations.Core.SendEmail({
-        to: user.email,
-        subject: `⏱️ Seu trial encerra em ${trialDaysLeft === 0 ? 'hoje' : `${trialDaysLeft} dia(s)`} — PatrimônioApp`,
-        body: `Olá!\n\nSeu período de avaliação gratuita do PatrimônioApp encerra ${trialDaysLeft === 0 ? 'hoje' : `em ${trialDaysLeft} dia(s)`}.\n\nPara continuar usando o sistema sem interrupção, escolha um plano:\n👉 Acesse: ${window.location.origin}/Billing\n\nDúvidas? Responda este e-mail.\n\nAtenciosamente,\nEquipe PatrimônioApp`,
-      });
+      // Destinatário e conteúdo definidos no backend (o cliente só dispara o gatilho).
+      base44.functions.invoke('notifyBilling', { action: 'trialReminder', days: trialDaysLeft });
     }
     if (showPaymentWarning && planDaysOverdue >= 3) {
       setEmailSent(true);
-      base44.integrations.Core.SendEmail({
-        to: user.email,
-        subject: `⚠️ Pagamento atrasado há ${planDaysOverdue} dia(s) — PatrimônioApp`,
-        body: `Olá!\n\nIdentificamos que o pagamento da sua assinatura está em atraso há ${planDaysOverdue} dia(s).\n\nSua conta será suspensa caso o pagamento não seja regularizado em breve.\n\n👉 Regularize agora: ${window.location.origin}/Billing\n\nAtenciosamente,\nEquipe PatrimônioApp`,
-      });
+      base44.functions.invoke('notifyBilling', { action: 'paymentOverdue', days: planDaysOverdue });
     }
   }, [showTrialWarning, showPaymentWarning, user?.email, emailSent, workspace]);
 
