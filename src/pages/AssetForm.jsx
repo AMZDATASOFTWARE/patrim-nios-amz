@@ -13,6 +13,8 @@ import { getDefaultDepreciationRate, getUsefulLifeFromRate } from '@/lib/depreci
 import SupplierSelect from '@/components/assets/SupplierSelect';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
+import { useWorkspace } from '@/lib/WorkspaceContext';
+import { getPlan } from '@/lib/plans';
 import { logAudit } from '@/lib/audit';
 
 const categories = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
@@ -28,6 +30,7 @@ export default function AssetForm() {
   const ConfigEntity = useWorkspaceEntity('DepreciationConfig');
   const AuditEntity = useWorkspaceEntity('AuditLog');
   const { user } = useAuth();
+  const { workspace } = useWorkspace();
 
   const [form, setForm] = useState({
     name: '',
@@ -119,8 +122,21 @@ export default function AssetForm() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Aplica o limite de ativos do plano na criação (edição não conta).
+    if (!editId) {
+      const limit = getPlan(workspace?.plan).limits.assets;
+      if (Number.isFinite(limit)) {
+        const existing = await AssetEntity.list('-created_date', limit + 1);
+        if (existing.length >= limit) {
+          toast.error(`Seu plano permite até ${limit} ativos. Faça upgrade em Plano & Cobrança para cadastrar mais.`);
+          return;
+        }
+      }
+    }
+
     setSaving(true);
-    
+
     const data = {
       ...form,
       acquisition_value: parseFloat(form.acquisition_value) || 0,

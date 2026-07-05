@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import NotificationBell from './NotificationBell';
+import ThemeToggle from './ThemeToggle';
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
@@ -40,7 +41,8 @@ export default function AppLayout() {
             </svg>
           </button>
           <span className="font-semibold text-foreground lg:hidden">Patrimônio</span>
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-1">
+            <ThemeToggle />
             <NotificationBell />
           </div>
         </div>

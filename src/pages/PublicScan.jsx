@@ -154,17 +154,29 @@ export default function PublicScan() {
             </div>
           </div>
 
-          {asset.location && (
-            <div className="flex items-start gap-2 text-sm text-slate-600 bg-slate-50 rounded-xl p-3">
-              <MapPin className="h-4 w-4 mt-0.5 text-slate-400 flex-shrink-0" />
-              <span>{asset.location}</span>
+          {/* Feedback do registro de localização */}
+          {locStatus === 'loading' && (
+            <div className="flex items-center gap-2 text-sm text-blue-700 bg-blue-50 rounded-xl p-3">
+              <div className="w-4 h-4 border-2 border-blue-300 border-t-blue-600 rounded-full animate-spin flex-shrink-0" />
+              <span>Registrando localização...</span>
             </div>
           )}
-
-          {asset.serial_number && (
-            <div className="flex items-start gap-2 text-sm text-slate-600 bg-slate-50 rounded-xl p-3">
-              <span className="text-slate-400 font-mono text-xs">S/N</span>
-              <span>{asset.serial_number}</span>
+          {locStatus === 'success' && (
+            <div className="flex items-start gap-2 text-sm text-emerald-700 bg-emerald-50 rounded-xl p-3">
+              <MapPin className="h-4 w-4 mt-0.5 text-emerald-500 flex-shrink-0" />
+              <span>{address ? `Localização registrada: ${address}` : 'Scan registrado com sucesso.'}</span>
+            </div>
+          )}
+          {locStatus === 'denied' && (
+            <div className="flex items-start gap-2 text-sm text-amber-700 bg-amber-50 rounded-xl p-3">
+              <AlertCircle className="h-4 w-4 mt-0.5 text-amber-500 flex-shrink-0" />
+              <span>Localização não autorizada — o scan foi registrado apenas com data e rede (IP).</span>
+            </div>
+          )}
+          {locStatus === 'error' && (
+            <div className="flex items-start gap-2 text-sm text-red-700 bg-red-50 rounded-xl p-3">
+              <AlertCircle className="h-4 w-4 mt-0.5 text-red-500 flex-shrink-0" />
+              <span>Não foi possível registrar o scan. Tente novamente.</span>
             </div>
           )}
 

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useWorkspace } from '@/lib/WorkspaceContext';
-import { base44 } from '@/api/base44Client';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { getPlan, PLANS } from '@/lib/plans';
 import { Button } from '@/components/ui/button';
@@ -25,7 +24,8 @@ export default function Billing() {
   const AssetEntity = useWorkspaceEntity('Asset');
 
   useEffect(() => {
-    AssetEntity.list('-created_date', 5000).then(d => setAssetCount(d.length));
+    // Contagem leve (só ids) em vez de puxar milhares de registros completos.
+    AssetEntity.count().then(setAssetCount);
     // Conta apenas membros do workspace atual
     const memberCount = 1 + (workspace?.member_emails?.length || 0);
     setUserCount(memberCount);
