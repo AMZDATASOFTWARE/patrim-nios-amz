@@ -6,7 +6,6 @@ import { MapPin, Package, CheckCircle, AlertCircle, Loader2, QrCode, Clock } fro
 export default function PublicScan() {
   const urlParams = new URLSearchParams(window.location.search);
   const assetId = urlParams.get('id');
-  const workspaceId = urlParams.get('wid');
 
   const [asset, setAsset] = useState(null);
   const [loading, setLoading] = useState(true);
