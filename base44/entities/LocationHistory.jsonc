@@ -48,6 +48,10 @@
       "type": "string",
       "title": "Dispositivo"
     },
+    "ip_address": {
+      "type": "string",
+      "title": "IP (servidor)"
+    },
     "notes": {
       "type": "string",
       "title": "Observa\u00e7\u00f5es"
@@ -55,14 +59,20 @@
   },
   "required": [
     "workspace_id",
-    "asset_id",
-    "latitude",
-    "longitude"
+    "asset_id"
   ],
   "rls": {
-    "create": true,
-    "read": true,
-    "update": true,
-    "delete": true
+    "create": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "delete": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    }
   }
 }
