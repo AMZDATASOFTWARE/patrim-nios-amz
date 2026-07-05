@@ -25,21 +25,14 @@ export default function PaymentModal({ plan, onClose, onSuccess }) {
 
   const handleSubmit = async () => {
     setSending(true);
-    await base44.entities.PaymentRequest.create({
-      workspace_id: workspace.id,
-      workspace_name: workspace.name,
-      owner_email: user?.email || workspace.owner_email,
+    // Criação do PaymentRequest e notificação do admin ocorrem no backend
+    // (identidade carimbada pela sessão; destinatário/template fixos no servidor).
+    await base44.functions.invoke('notifyBilling', {
+      action: 'requestPayment',
       plan: plan.id,
       amount: plan.price,
       payment_method: method,
       proof_notes: notes,
-      status: 'pending',
-    });
-    // Notify admin by email
-    await base44.integrations.Core.SendEmail({
-      to: 'mateus.sg100@gmail.com',
-      subject: `💰 Nova solicitação de pagamento — ${workspace.name}`,
-      body: `Nova solicitação de pagamento recebida!\n\nEmpresa: ${workspace.name}\nPlano: ${plan.name}\nValor: R$ ${plan.price}/mês\nForma: ${method}\nE-mail: ${user?.email}\n\nObs do cliente:\n${notes || '—'}\n\nConfirme o pagamento em: ${window.location.origin}/AdminPayments`,
     });
     setSending(false);
     setDone(true);
