@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { formatCurrency, calculateCurrentValue, getUsefulLifeFromRate } from '@/lib/depreciation';
-import { MapPin, Package, CheckCircle, AlertCircle, Loader2, QrCode, Clock } from 'lucide-react';
+import { MapPin, Package, AlertCircle, QrCode, Clock } from 'lucide-react';
 
 export default function PublicScan() {
   const urlParams = new URLSearchParams(window.location.search);
