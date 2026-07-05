@@ -195,70 +195,7 @@ export default function PublicScan() {
           </div>
         </div>
 
-        {/* Location Status */}
-        <div className="px-5 pb-6">
-          <div className="h-px bg-slate-100 mb-4 mt-4" />
-
-          {locStatus === 'idle' && (
-            <div className="flex flex-col items-center justify-center gap-3 py-4 text-slate-600">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              <p className="font-medium text-sm">Preparando registro de localização...</p>
-            </div>
-          )}
-
-          {locStatus === 'loading' && (
-            <div className="flex flex-col items-center justify-center gap-3 py-4 text-slate-600">
-              <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
-              <div className="text-center">
-                <p className="font-medium text-sm">Obtendo localização...</p>
-                <p className="text-xs text-slate-400 mt-1">Permita o acesso à localização quando solicitado</p>
-              </div>
-            </div>
-          )}
-
-          {locStatus === 'success' && (
-            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4 text-center space-y-1">
-              <CheckCircle className="h-9 w-9 text-emerald-500 mx-auto mb-2" />
-              <p className="font-bold text-emerald-700">Presença registrada!</p>
-              <p className="text-xs text-emerald-600">{scanTime}</p>
-              {address && (
-                <p className="text-xs text-emerald-500 mt-2 line-clamp-3">{address}</p>
-              )}
-            </div>
-          )}
-
-          {locStatus === 'denied' && (
-            <div className="space-y-3">
-              <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-center">
-                <AlertCircle className="h-7 w-7 text-amber-500 mx-auto mb-2" />
-                <p className="font-medium text-amber-700 text-sm">Permissão de localização negada</p>
-                <p className="text-xs text-amber-600 mt-1">Libere o acesso à localização nas configurações do navegador e tente novamente.</p>
-              </div>
-              <button
-                onClick={() => { registeredRef.current = false; registerLocation(); }}
-                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
-              >
-                Tentar novamente
-              </button>
-            </div>
-          )}
-
-          {locStatus === 'error' && (
-            <div className="space-y-3">
-              <div className="bg-red-50 border border-red-100 rounded-xl p-4 text-center">
-                <AlertCircle className="h-7 w-7 text-red-500 mx-auto mb-2" />
-                <p className="font-medium text-red-700 text-sm">Erro ao salvar localização</p>
-                <p className="text-xs text-red-500 mt-1">Não foi possível registrar a posição. Tente novamente.</p>
-              </div>
-              <button
-                onClick={() => { registeredRef.current = false; registerLocation(); }}
-                className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium py-2.5 rounded-xl text-sm transition-colors"
-              >
-                Tentar novamente
-              </button>
-            </div>
-          )}
-        </div>
+        <div className="pb-6" />
       </div>
     </div>
   );
