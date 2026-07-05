@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
-import { formatCurrency, calculateCurrentValue, getUsefulLifeFromRate } from '@/lib/depreciation';
 import { MapPin, Package, AlertCircle, QrCode, Clock } from 'lucide-react';
 
 export default function PublicScan() {
@@ -36,9 +35,26 @@ export default function PublicScan() {
     }
   }, [loading, assetId]);
 
+  const sendScan = async ({ latitude, longitude, address: addr } = {}) => {
+    const deviceInfo = navigator.userAgent.substring(0, 200);
+    try {
+      await base44.functions.invoke('registerPublicScan', {
+        assetId,
+        ...(latitude !== undefined && longitude !== undefined ? { latitude, longitude } : {}),
+        address: addr || '',
+        deviceInfo,
+      });
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const registerLocation = () => {
+    // Sem geolocalização disponível: ainda registra o scan (o IP é capturado no servidor).
     if (!navigator.geolocation) {
-      setLocStatus('denied');
+      setLocStatus('loading');
+      sendScan().then((ok) => setLocStatus(ok ? 'success' : 'error'));
       return;
     }
     setLocStatus('loading');
@@ -47,9 +63,8 @@ export default function PublicScan() {
       async (pos) => {
         const lat = pos.coords.latitude;
         const lng = pos.coords.longitude;
-        const now = new Date();
 
-        // Geocodificação reversa
+        // Geocodificação reversa (melhor esforço)
         let addr = '';
         try {
           const res = await fetch(
@@ -61,36 +76,17 @@ export default function PublicScan() {
           setAddress(addr);
         } catch {}
 
-        const deviceInfo = navigator.userAgent.substring(0, 200);
-
-        try {
-          await base44.functions.invoke('registerPublicScan', {
-            assetId,
-            latitude: lat,
-            longitude: lng,
-            address: addr,
-            deviceInfo,
-          });
-          setLocStatus('success');
-        } catch (err) {
-          console.error('Erro ao registrar localização:', err);
-          setLocStatus('error');
-        }
+        const ok = await sendScan({ latitude: lat, longitude: lng, address: addr });
+        setLocStatus(ok ? 'success' : 'error');
       },
-      (err) => {
-        console.warn('Geolocalização negada:', err);
-        setLocStatus('denied');
+      async () => {
+        // Permissão de localização negada: registra o scan mesmo assim, só com IP.
+        const ok = await sendScan();
+        setLocStatus(ok ? 'success' : 'denied');
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
     );
   };
-
-  const usefulLife = asset
-    ? (asset.useful_life_years || getUsefulLifeFromRate(asset.depreciation_rate))
-    : 0;
-  const currentValue = asset
-    ? calculateCurrentValue(asset.purchase_date, asset.acquisition_value, asset.residual_value || 0, usefulLife)
-    : 0;
 
   // Loading
   if (loading) return (
@@ -149,12 +145,12 @@ export default function PublicScan() {
         <div className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div className="bg-slate-50 rounded-xl p-3 text-center">
-              <p className="text-xs text-slate-500 mb-1">Valor Contábil</p>
-              <p className="text-base font-bold text-blue-700">{formatCurrency(currentValue)}</p>
-            </div>
-            <div className="bg-slate-50 rounded-xl p-3 text-center">
               <p className="text-xs text-slate-500 mb-1">Categoria</p>
               <p className="text-sm font-semibold text-slate-700">{asset.category}</p>
+            </div>
+            <div className="bg-slate-50 rounded-xl p-3 text-center">
+              <p className="text-xs text-slate-500 mb-1">Patrimônio</p>
+              <p className="text-sm font-semibold text-slate-700">{asset.plaqueta || '—'}</p>
             </div>
           </div>
 
@@ -171,6 +167,12 @@ export default function PublicScan() {
               <span>{asset.serial_number}</span>
             </div>
           )}
+
+          <p className="text-[11px] text-slate-400 leading-relaxed pt-1">
+            Ao permitir o acesso à localização, você ajuda a registrar por onde este patrimônio
+            passou. Para fins de segurança, o horário e o endereço de rede (IP) do acesso também
+            são registrados.
+          </p>
         </div>
 
         <div className="pb-6" />
