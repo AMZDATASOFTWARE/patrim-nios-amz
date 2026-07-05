@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Building2, User } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function WorkspaceSetup() {
   const { createWorkspace } = useWorkspace();
@@ -14,15 +15,12 @@ export default function WorkspaceSetup() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
-    const trialEnd = new Date();
-    trialEnd.setDate(trialEnd.getDate() + 14);
-    // createWorkspace já salva workspace_id e define role: admin no user
-    await createWorkspace({
-      ...form,
-      plan: 'starter',
-      plan_status: 'trial',
-      trial_ends_at: trialEnd.toISOString().split('T')[0],
-    });
+    try {
+      // createWorkspace roda no backend: cria o Workspace e define workspace_id/role: admin no user
+      await createWorkspace(form);
+    } catch (err) {
+      toast.error(err.message || 'Não foi possível criar o workspace.');
+    }
     setSaving(false);
   };
 
