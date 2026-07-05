@@ -11,8 +11,8 @@ export default function PaymentGate({ children }) {
 
   if (loading) return null;
   if (!workspace) return children;
-  // Super admin nunca é bloqueado
-  if (user?.role === 'admin') return children;
+  // Super admin (dono da plataforma) nunca é bloqueado
+  if (user?.is_platform_admin) return children;
 
   const status = workspace.plan_status;
   const trialEnds = workspace.trial_ends_at;
