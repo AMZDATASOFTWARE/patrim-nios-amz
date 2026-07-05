@@ -24,6 +24,8 @@ import UsersManagement from '@/pages/UsersManagement';
 import Settings from '@/pages/Settings';
 import CompanyProfile from '@/pages/CompanyProfile';
 import Collaborators from '@/pages/Collaborators';
+import Notifications from '@/pages/Notifications';
+import AuditTrail from '@/pages/AuditTrail';
 import Landing from '@/pages/Landing';
 import ImportExport from '@/pages/ImportExport';
 import WorkspaceSetup from '@/pages/WorkspaceSetup';
@@ -106,6 +108,8 @@ const WorkspaceRoutes = () => {
           <Route path="/AssetLabel" element={<AssetLabel />} />
           <Route path="/Suppliers" element={<Suppliers />} />
           <Route path="/Collaborators" element={<Collaborators />} />
+          <Route path="/Notifications" element={<Notifications />} />
+          <Route path="/AuditTrail" element={<AuditTrail />} />
           <Route path="/UsersManagement" element={<UsersManagement />} />
           <Route path="/Settings" element={<Settings />} />
           <Route path="/CompanyProfile" element={<CompanyProfile />} />

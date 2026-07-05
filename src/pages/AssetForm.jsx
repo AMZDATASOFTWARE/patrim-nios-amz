@@ -12,6 +12,8 @@ import { Link } from 'react-router-dom';
 import { getDefaultDepreciationRate, getUsefulLifeFromRate } from '@/lib/depreciation';
 import SupplierSelect from '@/components/assets/SupplierSelect';
 import { toast } from 'sonner';
+import { useAuth } from '@/lib/AuthContext';
+import { logAudit } from '@/lib/audit';
 
 const categories = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
 const statuses = ['Ativo', 'Em Manutenção', 'Inativo', 'Alienado'];
@@ -24,6 +26,8 @@ export default function AssetForm() {
   const [loading, setLoading] = useState(!!editId);
   const AssetEntity = useWorkspaceEntity('Asset');
   const ConfigEntity = useWorkspaceEntity('DepreciationConfig');
+  const AuditEntity = useWorkspaceEntity('AuditLog');
+  const { user } = useAuth();
 
   const [form, setForm] = useState({
     name: '',
@@ -130,8 +134,16 @@ export default function AssetForm() {
     try {
       if (editId) {
         await AssetEntity.update(editId, data);
+        await logAudit(AuditEntity, {
+          action: 'updated', entity_type: 'Asset', entity_id: editId,
+          entity_label: data.name, summary: `Editou o ativo "${data.name}"`, actor: user,
+        });
       } else {
-        await AssetEntity.create(data);
+        const created = await AssetEntity.create(data);
+        await logAudit(AuditEntity, {
+          action: 'created', entity_type: 'Asset', entity_id: created?.id || '',
+          entity_label: data.name, summary: `Cadastrou o ativo "${data.name}"`, actor: user,
+        });
       }
       navigate('/Assets');
     } catch (err) {

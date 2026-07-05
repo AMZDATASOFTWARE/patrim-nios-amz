@@ -1,0 +1,70 @@
+{
+  "name": "Notification",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "user_email": {
+      "type": "string",
+      "title": "Destinatário (e-mail) — vazio = todos do workspace"
+    },
+    "title": {
+      "type": "string",
+      "title": "Título"
+    },
+    "body": {
+      "type": "string",
+      "title": "Mensagem"
+    },
+    "type": {
+      "type": "string",
+      "title": "Tipo",
+      "enum": [
+        "info",
+        "success",
+        "warning"
+      ],
+      "default": "info"
+    },
+    "link": {
+      "type": "string",
+      "title": "Link"
+    },
+    "read": {
+      "type": "boolean",
+      "title": "Lida",
+      "default": false
+    }
+  },
+  "required": [
+    "workspace_id",
+    "title"
+  ],
+  "rls": {
+    "//": "Notificação por destinatário (user_email) ou broadcast do workspace (user_email vazio). Membro só lê o que é seu ou o broadcast; só o destinatário marca como lida.",
+    "create": { "data.workspace_id": "{{user.data.workspace_id}}" },
+    "read": {
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "$or": [
+          { "data.user_email": "{{user.email}}" },
+          { "data.user_email": "" }
+        ] }
+      ]
+    },
+    "update": {
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "data.user_email": "{{user.email}}" }
+      ]
+    },
+    "delete": {
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "data.user_email": "{{user.email}}" }
+      ]
+    }
+  }
+}

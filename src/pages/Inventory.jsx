@@ -245,6 +245,7 @@ function NewInventoryDialog({ AssetEntity, CountEntity, ItemEntity, userEmail, o
 }
 
 function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountEntity, onBack }) {
+  const NotificationEntity = useWorkspaceEntity('Notification');
   const [count, setCount] = useState(null);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -315,6 +316,19 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
         await ItemEntity.update(i.id, { status: 'nao_encontrado', counted_by: userEmail || '', counted_at: new Date().toISOString() });
       }
       await CountEntity.update(inventoryId, { status: 'concluido', closed_at: new Date().toISOString() });
+
+      // Notifica quem iniciou o inventário com o resumo da conciliação.
+      const divergentes = items.filter((i) => i.status === 'divergente').length;
+      const naoEncontrados = pendentes.length + items.filter((i) => i.status === 'nao_encontrado').length;
+      await NotificationEntity.create({
+        user_email: count?.started_by || userEmail || '',
+        title: `Inventário concluído: ${count?.name || ''}`,
+        body: `${items.length} itens conferidos • ${divergentes} divergente(s) • ${naoEncontrados} não encontrado(s).`,
+        type: (divergentes + naoEncontrados) > 0 ? 'warning' : 'success',
+        link: '/Inventory',
+        read: false,
+      }).catch(() => {});
+
       toast.success('Inventário concluído.');
       onBack();
     } catch (e) {

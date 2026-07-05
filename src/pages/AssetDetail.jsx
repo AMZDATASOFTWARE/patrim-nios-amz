@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { 
   ArrowLeft, Edit, Trash2, ExternalLink, MapPin, Calendar, Package,
-  FileText, Wrench, Plus
+  FileText
 } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -20,6 +20,8 @@ import AssignmentSection from '@/components/assets/AssignmentSection';
 import LocationHistoryMini from '@/components/assets/LocationHistoryMini';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { useWorkspace } from '@/lib/WorkspaceContext';
+import { useAuth } from '@/lib/AuthContext';
+import { logAudit } from '@/lib/audit';
 import moment from 'moment';
 
 export default function AssetDetail() {
@@ -33,7 +35,9 @@ export default function AssetDetail() {
   const [loading, setLoading] = useState(true);
   const AssetEntity = useWorkspaceEntity('Asset');
   const LocationEntity = useWorkspaceEntity('LocationHistory');
+  const AuditEntity = useWorkspaceEntity('AuditLog');
   const { workspaceId } = useWorkspace();
+  const { user } = useAuth();
 
   useEffect(() => {
     const load = async () => {
@@ -66,6 +70,10 @@ export default function AssetDetail() {
 
   const handleDelete = async () => {
     await AssetEntity.del(id);
+    await logAudit(AuditEntity, {
+      action: 'deleted', entity_type: 'Asset', entity_id: id,
+      entity_label: asset?.name || '', summary: `Excluiu o ativo "${asset?.name || ''}"`, actor: user,
+    });
     navigate('/Assets');
   };
 
