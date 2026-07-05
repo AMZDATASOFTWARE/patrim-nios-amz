@@ -15,12 +15,11 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
 
     const body = await req.json();
-    const { assetId, latitude, longitude, address, deviceInfo, scannerEmail } = body;
-    if (!assetId || latitude === undefined || longitude === undefined) {
-      return Response.json(
-        { error: 'assetId, latitude e longitude são obrigatórios.' },
-        { status: 400, headers: corsHeaders }
-      );
+    // latitude/longitude are optional: a scan is recorded even when the visitor
+    // denies the browser geolocation prompt (IP is still captured server-side).
+    const { assetId, latitude, longitude, address, deviceInfo } = body;
+    if (!assetId) {
+      return Response.json({ error: 'assetId é obrigatório.' }, { status: 400, headers: corsHeaders });
     }
 
     const assets = await base44.asServiceRole.entities.Asset.filter({ id: assetId });
@@ -44,23 +43,22 @@ Deno.serve(async (req) => {
       // Anonymous scan — expected, not an error.
     }
 
+    const hasCoords = latitude !== undefined && longitude !== undefined;
     const record = await base44.asServiceRole.entities.LocationHistory.create({
       workspace_id: asset.workspace_id,
       asset_id: assetId,
       asset_name: asset.name || '',
-      latitude,
-      longitude,
+      ...(hasCoords ? { latitude, longitude } : {}),
       address: address || '',
       source: 'QR Scan',
-      scanned_by: attemptedUser || scannerEmail || 'Anônimo',
+      scanned_by: attemptedUser || 'Anônimo',
       scanned_at: new Date().toISOString(),
       device_info: (deviceInfo || '').substring(0, 200),
-      scanner_email: scannerEmail || attemptedUser || '',
       ip_address: ipAddress,
     });
 
     return Response.json({ ok: true, record_id: record.id }, { headers: corsHeaders });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+  } catch (_error) {
+    return Response.json({ error: 'Não foi possível registrar o scan.' }, { status: 500, headers: corsHeaders });
   }
 });
