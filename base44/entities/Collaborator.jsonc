@@ -61,67 +61,16 @@
   ],
   "rls": {
     "create": {
-      "$or": [
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        },
-        {
-          "user_condition": {
-            "role": "manager"
-          }
-        },
-        {
-          "data.workspace_id": "{{user.workspace_id}}"
-        }
-      ]
+      "data.workspace_id": "{{user.data.workspace_id}}"
     },
     "read": {
-      "$or": [
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        },
-        {
-          "user_condition": {
-            "role": "manager"
-          }
-        },
-        {
-          "data.workspace_id": "{{user.workspace_id}}"
-        }
-      ]
+      "data.workspace_id": "{{user.data.workspace_id}}"
     },
     "update": {
-      "$or": [
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        },
-        {
-          "user_condition": {
-            "role": "manager"
-          }
-        },
-        {
-          "data.workspace_id": "{{user.workspace_id}}"
-        }
-      ]
+      "data.workspace_id": "{{user.data.workspace_id}}"
     },
     "delete": {
-      "$or": [
-        {
-          "user_condition": {
-            "role": "admin"
-          }
-        },
-        {
-          "data.workspace_id": "{{user.workspace_id}}"
-        }
-      ]
+      "data.workspace_id": "{{user.data.workspace_id}}"
     }
   }
 }
