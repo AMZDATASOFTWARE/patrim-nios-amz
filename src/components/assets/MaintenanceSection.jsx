@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { base44 } from '@/api/base44Client';
+import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,7 @@ import { formatCurrency } from '@/lib/depreciation';
 import moment from 'moment';
 
 export default function MaintenanceSection({ assetId }) {
+  const MaintenanceEntity = useWorkspaceEntity('MaintenanceRecord');
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -27,14 +28,15 @@ export default function MaintenanceSection({ assetId }) {
   }, [assetId]);
 
   const loadRecords = async () => {
-    const data = await base44.entities.MaintenanceRecord.filter({ asset_id: assetId }, '-date', 50);
+    // filter do helper injeta workspace_id — isola manutenções por tenant.
+    const data = await MaintenanceEntity.filter({ asset_id: assetId }, '-date', 50);
     setRecords(data);
     setLoading(false);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await base44.entities.MaintenanceRecord.create({
+    await MaintenanceEntity.create({
       ...form,
       asset_id: assetId,
       cost: parseFloat(form.cost) || 0,
@@ -45,7 +47,7 @@ export default function MaintenanceSection({ assetId }) {
   };
 
   const handleDelete = async (recordId) => {
-    await base44.entities.MaintenanceRecord.delete(recordId);
+    await MaintenanceEntity.del(recordId);
     loadRecords();
   };
 

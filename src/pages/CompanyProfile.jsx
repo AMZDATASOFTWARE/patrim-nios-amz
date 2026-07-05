@@ -31,9 +31,16 @@ export default function CompanyProfile() {
 
   const handleSave = async () => {
     setSaving(true);
-    await base44.entities.Workspace.update(workspace.id, form);
-    await refreshWorkspace();
-    toast({ title: 'Dados da empresa salvos com sucesso!' });
+    try {
+      // O RLS do Workspace bloqueia update pelo SDK (impede burlar o paywall). O perfil
+      // é gravado via function com service-role e whitelist de campos (sem plano/cobrança).
+      const res = await base44.functions.invoke('updateWorkspaceProfile', form);
+      if (!res?.data?.ok) throw new Error(res?.data?.error);
+      await refreshWorkspace();
+      toast({ title: 'Dados da empresa salvos com sucesso!' });
+    } catch (e) {
+      toast({ title: e?.message || 'Não foi possível salvar os dados.', variant: 'destructive' });
+    }
     setSaving(false);
   };
 

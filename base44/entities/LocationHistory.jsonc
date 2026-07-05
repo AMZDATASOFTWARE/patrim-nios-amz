@@ -62,17 +62,20 @@
     "asset_id"
   ],
   "rls": {
-    "create": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
-    },
-    "read": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
-    },
+    "//": "Trilha de localização (append-only): qualquer membro registra scan; registros públicos entram via registerPublicScan (service-role). Update/Delete só admin, para preservar a auditoria.",
+    "create": { "data.workspace_id": "{{user.data.workspace_id}}" },
+    "read": { "data.workspace_id": "{{user.data.workspace_id}}" },
     "update": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "user_condition": { "role": "admin" } }
+      ]
     },
     "delete": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "user_condition": { "role": "admin" } }
+      ]
     }
   }
 }

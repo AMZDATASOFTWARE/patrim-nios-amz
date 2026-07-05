@@ -69,8 +69,11 @@
     "plan"
   ],
   "rls": {
+    "//": "RLS é row-level (não field-level): se o dono pudesse dar update na linha, poderia gravar plan/plan_status e burlar o paywall. Por isso create/update/delete só ocorrem via service-role (createWorkspace, inviteMember, notifyBilling, adminApi, updateWorkspaceProfile). Pelo SDK, apenas platform-admin. read continua liberado para dono e membros carregarem o próprio workspace.",
     "create": {
-      "data.owner_email": "{{user.email}}"
+      "user_condition": {
+        "is_platform_admin": true
+      }
     },
     "read": {
       "$or": [
@@ -87,26 +90,14 @@
       ]
     },
     "update": {
-      "$or": [
-        {
-          "data.owner_email": "{{user.email}}"
-        },
-        {
-          "$and": [
-            {
-              "user_condition": {
-                "role": "admin"
-              }
-            },
-            {
-              "id": "{{user.data.workspace_id}}"
-            }
-          ]
-        }
-      ]
+      "user_condition": {
+        "is_platform_admin": true
+      }
     },
     "delete": {
-      "data.owner_email": "{{user.email}}"
+      "user_condition": {
+        "is_platform_admin": true
+      }
     }
   }
 }

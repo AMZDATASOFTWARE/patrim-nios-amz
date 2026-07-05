@@ -11,6 +11,7 @@ import { ArrowLeft, Upload, Save } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getDefaultDepreciationRate, getUsefulLifeFromRate } from '@/lib/depreciation';
 import SupplierSelect from '@/components/assets/SupplierSelect';
+import { toast } from 'sonner';
 
 const categories = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
 const statuses = ['Ativo', 'Em Manutenção', 'Inativo', 'Alienado'];
@@ -52,7 +53,8 @@ export default function AssetForm() {
   useEffect(() => {
     if (editId) {
       const loadAsset = async () => {
-        const assets = await base44.entities.Asset.filter({ id: editId });
+        // filter do helper injeta workspace_id — impede editar ativo de outro tenant pelo id.
+        const assets = await AssetEntity.filter({ id: editId });
         if (assets.length > 0) {
           const asset = assets[0];
           setForm({
@@ -73,6 +75,8 @@ export default function AssetForm() {
             conservation_state: asset.conservation_state || 'Novo',
             serial_number: asset.serial_number || '',
             fiscal_document: asset.fiscal_document || '',
+            warranty_expiry_date: asset.warranty_expiry_date || '',
+            next_review_date: asset.next_review_date || '',
             supplier_id: asset.supplier_id || '',
             supplier_name: asset.supplier_name || '',
             photo_url: asset.photo_url || '',
@@ -123,13 +127,17 @@ export default function AssetForm() {
       supplier_name: form.supplier_name || '',
     };
 
-    if (editId) {
-      await AssetEntity.update(editId, data);
-    } else {
-      await AssetEntity.create(data);
+    try {
+      if (editId) {
+        await AssetEntity.update(editId, data);
+      } else {
+        await AssetEntity.create(data);
+      }
+      navigate('/Assets');
+    } catch (err) {
+      setSaving(false);
+      toast.error(err?.message || 'Não foi possível salvar o ativo. Verifique suas permissões.');
     }
-    
-    navigate('/Assets');
   };
 
   if (loading) {

@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { 
@@ -32,12 +31,14 @@ export default function AssetDetail() {
   const pendingAddr = urlParams.get('addr');
   const [asset, setAsset] = useState(null);
   const [loading, setLoading] = useState(true);
+  const AssetEntity = useWorkspaceEntity('Asset');
   const LocationEntity = useWorkspaceEntity('LocationHistory');
   const { workspaceId } = useWorkspace();
 
   useEffect(() => {
     const load = async () => {
-      const data = await base44.entities.Asset.filter({ id });
+      // filter do helper injeta workspace_id — impede leitura de ativo de outro tenant pelo id.
+      const data = await AssetEntity.filter({ id });
       if (data.length > 0) {
         const found = data[0];
         setAsset(found);
@@ -64,7 +65,7 @@ export default function AssetDetail() {
   }, [id, workspaceId]);
 
   const handleDelete = async () => {
-    await base44.entities.Asset.delete(id);
+    await AssetEntity.del(id);
     navigate('/Assets');
   };
 

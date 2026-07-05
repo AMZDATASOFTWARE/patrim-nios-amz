@@ -45,17 +45,34 @@
     "cost"
   ],
   "rls": {
+    "//": "Tenant + papel: admin/manager lançam manutenção; viewer/user somente leitura.",
     "create": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "$or": [
+          { "user_condition": { "role": "admin" } },
+          { "user_condition": { "role": "manager" } }
+        ] }
+      ]
     },
-    "read": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
-    },
+    "read": { "data.workspace_id": "{{user.data.workspace_id}}" },
     "update": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "$or": [
+          { "user_condition": { "role": "admin" } },
+          { "user_condition": { "role": "manager" } }
+        ] }
+      ]
     },
     "delete": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "$or": [
+          { "user_condition": { "role": "admin" } },
+          { "user_condition": { "role": "manager" } }
+        ] }
+      ]
     }
   }
 }
