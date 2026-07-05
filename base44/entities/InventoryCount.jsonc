@@ -1,0 +1,87 @@
+{
+  "name": "InventoryCount",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "name": {
+      "type": "string",
+      "title": "Nome do Inventário"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "em_andamento",
+        "concluido",
+        "cancelado"
+      ],
+      "default": "em_andamento"
+    },
+    "scope_category": {
+      "type": "string",
+      "title": "Grupo (filtro)"
+    },
+    "scope_cost_center": {
+      "type": "string",
+      "title": "Centro de Custo (filtro)"
+    },
+    "started_by": {
+      "type": "string",
+      "title": "Iniciado por"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Início"
+    },
+    "closed_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Encerramento"
+    },
+    "total_expected": {
+      "type": "number",
+      "title": "Total esperado"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observações"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "name",
+    "status"
+  ],
+  "rls": {
+    "//": "Tenant + papel: admin/manager conduzem o inventário; viewer/user somente leitura.",
+    "create": {
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "$or": [
+          { "user_condition": { "role": "admin" } },
+          { "user_condition": { "role": "manager" } }
+        ] }
+      ]
+    },
+    "read": { "data.workspace_id": "{{user.data.workspace_id}}" },
+    "update": {
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "$or": [
+          { "user_condition": { "role": "admin" } },
+          { "user_condition": { "role": "manager" } }
+        ] }
+      ]
+    },
+    "delete": {
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "user_condition": { "role": "admin" } }
+      ]
+    }
+  }
+}

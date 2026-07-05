@@ -1,0 +1,95 @@
+{
+  "name": "InventoryItem",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "inventory_id": {
+      "type": "string",
+      "title": "ID do Inventário"
+    },
+    "asset_id": {
+      "type": "string",
+      "title": "ID do Ativo"
+    },
+    "asset_name": {
+      "type": "string",
+      "title": "Ativo"
+    },
+    "plaqueta": {
+      "type": "string",
+      "title": "Plaqueta"
+    },
+    "expected_location": {
+      "type": "string",
+      "title": "Localização esperada"
+    },
+    "status": {
+      "type": "string",
+      "title": "Situação",
+      "enum": [
+        "pendente",
+        "encontrado",
+        "divergente",
+        "nao_encontrado"
+      ],
+      "default": "pendente"
+    },
+    "found_location": {
+      "type": "string",
+      "title": "Localização encontrada"
+    },
+    "counted_by": {
+      "type": "string",
+      "title": "Conferido por"
+    },
+    "counted_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Conferido em"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observações"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "inventory_id",
+    "asset_id",
+    "status"
+  ],
+  "rls": {
+    "//": "Tenant + papel: admin/manager conferem itens; viewer/user somente leitura.",
+    "create": {
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "$or": [
+          { "user_condition": { "role": "admin" } },
+          { "user_condition": { "role": "manager" } }
+        ] }
+      ]
+    },
+    "read": { "data.workspace_id": "{{user.data.workspace_id}}" },
+    "update": {
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "$or": [
+          { "user_condition": { "role": "admin" } },
+          { "user_condition": { "role": "manager" } }
+        ] }
+      ]
+    },
+    "delete": {
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "$or": [
+          { "user_condition": { "role": "admin" } },
+          { "user_condition": { "role": "manager" } }
+        ] }
+      ]
+    }
+  }
+}

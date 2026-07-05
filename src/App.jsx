@@ -11,6 +11,7 @@ import PaymentGate from '@/components/PaymentGate';
 import AppLayout from '@/components/layout/AppLayout';
 import Dashboard from '@/pages/Dashboard';
 import Assets from '@/pages/Assets';
+import Inventory from '@/pages/Inventory';
 import AssetForm from '@/pages/AssetForm';
 import AssetDetail from '@/pages/AssetDetail';
 import Depreciation from '@/pages/Depreciation';
@@ -96,6 +97,7 @@ const WorkspaceRoutes = () => {
         <Route element={<AppLayout />}>
           <Route path="/Dashboard" element={<Dashboard />} />
           <Route path="/Assets" element={<Assets />} />
+          <Route path="/Inventory" element={<Inventory />} />
           <Route path="/AssetForm" element={<AssetForm />} />
           <Route path="/AssetDetail" element={<AssetDetail />} />
           <Route path="/Depreciation" element={<Depreciation />} />
