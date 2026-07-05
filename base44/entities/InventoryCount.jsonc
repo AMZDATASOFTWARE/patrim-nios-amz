@@ -1,5 +1,5 @@
 {
-  "name": "Collaborator",
+  "name": "InventoryCount",
   "type": "object",
   "properties": {
     "workspace_id": {
@@ -8,59 +8,56 @@
     },
     "name": {
       "type": "string",
-      "title": "Nome Completo"
-    },
-    "cpf": {
-      "type": "string",
-      "title": "CPF"
-    },
-    "email": {
-      "type": "string",
-      "title": "E-mail"
-    },
-    "phone": {
-      "type": "string",
-      "title": "Telefone"
-    },
-    "department": {
-      "type": "string",
-      "title": "Departamento / Setor"
-    },
-    "role": {
-      "type": "string",
-      "title": "Cargo"
-    },
-    "registration_number": {
-      "type": "string",
-      "title": "Matr\u00edcula"
+      "title": "Nome do Inventário"
     },
     "status": {
       "type": "string",
       "title": "Status",
       "enum": [
-        "Ativo",
-        "Inativo",
-        "Afastado"
+        "em_andamento",
+        "concluido",
+        "cancelado"
       ],
-      "default": "Ativo"
+      "default": "em_andamento"
     },
-    "hire_date": {
+    "scope_category": {
       "type": "string",
-      "format": "date",
-      "title": "Data de Admiss\u00e3o"
+      "title": "Grupo (filtro)"
+    },
+    "scope_cost_center": {
+      "type": "string",
+      "title": "Centro de Custo (filtro)"
+    },
+    "started_by": {
+      "type": "string",
+      "title": "Iniciado por"
+    },
+    "started_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Início"
+    },
+    "closed_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Encerramento"
+    },
+    "total_expected": {
+      "type": "number",
+      "title": "Total esperado"
     },
     "notes": {
       "type": "string",
-      "title": "Observa\u00e7\u00f5es"
+      "title": "Observações"
     }
   },
   "required": [
     "workspace_id",
     "name",
-    "cpf"
+    "status"
   ],
   "rls": {
-    "//": "Tenant + papel: admin/manager gerenciam; viewer/user somente leitura.",
+    "//": "Tenant + papel: admin/manager conduzem o inventário; viewer/user somente leitura.",
     "create": {
       "$and": [
         { "data.workspace_id": "{{user.data.workspace_id}}" },
@@ -83,10 +80,7 @@
     "delete": {
       "$and": [
         { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "$or": [
-          { "user_condition": { "role": "admin" } },
-          { "user_condition": { "role": "manager" } }
-        ] }
+        { "user_condition": { "role": "admin" } }
       ]
     }
   }

@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { 
   ArrowLeft, Edit, Trash2, ExternalLink, MapPin, Calendar, Package,
-  FileText, Wrench, Plus
+  FileText
 } from 'lucide-react';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -21,6 +20,8 @@ import AssignmentSection from '@/components/assets/AssignmentSection';
 import LocationHistoryMini from '@/components/assets/LocationHistoryMini';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { useWorkspace } from '@/lib/WorkspaceContext';
+import { useAuth } from '@/lib/AuthContext';
+import { logAudit } from '@/lib/audit';
 import moment from 'moment';
 
 export default function AssetDetail() {
@@ -32,12 +33,16 @@ export default function AssetDetail() {
   const pendingAddr = urlParams.get('addr');
   const [asset, setAsset] = useState(null);
   const [loading, setLoading] = useState(true);
+  const AssetEntity = useWorkspaceEntity('Asset');
   const LocationEntity = useWorkspaceEntity('LocationHistory');
+  const AuditEntity = useWorkspaceEntity('AuditLog');
   const { workspaceId } = useWorkspace();
+  const { user } = useAuth();
 
   useEffect(() => {
     const load = async () => {
-      const data = await base44.entities.Asset.filter({ id });
+      // filter do helper injeta workspace_id — impede leitura de ativo de outro tenant pelo id.
+      const data = await AssetEntity.filter({ id });
       if (data.length > 0) {
         const found = data[0];
         setAsset(found);
@@ -64,7 +69,11 @@ export default function AssetDetail() {
   }, [id, workspaceId]);
 
   const handleDelete = async () => {
-    await base44.entities.Asset.delete(id);
+    await AssetEntity.del(id);
+    await logAudit(AuditEntity, {
+      action: 'deleted', entity_type: 'Asset', entity_id: id,
+      entity_label: asset?.name || '', summary: `Excluiu o ativo "${asset?.name || ''}"`, actor: user,
+    });
     navigate('/Assets');
   };
 
@@ -242,7 +251,7 @@ export default function AssetDetail() {
       <AssignmentSection assetId={asset.id} assetName={asset.name} />
 
       {/* Maintenance History */}
-      <MaintenanceSection assetId={asset.id} />
+      <MaintenanceSection assetId={asset.id} assetName={asset.name} />
     </div>
   );
 }

@@ -1,96 +1,72 @@
 {
-  "name": "Supplier",
+  "name": "Contract",
   "type": "object",
   "properties": {
     "workspace_id": {
       "type": "string",
       "title": "Workspace"
     },
-    "name": {
+    "type": {
       "type": "string",
-      "title": "Raz\u00e3o Social"
-    },
-    "trade_name": {
-      "type": "string",
-      "title": "Nome Fantasia"
-    },
-    "cnpj": {
-      "type": "string",
-      "title": "CNPJ"
-    },
-    "email": {
-      "type": "string",
-      "title": "E-mail"
-    },
-    "phone": {
-      "type": "string",
-      "title": "Telefone"
-    },
-    "website": {
-      "type": "string",
-      "title": "Site"
-    },
-    "contact_name": {
-      "type": "string",
-      "title": "Nome do Contato"
-    },
-    "address": {
-      "type": "string",
-      "title": "Endere\u00e7o"
-    },
-    "city": {
-      "type": "string",
-      "title": "Cidade"
-    },
-    "state": {
-      "type": "string",
-      "title": "Estado"
-    },
-    "zip_code": {
-      "type": "string",
-      "title": "CEP"
-    },
-    "category": {
-      "type": "string",
-      "title": "Categoria",
+      "title": "Tipo",
       "enum": [
-        "Tecnologia",
-        "Ve\u00edculos",
-        "Im\u00f3veis",
-        "Manuten\u00e7\u00e3o",
-        "Seguros",
-        "Outros"
-      ]
+        "garantia",
+        "seguro",
+        "contrato",
+        "locacao"
+      ],
+      "default": "garantia"
     },
-    "status": {
+    "title": {
       "type": "string",
-      "title": "Status",
-      "enum": [
-        "Ativo",
-        "Inativo",
-        "Bloqueado"
-      ]
+      "title": "Título / Descrição"
     },
-    "payment_terms": {
+    "asset_id": {
       "type": "string",
-      "title": "Condi\u00e7\u00f5es de Pagamento"
+      "title": "Ativo vinculado"
     },
-    "bank_info": {
+    "asset_name": {
       "type": "string",
-      "title": "Dados Banc\u00e1rios"
+      "title": "Ativo"
+    },
+    "provider": {
+      "type": "string",
+      "title": "Fornecedor / Seguradora"
+    },
+    "policy_number": {
+      "type": "string",
+      "title": "Nº da Apólice / Contrato"
+    },
+    "start_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Início da Vigência"
+    },
+    "end_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Fim da Vigência"
+    },
+    "value": {
+      "type": "number",
+      "title": "Valor (R$)"
+    },
+    "document_url": {
+      "type": "string",
+      "title": "Documento (arquivo)"
     },
     "notes": {
       "type": "string",
-      "title": "Observa\u00e7\u00f5es"
+      "title": "Observações"
     }
   },
   "required": [
     "workspace_id",
-    "name",
-    "cnpj"
+    "type",
+    "title"
   ],
   "rls": {
-    "//": "Tenant + papel: admin/manager gerenciam; viewer/user somente leitura.",
+    "//": "Tenant + papel: admin/manager gerenciam contratos/garantias/seguros; viewer/user somente leitura.",
     "create": {
       "$and": [
         { "data.workspace_id": "{{user.data.workspace_id}}" },

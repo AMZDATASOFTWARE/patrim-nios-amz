@@ -1,0 +1,55 @@
+{
+  "name": "AuditLog",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "actor_email": {
+      "type": "string",
+      "title": "Autor (e-mail)"
+    },
+    "actor_name": {
+      "type": "string",
+      "title": "Autor"
+    },
+    "action": {
+      "type": "string",
+      "title": "Ação",
+      "enum": [
+        "created",
+        "updated",
+        "deleted"
+      ]
+    },
+    "entity_type": {
+      "type": "string",
+      "title": "Entidade"
+    },
+    "entity_id": {
+      "type": "string",
+      "title": "ID da Entidade"
+    },
+    "entity_label": {
+      "type": "string",
+      "title": "Identificação"
+    },
+    "summary": {
+      "type": "string",
+      "title": "Resumo"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "action",
+    "entity_type"
+  ],
+  "rls": {
+    "//": "Trilha append-only: qualquer membro registra o próprio evento; leitura pelo tenant; update/delete só platform-admin para preservar a integridade da auditoria.",
+    "create": { "data.workspace_id": "{{user.data.workspace_id}}" },
+    "read": { "data.workspace_id": "{{user.data.workspace_id}}" },
+    "update": { "user_condition": { "is_platform_admin": true } },
+    "delete": { "user_condition": { "is_platform_admin": true } }
+  }
+}

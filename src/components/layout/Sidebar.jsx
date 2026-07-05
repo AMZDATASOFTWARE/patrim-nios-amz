@@ -15,6 +15,10 @@ import {
   Settings,
   Landmark,
   ArrowUpDown,
+  ClipboardCheck,
+  History,
+  Wrench,
+  FileSignature,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { usePermissions } from '@/lib/permissions';
@@ -24,14 +28,18 @@ import { base44 } from '@/api/base44Client';
 const navigation = [
   { name: 'Dashboard',      href: '/Dashboard',       icon: LayoutDashboard, requiredPermission: 'view_dashboard' },
   { name: 'Ativos',         href: '/Assets',           icon: Package,         requiredPermission: 'view_assets' },
+  { name: 'Inventário',     href: '/Inventory',        icon: ClipboardCheck,  requiredPermission: 'view_inventory' },
   { name: 'Mapa',           href: '/AssetMap',         icon: Map,             requiredPermission: 'view_map' },
   { name: 'Etiquetas / QR', href: '/AssetLabel',       icon: QrCode,          requiredPermission: 'view_labels' },
+  { name: 'Manutenções',    href: '/Maintenance',      icon: Wrench,          requiredPermission: 'view_maintenance' },
+  { name: 'Contratos',      href: '/Contracts',        icon: FileSignature,   requiredPermission: 'view_contracts' },
   { name: 'Depreciação',    href: '/Depreciation',     icon: TrendingDown,    requiredPermission: 'view_depreciation' },
   { name: 'Relatórios',     href: '/Reports',          icon: FileText,        requiredPermission: 'view_reports' },
   { name: 'Fornecedores',   href: '/Suppliers',        icon: Truck,           requiredPermission: 'view_suppliers' },
   { name: 'Colaboradores',  href: '/Collaborators',    icon: Users,           requiredPermission: 'view_users' },
   { name: 'Empresa',        href: '/CompanyProfile',   icon: Landmark,        requiredPermission: 'view_company' },
   { name: 'Usuários',       href: '/UsersManagement',  icon: Users,           requiredPermission: 'view_users' },
+  { name: 'Auditoria',      href: '/AuditTrail',       icon: History,         requiredPermission: 'view_audit' },
   { name: 'Importar/Exportar', href: '/ImportExport',  icon: ArrowUpDown,     requiredPermission: 'view_reports' },
   { name: 'Configurações',  href: '/Settings',         icon: Settings,        requiredPermission: 'view_settings' },
 ];

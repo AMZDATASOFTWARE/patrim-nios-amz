@@ -33,17 +33,25 @@
     "useful_life_years"
   ],
   "rls": {
+    "//": "Tenant + papel: apenas admin altera configurações de depreciação (manage_settings).",
     "create": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "user_condition": { "role": "admin" } }
+      ]
     },
-    "read": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
-    },
+    "read": { "data.workspace_id": "{{user.data.workspace_id}}" },
     "update": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "user_condition": { "role": "admin" } }
+      ]
     },
     "delete": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "user_condition": { "role": "admin" } }
+      ]
     }
   }
 }

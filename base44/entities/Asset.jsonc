@@ -144,17 +144,33 @@
     "depreciation_rate"
   ],
   "rls": {
+    "//": "Isolamento por tenant (workspace_id) + papel aplicado no servidor: admin/manager criam e editam; apenas admin exclui; viewer/user são somente-leitura.",
     "create": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "$or": [
+          { "user_condition": { "role": "admin" } },
+          { "user_condition": { "role": "manager" } }
+        ] }
+      ]
     },
     "read": {
       "data.workspace_id": "{{user.data.workspace_id}}"
     },
     "update": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "$or": [
+          { "user_condition": { "role": "admin" } },
+          { "user_condition": { "role": "manager" } }
+        ] }
+      ]
     },
     "delete": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "user_condition": { "role": "admin" } }
+      ]
     }
   }
 }

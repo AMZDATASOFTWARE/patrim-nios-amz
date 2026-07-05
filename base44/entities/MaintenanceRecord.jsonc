@@ -15,6 +15,24 @@
       "format": "date",
       "title": "Data da Manuten\u00e7\u00e3o"
     },
+    "scheduled_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Agendada para"
+    },
+    "status": {
+      "type": "string",
+      "title": "Situa\u00e7\u00e3o",
+      "enum": [
+        "agendada",
+        "concluida"
+      ],
+      "default": "concluida"
+    },
+    "asset_name": {
+      "type": "string",
+      "title": "Ativo"
+    },
     "description": {
       "type": "string",
       "title": "Descri\u00e7\u00e3o"
@@ -39,23 +57,37 @@
   },
   "required": [
     "workspace_id",
-    "asset_id",
-    "date",
-    "description",
-    "cost"
+    "asset_id"
   ],
   "rls": {
+    "//": "Tenant + papel: admin/manager lançam manutenção; viewer/user somente leitura.",
     "create": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "$or": [
+          { "user_condition": { "role": "admin" } },
+          { "user_condition": { "role": "manager" } }
+        ] }
+      ]
     },
-    "read": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
-    },
+    "read": { "data.workspace_id": "{{user.data.workspace_id}}" },
     "update": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "$or": [
+          { "user_condition": { "role": "admin" } },
+          { "user_condition": { "role": "manager" } }
+        ] }
+      ]
     },
     "delete": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "$and": [
+        { "data.workspace_id": "{{user.data.workspace_id}}" },
+        { "$or": [
+          { "user_condition": { "role": "admin" } },
+          { "user_condition": { "role": "manager" } }
+        ] }
+      ]
     }
   }
 }

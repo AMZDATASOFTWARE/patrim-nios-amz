@@ -11,6 +11,9 @@ import PaymentGate from '@/components/PaymentGate';
 import AppLayout from '@/components/layout/AppLayout';
 import Dashboard from '@/pages/Dashboard';
 import Assets from '@/pages/Assets';
+import Inventory from '@/pages/Inventory';
+import Maintenance from '@/pages/Maintenance';
+import Contracts from '@/pages/Contracts';
 import AssetForm from '@/pages/AssetForm';
 import AssetDetail from '@/pages/AssetDetail';
 import Depreciation from '@/pages/Depreciation';
@@ -23,6 +26,8 @@ import UsersManagement from '@/pages/UsersManagement';
 import Settings from '@/pages/Settings';
 import CompanyProfile from '@/pages/CompanyProfile';
 import Collaborators from '@/pages/Collaborators';
+import Notifications from '@/pages/Notifications';
+import AuditTrail from '@/pages/AuditTrail';
 import Landing from '@/pages/Landing';
 import ImportExport from '@/pages/ImportExport';
 import WorkspaceSetup from '@/pages/WorkspaceSetup';
@@ -96,6 +101,9 @@ const WorkspaceRoutes = () => {
         <Route element={<AppLayout />}>
           <Route path="/Dashboard" element={<Dashboard />} />
           <Route path="/Assets" element={<Assets />} />
+          <Route path="/Inventory" element={<Inventory />} />
+          <Route path="/Maintenance" element={<Maintenance />} />
+          <Route path="/Contracts" element={<Contracts />} />
           <Route path="/AssetForm" element={<AssetForm />} />
           <Route path="/AssetDetail" element={<AssetDetail />} />
           <Route path="/Depreciation" element={<Depreciation />} />
@@ -104,6 +112,8 @@ const WorkspaceRoutes = () => {
           <Route path="/AssetLabel" element={<AssetLabel />} />
           <Route path="/Suppliers" element={<Suppliers />} />
           <Route path="/Collaborators" element={<Collaborators />} />
+          <Route path="/Notifications" element={<Notifications />} />
+          <Route path="/AuditTrail" element={<AuditTrail />} />
           <Route path="/UsersManagement" element={<UsersManagement />} />
           <Route path="/Settings" element={<Settings />} />
           <Route path="/CompanyProfile" element={<CompanyProfile />} />

@@ -62,17 +62,10 @@
     "status"
   ],
   "rls": {
-    "create": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
-    },
-    "read": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
-    },
-    "update": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
-    },
-    "delete": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
-    }
+    "//": "Criado apenas por notifyBilling (service-role); confirmado/rejeitado por adminApi. Pelo SDK do cliente, escrita bloqueada (platform-admin); leitura pelo próprio tenant.",
+    "create": { "user_condition": { "is_platform_admin": true } },
+    "read": { "data.workspace_id": "{{user.data.workspace_id}}" },
+    "update": { "user_condition": { "is_platform_admin": true } },
+    "delete": { "user_condition": { "is_platform_admin": true } }
   }
 }

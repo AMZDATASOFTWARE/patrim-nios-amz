@@ -43,13 +43,23 @@ Deno.serve(async (req) => {
       // Anonymous scan — expected, not an error.
     }
 
-    const hasCoords = latitude !== undefined && longitude !== undefined;
+    // Coordenadas são opcionais, mas quando vêm precisam ser numéricas e dentro dos
+    // limites geográficos válidos — senão o mapa recebe pontos que poluem a trilha.
+    const lat = Number(latitude);
+    const lng = Number(longitude);
+    const hasCoords =
+      latitude !== undefined &&
+      longitude !== undefined &&
+      Number.isFinite(lat) && Number.isFinite(lng) &&
+      lat >= -90 && lat <= 90 &&
+      lng >= -180 && lng <= 180;
+
     const record = await base44.asServiceRole.entities.LocationHistory.create({
       workspace_id: asset.workspace_id,
       asset_id: assetId,
       asset_name: asset.name || '',
-      ...(hasCoords ? { latitude, longitude } : {}),
-      address: address || '',
+      ...(hasCoords ? { latitude: lat, longitude: lng } : {}),
+      address: String(address || '').substring(0, 300),
       source: 'QR Scan',
       scanned_by: attemptedUser || 'Anônimo',
       scanned_at: new Date().toISOString(),
