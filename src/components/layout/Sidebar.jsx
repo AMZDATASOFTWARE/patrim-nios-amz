@@ -19,6 +19,7 @@ import {
   History,
   Wrench,
   FileSignature,
+  CreditCard,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { usePermissions } from '@/lib/permissions';
@@ -41,6 +42,7 @@ const navigation = [
   { name: 'Usuários',       href: '/UsersManagement',  icon: Users,           requiredPermission: 'view_users' },
   { name: 'Auditoria',      href: '/AuditTrail',       icon: History,         requiredPermission: 'view_audit' },
   { name: 'Importar/Exportar', href: '/ImportExport',  icon: ArrowUpDown,     requiredPermission: 'view_reports' },
+  { name: 'Plano & Cobrança', href: '/Billing',        icon: CreditCard,      requiredPermission: 'view_billing' },
   { name: 'Configurações',  href: '/Settings',         icon: Settings,        requiredPermission: 'view_settings' },
 ];
 
@@ -89,7 +91,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
           {!collapsed && (
             <div className="overflow-hidden">
               <h1 className="text-base font-bold text-sidebar-foreground leading-tight truncate">{workspace?.name || 'Patrimônio'}</h1>
-              <p className="text-xs text-sidebar-foreground/60 truncate">{workspace?.plan === 'personal' ? 'Conta Pessoal' : 'Empresa'}</p>
+              <p className="text-xs text-sidebar-foreground/60 truncate">{workspace?.account_type === 'personal' ? 'Conta Pessoal' : 'Empresa'}</p>
             </div>
           )}
         </div>

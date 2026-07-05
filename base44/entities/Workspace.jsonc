@@ -39,6 +39,15 @@
       "format": "date",
       "title": "Trial encerra em"
     },
+    "account_type": {
+      "type": "string",
+      "title": "Tipo de Conta",
+      "enum": [
+        "personal",
+        "business"
+      ],
+      "default": "business"
+    },
     "member_emails": {
       "type": "array",
       "title": "Membros",

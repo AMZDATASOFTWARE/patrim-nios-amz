@@ -16,8 +16,9 @@ export default function WorkspaceSetup() {
     e.preventDefault();
     setSaving(true);
     try {
-      // createWorkspace roda no backend: cria o Workspace e define workspace_id/role: admin no user
-      await createWorkspace(form);
+      // createWorkspace roda no backend: cria o Workspace e define workspace_id/role: admin no user.
+      // Envia o tipo de conta escolhido (pessoal/empresa) — antes era descartado.
+      await createWorkspace({ ...form, account_type: plan === 'personal' ? 'personal' : 'business' });
     } catch (err) {
       toast.error(err.message || 'Não foi possível criar o workspace.');
     }

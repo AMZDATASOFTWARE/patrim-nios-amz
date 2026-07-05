@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Users, UserPlus, Mail, Trash2, Search } from 'lucide-react';
 import { toast } from 'sonner';
+import { getPlan } from '@/lib/plans';
 
 const roleLabels = {
   admin: { label: 'Admin', color: 'bg-red-100 text-red-700 border-red-200' },
@@ -55,6 +56,13 @@ export default function UsersManagement() {
 
   const handleInvite = async () => {
     if (!inviteEmail.trim()) return;
+    // Aplica o limite de usuários do plano (considera membros já convidados).
+    const limit = getPlan(workspace?.plan).limits.users;
+    const used = Math.max(members.length, workspace?.member_emails?.length || 0);
+    if (Number.isFinite(limit) && used >= limit) {
+      toast.error(`Seu plano permite até ${limit} usuários. Faça upgrade em Plano & Cobrança para adicionar mais.`);
+      return;
+    }
     setInviting(true);
     try {
       // Passa pelo inviteMember (function endurecida): valida papel no servidor e

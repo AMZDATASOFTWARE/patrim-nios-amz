@@ -22,10 +22,19 @@ export function useWorkspaceEntity(entityName) {
   const del = (id) =>
     base44.entities[entityName].delete(id);
 
-  const filter = (query, sort = '-created_date', limit = 200) => {
+  const filter = (query, sort = '-created_date', limit = 200, skip = 0) => {
     if (!workspaceId) return Promise.resolve([]);
-    return base44.entities[entityName].filter({ ...query, workspace_id: workspaceId }, sort, limit);
+    return base44.entities[entityName].filter({ ...query, workspace_id: workspaceId }, sort, limit, skip);
   };
 
-  return { list, create, update, del, filter, workspaceId };
+  // Contagem leve: busca só o campo id (janela ampla) e conta. Serve para paginação/limites.
+  const count = async (query = {}, cap = 100000) => {
+    if (!workspaceId) return 0;
+    const rows = await base44.entities[entityName].filter(
+      { ...query, workspace_id: workspaceId }, '-created_date', cap, 0, ['id']
+    );
+    return rows.length;
+  };
+
+  return { list, create, update, del, filter, count, workspaceId };
 }

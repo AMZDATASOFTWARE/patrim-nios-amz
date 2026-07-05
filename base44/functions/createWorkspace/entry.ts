@@ -30,11 +30,14 @@ Deno.serve(async (req) => {
     const trialEnd = new Date();
     trialEnd.setDate(trialEnd.getDate() + 14);
 
+    const accountType = ['personal', 'business'].includes(body.account_type) ? body.account_type : 'business';
+
     const workspace = await base44.asServiceRole.entities.Workspace.create({
       name,
       owner_email: user.email,
       plan: 'starter',
       plan_status: 'trial',
+      account_type: accountType,
       trial_ends_at: trialEnd.toISOString().split('T')[0],
       member_emails: [],
       cnpj: body.cnpj || '',
