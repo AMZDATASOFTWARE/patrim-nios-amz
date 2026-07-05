@@ -43,5 +43,19 @@
     "date",
     "description",
     "cost"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "delete": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    }
+  }
 }
