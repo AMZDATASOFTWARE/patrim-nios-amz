@@ -12,19 +12,19 @@ export default function PublicScan() {
   const [loading, setLoading] = useState(true);
   const [locStatus, setLocStatus] = useState('idle'); // idle | loading | success | denied | error
   const [address, setAddress] = useState('');
+  const [scannerEmail, setScannerEmail] = useState('');
   const [scanTime] = useState(() =>
     new Date().toLocaleString('pt-BR', { dateStyle: 'full', timeStyle: 'medium' })
   );
   const registeredRef = useRef(false);
 
-  // Carrega o ativo
+  // Carrega o ativo — via função pública (não exige login, não expõe o registro completo)
   useEffect(() => {
     if (!assetId) { setLoading(false); return; }
 
-    // Tenta buscar pelo ID diretamente
-    base44.entities.Asset.filter({ id: assetId })
-      .then(data => {
-        if (data && data.length > 0) setAsset(data[0]);
+    base44.functions.invoke('getPublicAssetInfo', { assetId })
+      .then(res => {
+        if (res?.data?.ok) setAsset(res.data.asset);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -63,25 +63,16 @@ export default function PublicScan() {
           setAddress(addr);
         } catch {}
 
-        // workspace_id: usa o do ativo se disponível, senão o da URL
-        const wsId = (asset?.workspace_id && asset.workspace_id !== '')
-          ? asset.workspace_id
-          : (workspaceId || '');
-
         const deviceInfo = navigator.userAgent.substring(0, 200);
 
         try {
-          await base44.entities.LocationHistory.create({
-            workspace_id: wsId,
-            asset_id: assetId,
-            asset_name: asset?.name || '',
+          await base44.functions.invoke('registerPublicScan', {
+            assetId,
             latitude: lat,
             longitude: lng,
             address: addr,
-            source: 'QR Scan',
-            scanned_by: 'Anônimo',
-            scanned_at: now.toISOString(),
-            device_info: deviceInfo,
+            deviceInfo,
+            scannerEmail: scannerEmail || undefined,
           });
           setLocStatus('success');
         } catch (err) {
