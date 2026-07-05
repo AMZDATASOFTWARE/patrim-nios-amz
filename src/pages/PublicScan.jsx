@@ -176,9 +176,29 @@ export default function PublicScan() {
           )}
         </div>
 
+        {/* Identificação opcional de quem escaneou — nunca bloqueia o registro da localização */}
+        <div className="px-5">
+          <label className="text-xs text-slate-500 mb-1 block">Seu e-mail (opcional)</label>
+          <div className="flex gap-2">
+            <input
+              type="email"
+              value={scannerEmail}
+              onChange={(e) => setScannerEmail(e.target.value)}
+              placeholder="nome@exemplo.com"
+              className="flex-1 text-sm border border-slate-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={() => { registeredRef.current = false; registerLocation(); }}
+              className="text-xs font-medium text-blue-600 hover:underline px-2"
+            >
+              Confirmar
+            </button>
+          </div>
+        </div>
+
         {/* Location Status */}
         <div className="px-5 pb-6">
-          <div className="h-px bg-slate-100 mb-4" />
+          <div className="h-px bg-slate-100 mb-4 mt-4" />
 
           {locStatus === 'idle' && (
             <div className="flex flex-col items-center justify-center gap-3 py-4 text-slate-600">
