@@ -36,29 +36,17 @@ export default function AdminPayments() {
   }
 
   const load = async () => {
-    const data = await base44.entities.PaymentRequest.list('-created_date', 100);
-    setRequests(data);
+    const res = await base44.functions.invoke('adminApi', { action: 'listPaymentRequests' });
+    setRequests(res?.data?.paymentRequests || []);
     setLoading(false);
   };
 
   const handleConfirm = async (req) => {
     setActing(req.id);
-    // Update payment request
-    await base44.entities.PaymentRequest.update(req.id, { status: 'confirmed', admin_notes: adminNote });
-    // Update workspace plan
-    const workspaces = await base44.entities.Workspace.filter({ id: req.workspace_id });
-    if (workspaces.length > 0) {
-      await base44.entities.Workspace.update(req.workspace_id, {
-        plan: req.plan,
-        plan_status: 'active',
-        plan_expires_at: moment().add(1, 'month').format('YYYY-MM-DD'),
-      });
-    }
-    // Notify user
-    await base44.integrations.Core.SendEmail({
-      to: req.owner_email,
-      subject: `✅ Pagamento confirmado — Plano ${PLANS[req.plan]?.name || req.plan} ativado!`,
-      body: `Olá!\n\nSeu pagamento foi confirmado e o Plano ${PLANS[req.plan]?.name || req.plan} já está ativo na sua conta.\n\nAcesse o sistema: ${window.location.origin}\n\n${adminNote ? `Observação: ${adminNote}\n\n` : ''}Atenciosamente,\nEquipe PatrimônioApp`,
+    await base44.functions.invoke('adminApi', {
+      action: 'confirmPayment',
+      paymentRequestId: req.id,
+      admin_notes: adminNote,
     });
     setAdminNote('');
     setExpanded(null);
@@ -68,11 +56,10 @@ export default function AdminPayments() {
 
   const handleReject = async (req) => {
     setActing(req.id);
-    await base44.entities.PaymentRequest.update(req.id, { status: 'rejected', admin_notes: adminNote });
-    await base44.integrations.Core.SendEmail({
-      to: req.owner_email,
-      subject: `❌ Solicitação de pagamento não confirmada — PatrimônioApp`,
-      body: `Olá!\n\nNão conseguimos confirmar o seu pagamento para o Plano ${PLANS[req.plan]?.name || req.plan}.\n\n${adminNote ? `Motivo: ${adminNote}\n\n` : ''}Em caso de dúvidas, responda este e-mail.\n\nAtenciosamente,\nEquipe PatrimônioApp`,
+    await base44.functions.invoke('adminApi', {
+      action: 'rejectPayment',
+      paymentRequestId: req.id,
+      admin_notes: adminNote,
     });
     setAdminNote('');
     setExpanded(null);
