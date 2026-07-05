@@ -16,6 +16,11 @@
     "workspace_id": {
       "type": "string",
       "title": "Workspace ID"
+    },
+    "is_platform_admin": {
+      "type": "boolean",
+      "title": "Administrador da Plataforma",
+      "default": false
     }
   },
   "required": [
