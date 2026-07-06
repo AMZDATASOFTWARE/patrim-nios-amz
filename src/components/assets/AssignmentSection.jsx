@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, UserCheck, FileText, ChevronDown, ChevronUp, CheckCircle, Search } from 'lucide-react';
 import moment from 'moment';
 import jsPDF from 'jspdf';
+import { maskCpf } from '@/lib/mask';
 
 const EMPTY = { collaborator_name: '', collaborator_email: '', collaborator_cpf: '', collaborator_department: '', collaborator_phone: '', assignment_date: new Date().toISOString().split('T')[0], expected_return_date: '', purpose: '', condition_on_assignment: 'Bom estado', supervisor_name: '', notes: '', status: 'Ativo', signed: false };
 
@@ -159,7 +160,7 @@ export default function AssignmentSection({ assetId, assetName }) {
                           >
                             <div>
                               <p className="text-sm font-medium text-foreground">{c.name}</p>
-                              <p className="text-xs text-muted-foreground">{c.department || ''} {c.cpf ? `• CPF: ${c.cpf}` : ''}</p>
+                              <p className="text-xs text-muted-foreground">{c.department || ''} {c.cpf ? `• CPF: ${maskCpf(c.cpf)}` : ''}</p>
                             </div>
                           </button>
                         ))}
@@ -219,7 +220,7 @@ export default function AssignmentSection({ assetId, assetName }) {
               {expanded === rec.id && (
                 <div className="px-4 pb-4 border-t border-border pt-3 space-y-3">
                   <div className="grid grid-cols-2 gap-2 text-sm">
-                    <div><span className="text-muted-foreground">CPF: </span>{rec.collaborator_cpf}</div>
+                    <div><span className="text-muted-foreground">CPF: </span>{maskCpf(rec.collaborator_cpf)}</div>
                     <div><span className="text-muted-foreground">E-mail: </span>{rec.collaborator_email || '—'}</div>
                     <div><span className="text-muted-foreground">Telefone: </span>{rec.collaborator_phone || '—'}</div>
                     <div><span className="text-muted-foreground">Supervisor: </span>{rec.supervisor_name || '—'}</div>
