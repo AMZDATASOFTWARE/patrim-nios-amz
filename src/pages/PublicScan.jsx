@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { base44 } from '@/api/base44Client';
 import { MapPin, Package, AlertCircle, QrCode, Clock } from 'lucide-react';
+import AppFooter from '@/components/AppFooter';
 
 export default function PublicScan() {
   const urlParams = new URLSearchParams(window.location.search);
@@ -190,6 +191,10 @@ export default function PublicScan() {
         </div>
 
         <div className="pb-6" />
+      </div>
+
+      <div className="absolute bottom-0 left-0 right-0">
+        <AppFooter className="bg-transparent border-transparent" />
       </div>
     </div>
   );
