@@ -26,9 +26,7 @@ export default function AppFooter({ variant = 'onDark', collapsed = false, class
   }
 
   const isBand = variant === 'band';
-  const wrap = isBand
-    ? 'bg-slate-900 border-t border-slate-800'
-    : 'bg-transparent';
+  const wrap = isBand ? 'bg-slate-900 border-t border-slate-800' : 'bg-transparent';
 
   return (
     <footer className={`w-full px-4 py-6 text-center ${wrap} ${className}`}>
