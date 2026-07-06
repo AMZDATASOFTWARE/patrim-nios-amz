@@ -137,7 +137,7 @@ export default function Plans() {
                 {/* CTA */}
                 {plan.id === 'enterprise' ? (
                   <a
-                    href="mailto:contato@seusistema.com.br?subject=Interesse no plano Enterprise"
+                    href="mailto:ceo@amzdatasoftware.com?subject=Interesse no plano Enterprise"
                     className={`block text-center py-2.5 px-4 rounded-xl font-semibold text-sm transition-all ${colors.button}`}
                   >
                     Falar com consultor
