@@ -121,7 +121,7 @@ export default function TermsOfService() {
         </footer>
       </main>
 
-      <AppFooter />
+      <AppFooter variant="band" />
     </div>
   );
 }
