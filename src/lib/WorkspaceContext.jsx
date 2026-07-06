@@ -41,8 +41,8 @@ export function WorkspaceProvider({ children }) {
         // Genuinely a brand-new user — App.jsx should route them to WorkspaceSetup.
         setNeedsSetup(true);
       }
-    } catch (e) {
-      console.error(e);
+    } catch (_) {
+      // Falha ao inicializar o workspace — a UI trata o estado de carregamento/erro.
     }
     setLoading(false);
   };
