@@ -59,6 +59,14 @@
       "type": "string",
       "title": "Logo"
     },
+    "stripe_customer_id": {
+      "type": "string",
+      "title": "Stripe Customer ID"
+    },
+    "stripe_subscription_id": {
+      "type": "string",
+      "title": "Stripe Subscription ID"
+    },
     "cnpj": {
       "type": "string",
       "title": "CNPJ / CPF"
@@ -78,7 +86,7 @@
     "plan"
   ],
   "rls": {
-    "//": "RLS é row-level (não field-level): se o dono pudesse dar update na linha, poderia gravar plan/plan_status e burlar o paywall. Por isso create/update/delete só ocorrem via service-role (createWorkspace, inviteMember, notifyBilling, adminApi, updateWorkspaceProfile). Pelo SDK, apenas platform-admin. read continua liberado para dono e membros carregarem o próprio workspace.",
+    "//": "RLS \u00e9 row-level (n\u00e3o field-level): se o dono pudesse dar update na linha, poderia gravar plan/plan_status e burlar o paywall. Por isso create/update/delete s\u00f3 ocorrem via service-role (createWorkspace, inviteMember, adminApi, updateWorkspaceProfile, stripeCheckout, stripeWebhook). Pelo SDK, apenas platform-admin. read continua liberado para dono e membros carregarem o pr\u00f3prio workspace.",
     "create": {
       "user_condition": {
         "is_platform_admin": true
