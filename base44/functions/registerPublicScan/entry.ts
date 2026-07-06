@@ -35,6 +35,20 @@ Deno.serve(async (req) => {
       req.headers.get('x-real-ip') ||
       '';
 
+    // Rate-limit: a public endpoint can be flooded by anyone holding the label.
+    // Collapse repeated scans of the same asset from the same IP within a short
+    // window into a single record, so the tenant's trail can't be spammed.
+    const THROTTLE_MS = 30_000;
+    if (ipAddress) {
+      const recent = await base44.asServiceRole.entities.LocationHistory.filter(
+        { asset_id: assetId, ip_address: ipAddress }, '-scanned_at', 1
+      );
+      const last = recent[0];
+      if (last?.scanned_at && Date.now() - new Date(last.scanned_at).getTime() < THROTTLE_MS) {
+        return Response.json({ ok: true, throttled: true }, { headers: corsHeaders });
+      }
+    }
+
     let attemptedUser = null;
     try {
       const user = await base44.auth.me();
