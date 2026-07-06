@@ -36,7 +36,6 @@ import WorkspaceSetup from '@/pages/WorkspaceSetup';
 import Billing from '@/pages/Billing';
 import Plans from '@/pages/Plans';
 import SuperAdmin from '@/pages/SuperAdmin';
-import AdminPayments from '@/pages/AdminPayments';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -46,6 +45,7 @@ const AuthenticatedApp = () => {
     return (
       <Routes>
         <Route path="/scan" element={<PublicScan />} />
+        <Route path="/landing" element={<Landing />} />
         <Route path="/privacidade" element={<PrivacyPolicy />} />
         <Route path="/termos" element={<TermsOfService />} />
       </Routes>
@@ -100,7 +100,6 @@ const WorkspaceRoutes = () => {
     <PaymentGate>
       <Routes>
         <Route path="/" element={<Navigate to="/Dashboard" replace />} />
-        <Route path="/landing" element={<Landing />} />
         <Route path="/Plans" element={<Plans />} />
         <Route element={<AppLayout />}>
           <Route path="/Dashboard" element={<Dashboard />} />
@@ -124,7 +123,6 @@ const WorkspaceRoutes = () => {
           <Route path="/ImportExport" element={<ImportExport />} />
           <Route path="/Billing" element={<Billing />} />
           <Route path="/SuperAdmin" element={<SuperAdmin />} />
-          <Route path="/AdminPayments" element={<AdminPayments />} />
         </Route>
         <Route path="*" element={<PageNotFound />} />
       </Routes>
@@ -133,7 +131,7 @@ const WorkspaceRoutes = () => {
 };
 
 // Rotas totalmente públicas — renderizam sem AuthProvider (sem exigir login).
-const PUBLIC_PATHS = ['/scan', '/privacidade', '/termos'];
+const PUBLIC_PATHS = ['/scan', '/landing', '/privacidade', '/termos'];
 
 function App() {
   if (PUBLIC_PATHS.includes(window.location.pathname)) {
@@ -142,6 +140,7 @@ function App() {
         <Router>
           <Routes>
             <Route path="/scan" element={<PublicScan />} />
+            <Route path="/landing" element={<Landing />} />
             <Route path="/privacidade" element={<PrivacyPolicy />} />
             <Route path="/termos" element={<TermsOfService />} />
           </Routes>
