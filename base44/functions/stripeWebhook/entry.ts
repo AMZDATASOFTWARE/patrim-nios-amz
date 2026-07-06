@@ -15,8 +15,16 @@ const PRICE_TO_PLAN: Record<string, string> = {
   price_1Tq3OAL04LdxLhj9KJXiWcuW: 'professional',
 };
 
+const APP_URL = 'https://patrimoni-asset-flow.base44.app';
+
 const toDate = (epoch?: number | null) =>
   epoch ? new Date(epoch * 1000).toISOString().split('T')[0] : '';
+
+// Pulls the subscription id off an invoice across API-version shapes.
+const invoiceSubId = (invoice: Stripe.Invoice): string | undefined =>
+  (invoice as unknown as { subscription?: string }).subscription ||
+  (invoice.parent as { subscription_details?: { subscription?: string } })
+    ?.subscription_details?.subscription;
 
 // current_period_end lives on the subscription item in newer API versions.
 const periodEnd = (sub: Stripe.Subscription) =>
@@ -117,13 +125,45 @@ Deno.serve(async (req) => {
       case 'invoice.paid': {
         // Renewal: refresh the expiry from the subscription's new period.
         const invoice = event.data.object as Stripe.Invoice;
-        const subId =
-          (invoice as unknown as { subscription?: string }).subscription ||
-          (invoice.parent as { subscription_details?: { subscription?: string } })
-            ?.subscription_details?.subscription;
+        const subId = invoiceSubId(invoice);
         if (subId) {
           const sub = await stripe.subscriptions.retrieve(subId);
           await applySubscription(sub);
+        }
+        break;
+      }
+      case 'invoice.payment_failed':
+      case 'invoice.payment_action_required': {
+        // Dunning: Stripe keeps retrying on its own schedule; we notify the
+        // account owner so they can update the card before access is suspended.
+        const invoice = event.data.object as Stripe.Invoice;
+        const subId = invoiceSubId(invoice);
+        if (subId) {
+          const sub = await stripe.subscriptions.retrieve(subId);
+          const ws = await resolveWorkspace(
+            sub.metadata?.workspace_id || '',
+            typeof sub.customer === 'string' ? sub.customer : sub.customer?.id || ''
+          );
+          if (ws?.owner_email) {
+            const needsAction = event.type === 'invoice.payment_action_required';
+            try {
+              await svc.integrations.Core.SendEmail({
+                to: ws.owner_email,
+                subject: needsAction
+                  ? 'Ação necessária para confirmar seu pagamento'
+                  : 'Não conseguimos processar seu pagamento',
+                body:
+                  `Olá!\n\n` +
+                  (needsAction
+                    ? 'O seu banco pediu uma confirmação adicional (autenticação) para concluir a cobrança da assinatura do Patrimônios AMZ.\n\n'
+                    : 'A cobrança da assinatura do Patrimônios AMZ não foi aprovada. Tentaremos novamente automaticamente, mas para evitar a suspensão do acesso, atualize seus dados de pagamento.\n\n') +
+                  `Acesse Plano & Cobrança e use "Gerenciar assinatura":\n${APP_URL}/Billing\n\n` +
+                  `Atenciosamente,\nEquipe Patrimônios AMZ`,
+              });
+            } catch (_) {
+              // Falha no e-mail não deve fazer o Stripe reenviar o webhook.
+            }
+          }
         }
         break;
       }
