@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { QrCode, Search, Printer, Download, CheckSquare, Square, FileDown } from 'lucide-react';
 
 function LabelCard({ asset, appUrl, workspace, selected, onToggle }) {
-  const scanUrl = `${appUrl}/scan?id=${asset.id}&wid=${asset.workspace_id}`;
+  const scanUrl = `${appUrl}/scan?id=${asset.id}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(scanUrl)}&bgcolor=ffffff&color=1e3a5f&margin=6`;
   const patrimonioNum = asset.plaqueta || asset.id?.slice(-8).toUpperCase();
 
@@ -204,7 +204,7 @@ export default function AssetLabel() {
       : `<div style="height:32px;width:32px;background:#1e3a5f;border-radius:4px;display:flex;align-items:center;justify-content:center;color:white;font-weight:bold;font-size:14px;">${companyName.charAt(0)}</div>`;
 
     const labelsHtml = selectedAssets.map(asset => {
-      const scanUrl = `${appUrl}/scan?id=${asset.id}&wid=${asset.workspace_id}`;
+      const scanUrl = `${appUrl}/scan?id=${asset.id}`;
       const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=160x160&data=${encodeURIComponent(scanUrl)}&bgcolor=ffffff&color=1e3a5f&margin=6`;
       const patrimonioNum = asset.plaqueta || asset.id?.slice(-8).toUpperCase();
       return `
