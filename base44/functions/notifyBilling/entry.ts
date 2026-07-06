@@ -1,11 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.35';
 
-// Billing notifications for regular workspace users. Recipients and templates are
-// fixed server-side so the client can never send arbitrary e-mail (security audit A1).
-// Platform inbox that receives new payment-request notifications.
-const PLATFORM_EMAIL = 'mateus.sg100@gmail.com';
-const ALLOWED_METHODS = ['PIX', 'Boleto', 'Transferência'];
-const ALLOWED_PLANS = ['starter', 'professional', 'enterprise'];
+// Billing reminder e-mails for regular workspace users. Recipients and templates
+// are fixed server-side so the client can never send arbitrary e-mail (audit A1).
+// The old manual payment-request flow (PIX + human confirmation) was replaced by
+// Stripe Checkout (stripeCheckout/stripeWebhook) on 2026-07-06.
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -21,52 +19,8 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return json({ error: 'Unauthorized' }, 401);
 
-    const svc = base44.asServiceRole;
-    // Resolve the caller's workspace from the server — never from the request body.
-    const fresh = (await svc.entities.User.filter({ id: user.id }))[0];
-    const ws = fresh?.workspace_id
-      ? (await svc.entities.Workspace.filter({ id: fresh.workspace_id }))[0]
-      : null;
-
     const body = await req.json().catch(() => ({}));
     const action = body.action;
-
-    if (action === 'requestPayment') {
-      if (!ws) return json({ error: 'Workspace não encontrado.' }, 400);
-      const plan = ALLOWED_PLANS.includes(body.plan) ? body.plan : null;
-      if (!plan) return json({ error: 'Plano inválido.' }, 400);
-      const method = ALLOWED_METHODS.includes(body.payment_method) ? body.payment_method : 'PIX';
-      const amount = Number(body.amount) || 0;
-      const proofNotes = String(body.proof_notes || '').substring(0, 2000);
-
-      await svc.entities.PaymentRequest.create({
-        workspace_id: ws.id,
-        workspace_name: ws.name,
-        owner_email: user.email,
-        plan,
-        amount,
-        payment_method: method,
-        proof_notes: proofNotes,
-        status: 'pending',
-      });
-
-      try {
-        await svc.integrations.Core.SendEmail({
-          to: PLATFORM_EMAIL,
-          subject: `Nova solicitação de pagamento — ${ws.name}`,
-          body:
-            `Empresa: ${ws.name}\n` +
-            `Plano: ${plan}\n` +
-            `Valor: R$ ${amount}\n` +
-            `Forma: ${method}\n` +
-            `Cliente: ${user.email}\n\n` +
-            `Observações do cliente:\n${proofNotes || '—'}`,
-        });
-      } catch (_) {
-        // Falha no e-mail não deve impedir o registro da solicitação.
-      }
-      return json({ ok: true });
-    }
 
     if (action === 'trialReminder' || action === 'paymentOverdue') {
       const days = Number(body.days) || 0;
