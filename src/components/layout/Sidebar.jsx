@@ -25,6 +25,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { usePermissions } from '@/lib/permissions';
 import { useWorkspace } from '@/lib/WorkspaceContext';
 import { base44 } from '@/api/base44Client';
+import AppFooter from '@/components/AppFooter';
 
 const navigation = [
   { name: 'Dashboard',      href: '/Dashboard',       icon: LayoutDashboard, requiredPermission: 'view_dashboard' },
@@ -129,6 +130,13 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
             )}
           </button>
         </div>
+
+        {/* Rodapé institucional */}
+        {!collapsed && (
+          <div className="border-t border-sidebar-border flex-shrink-0">
+            <AppFooter variant="sidebar" />
+          </div>
+        )}
       </aside>
 
       {/* Mobile Sidebar (drawer) */}
@@ -179,6 +187,11 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
             <LogOut className="h-5 w-5 flex-shrink-0" />
             <span>Sair</span>
           </button>
+        </div>
+
+        {/* Rodapé institucional */}
+        <div className="border-t border-sidebar-border flex-shrink-0">
+          <AppFooter variant="sidebar" />
         </div>
       </aside>
     </>
