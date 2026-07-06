@@ -48,12 +48,12 @@ export default function Landing() {
           <div className="flex items-center gap-3">
             <a href="#precos" className="text-sm text-gray-600 hover:text-gray-900 hidden sm:block">Preços</a>
             <a href="#funcionalidades" className="text-sm text-gray-600 hover:text-gray-900 hidden sm:block">Funcionalidades</a>
-            <Link to="/Dashboard">
+            <a href="/Dashboard">
               <Button variant="outline" size="sm">Entrar</Button>
-            </Link>
-            <Link to="/Dashboard">
+            </a>
+            <a href="/Dashboard">
               <Button size="sm" className="bg-blue-700 hover:bg-blue-800">Começar grátis</Button>
-            </Link>
+            </a>
           </div>
         </div>
       </nav>
@@ -72,11 +72,11 @@ export default function Landing() {
             Sistema completo para gestão de ativos fixos: depreciação automática, QR codes, relatórios contábeis e muito mais.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link to="/Dashboard">
+            <a href="/Dashboard">
               <Button size="lg" className="bg-yellow-400 hover:bg-yellow-300 text-slate-900 font-bold text-base gap-2 px-8">
                 Começar 14 dias grátis <ArrowRight className="h-5 w-5" />
               </Button>
-            </Link>
+            </a>
             <a href="#funcionalidades">
               <Button size="lg" variant="outline" className="border-white/30 text-white hover:bg-white/10 text-base px-8">
                 Ver funcionalidades
@@ -226,11 +226,11 @@ export default function Landing() {
                       </li>
                     ))}
                   </ul>
-                  <Link to="/Dashboard">
+                  <a href="/Dashboard">
                     <Button className={`w-full ${plan.popular ? 'bg-purple-600 hover:bg-purple-700' : plan.id === 'enterprise' ? 'bg-amber-500 hover:bg-amber-600' : 'bg-blue-700 hover:bg-blue-800'} gap-1`}>
                       {plan.id === 'enterprise' ? 'Falar com consultor' : 'Começar grátis'} <ChevronRight className="h-4 w-4" />
                     </Button>
-                  </Link>
+                  </a>
                 </div>
               );
             })}
@@ -272,11 +272,11 @@ export default function Landing() {
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl sm:text-4xl font-extrabold mb-4">Pronto para organizar o patrimônio da sua empresa?</h2>
           <p className="text-blue-200 text-lg mb-8">Comece gratuitamente hoje. Configure em minutos, sem cartão de crédito.</p>
-          <Link to="/Dashboard">
+          <a href="/Dashboard">
             <Button size="lg" className="bg-yellow-400 hover:bg-yellow-300 text-slate-900 font-bold text-lg gap-2 px-10">
               Criar conta grátis <ArrowRight className="h-5 w-5" />
             </Button>
-          </Link>
+          </a>
         </div>
       </section>
 
