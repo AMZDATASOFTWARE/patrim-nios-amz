@@ -144,32 +144,46 @@
     "depreciation_rate"
   ],
   "rls": {
-    "//": "Isolamento por tenant (workspace_id) + papel aplicado no servidor: admin/manager criam e editam; apenas admin exclui; viewer/user são somente-leitura.",
+    "//": "Isolamento por tenant (workspace_id) + papel aplicado no servidor: admin/manager editam; apenas admin exclui; viewer/user s\u00e3o somente-leitura. CREATE \u00e9 bloqueado no SDK do cliente: todo cadastro passa pela function createAsset (service-role), que valida o plano (limite de ativos + status de pagamento) e estampa o workspace_id da sess\u00e3o.",
     "create": {
-      "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "$or": [
-          { "user_condition": { "role": "admin" } },
-          { "user_condition": { "role": "manager" } }
-        ] }
-      ]
+      "user_condition": {
+        "is_platform_admin": true
+      }
     },
     "read": {
       "data.workspace_id": "{{user.data.workspace_id}}"
     },
     "update": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "$or": [
-          { "user_condition": { "role": "admin" } },
-          { "user_condition": { "role": "manager" } }
-        ] }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
       ]
     },
     "delete": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "user_condition": { "role": "admin" } }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
       ]
     }
   }
