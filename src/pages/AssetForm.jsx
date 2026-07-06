@@ -155,16 +155,21 @@ export default function AssetForm() {
           entity_label: data.name, summary: `Editou o ativo "${data.name}"`, actor: user,
         });
       } else {
-        const created = await AssetEntity.create(data);
+        // Criação passa pela function createAsset — o limite do plano e o status
+        // de pagamento são validados no servidor (RLS bloqueia create pelo SDK).
+        const res = await base44.functions.invoke('createAsset', { assets: [data] });
+        if (!res?.data?.ok || !res.data.created) {
+          throw new Error(res?.data?.error || 'Não foi possível salvar o ativo.');
+        }
         await logAudit(AuditEntity, {
-          action: 'created', entity_type: 'Asset', entity_id: created?.id || '',
+          action: 'created', entity_type: 'Asset', entity_id: res.data.ids?.[0] || '',
           entity_label: data.name, summary: `Cadastrou o ativo "${data.name}"`, actor: user,
         });
       }
       navigate('/Assets');
     } catch (err) {
       setSaving(false);
-      toast.error(err?.message || 'Não foi possível salvar o ativo. Verifique suas permissões.');
+      toast.error(err?.response?.data?.error || err?.message || 'Não foi possível salvar o ativo. Verifique suas permissões.');
     }
   };
 
