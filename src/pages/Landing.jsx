@@ -7,6 +7,7 @@ import {
   BarChart3, Smartphone, Clock
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import AppFooter from '@/components/AppFooter';
 
 const features = [
   { icon: Package, title: 'Cadastro Completo de Ativos', desc: 'Registre todos os bens da empresa com fotos, documentos, localização e histórico.' },
@@ -298,6 +299,8 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      <AppFooter />
     </div>
   );
 }
