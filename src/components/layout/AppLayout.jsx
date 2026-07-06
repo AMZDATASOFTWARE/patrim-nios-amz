@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
+import AppFooter from '@/components/AppFooter';
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
@@ -50,6 +51,8 @@ export default function AppLayout() {
         <div className="p-4 sm:p-6 lg:p-8">
           <Outlet />
         </div>
+
+        <AppFooter />
       </main>
     </div>
   );
