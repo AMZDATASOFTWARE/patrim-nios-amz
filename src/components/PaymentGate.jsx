@@ -54,7 +54,7 @@ export default function PaymentGate({ children }) {
                 </Button>
               </Link>
               <a
-                href="mailto:contato@seusistema.com.br?subject=Ajuda com minha conta"
+                href="mailto:ceo@amzdatasoftware.com?subject=Ajuda com minha conta"
                 className="flex items-center justify-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
               >
                 <Mail className="h-4 w-4" />
