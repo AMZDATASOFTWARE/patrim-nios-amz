@@ -183,7 +183,9 @@ export default function PublicScan() {
           <p className="text-[11px] text-slate-400 leading-relaxed pt-1">
             Ao permitir o acesso à localização, você ajuda a registrar por onde este patrimônio
             passou. Para fins de segurança, o horário e o endereço de rede (IP) do acesso também
-            são registrados.
+            são registrados. Quando a localização é autorizada, as coordenadas são convertidas em
+            endereço pelo serviço OpenStreetMap. Saiba mais na{' '}
+            <a href="/privacidade" className="underline hover:text-slate-600">Política de Privacidade</a>.
           </p>
         </div>
 
