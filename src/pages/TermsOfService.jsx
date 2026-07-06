@@ -1,12 +1,12 @@
 import { Link } from 'react-router-dom';
 import { Building2, ArrowLeft } from 'lucide-react';
+import AppFooter from '@/components/AppFooter';
 
 // Public Terms of Service. Legal placeholders in [colchetes] must be
 // filled/reviewed by counsel before relying on this document.
 const PROVIDER = 'AMZ Data Software';
-const CNPJ = '[preencher CNPJ]';
+const CNPJ = '53.646.811/0001-20';
 const CONTACT_EMAIL = 'ceo@amzdatasoftware.com';
-const JURISDICTION = '[preencher comarca/cidade]';
 const LAST_UPDATE = '06/07/2026';
 
 function Section({ title, children }) {
@@ -110,8 +110,8 @@ export default function TermsOfService() {
 
         <Section title="9. Foro e contato">
           <p>
-            Estes Termos são regidos pelas leis brasileiras. Fica eleito o foro da comarca de
-            {' '}{JURISDICTION}, salvo disposição legal em contrário. Dúvidas:
+            Estes Termos são regidos pelas leis brasileiras. Fica eleito o foro do domicílio do
+            CONTRATANTE, salvo disposição legal em contrário. Dúvidas:
             {' '}<a href={`mailto:${CONTACT_EMAIL}`} className="text-blue-700 underline">{CONTACT_EMAIL}</a>.
           </p>
         </Section>
@@ -120,6 +120,8 @@ export default function TermsOfService() {
           <Link to="/privacidade" className="text-blue-700 underline">Política de Privacidade</Link>
         </footer>
       </main>
+
+      <AppFooter />
     </div>
   );
 }
