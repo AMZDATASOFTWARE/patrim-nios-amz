@@ -289,10 +289,12 @@ export default function Landing() {
             <span className="font-bold text-white">PatrimônioApp</span>
           </div>
           <p className="text-sm">© {new Date().getFullYear()} PatrimônioApp · Todos os direitos reservados</p>
-          <div className="flex gap-4 text-sm">
+          <div className="flex flex-wrap gap-4 text-sm justify-center">
             <a href="#funcionalidades" className="hover:text-white transition-colors">Funcionalidades</a>
             <a href="#precos" className="hover:text-white transition-colors">Preços</a>
-            <a href="mailto:mateus.sg100@gmail.com" className="hover:text-white transition-colors">Contato</a>
+            <Link to="/termos" className="hover:text-white transition-colors">Termos</Link>
+            <Link to="/privacidade" className="hover:text-white transition-colors">Privacidade</Link>
+            <a href="mailto:ceo@amzdatasoftware.com" className="hover:text-white transition-colors">Contato</a>
           </div>
         </div>
       </footer>
