@@ -1,5 +1,7 @@
 import { useState, useRef } from 'react';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
+import { base44 } from '@/api/base44Client';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Download, Upload, FileSpreadsheet, CheckCircle, AlertCircle, X, Info } from 'lucide-react';
 import moment from 'moment';
@@ -208,12 +210,29 @@ export default function ImportExport() {
     const validRows = preview.validated.filter(v => v.errors.length === 0);
     let success = 0, failed = 0;
 
-    for (const { row } of validRows) {
+    // Importação em lotes via createAsset — o servidor valida cada linha e
+    // aplica o limite de ativos do plano (linhas acima do limite são recusadas).
+    const CHUNK = 100;
+    for (let i = 0; i < validRows.length; i += CHUNK) {
+      const batch = validRows.slice(i, i + CHUNK).map(({ row }) => rowToAsset(row));
       try {
-        await AssetEntity.create(rowToAsset(row));
-        success++;
-      } catch {
-        failed++;
+        const res = await base44.functions.invoke('createAsset', { assets: batch });
+        if (res?.data?.ok) {
+          success += res.data.created || 0;
+          failed += res.data.failed || 0;
+          if (res.data.limit_reached) {
+            failed += validRows.length - (i + batch.length);
+            toast.error('Limite de ativos do plano atingido — parte da planilha não foi importada. Faça upgrade em Plano & Cobrança.');
+            break;
+          }
+        } else {
+          failed += batch.length;
+          if (res?.data?.error) toast.error(res.data.error);
+        }
+      } catch (err) {
+        failed += batch.length;
+        const msg = err?.response?.data?.error;
+        if (msg) toast.error(msg);
       }
     }
 
