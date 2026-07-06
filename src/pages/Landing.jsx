@@ -298,9 +298,9 @@ export default function Landing() {
             <a href="mailto:ceo@amzdatasoftware.com" className="hover:text-white transition-colors">Contato</a>
           </div>
         </div>
-      </footer>
 
-      <AppFooter />
+        <AppFooter className="mt-8 pt-6 border-t border-slate-800" />
+      </footer>
     </div>
   );
 }
