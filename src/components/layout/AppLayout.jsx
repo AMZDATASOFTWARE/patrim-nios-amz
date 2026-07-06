@@ -1,12 +1,42 @@
 import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation, Link } from 'react-router-dom';
+import { ShieldAlert } from 'lucide-react';
 import Sidebar from './Sidebar';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/lib/AuthContext';
+import { usePermissions } from '@/lib/permissions';
+import { ROUTE_PERMISSIONS, PLATFORM_ADMIN_ROUTES } from '@/lib/routePermissions';
+
+// Tela de acesso restrito — mostrada quando o papel do usuário não permite a rota.
+function AccessDenied() {
+  return (
+    <div className="flex flex-col items-center justify-center py-24 text-center">
+      <ShieldAlert className="h-12 w-12 text-muted-foreground mb-4" />
+      <h1 className="text-xl font-bold text-foreground">Acesso restrito</h1>
+      <p className="text-muted-foreground mt-1 max-w-sm text-sm">
+        Você não tem permissão para acessar esta página. Fale com um administrador da sua empresa
+        se precisar de acesso.
+      </p>
+      <Link to="/Dashboard"><Button className="mt-6">Voltar ao Dashboard</Button></Link>
+    </div>
+  );
+}
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { pathname } = useLocation();
+  const { user } = useAuth();
+  const { can } = usePermissions(user);
+
+  // Guard de rota (defesa-em-profundidade): a proteção primária dos dados é server-side.
+  const requiredPermission = ROUTE_PERMISSIONS[pathname];
+  const requiresPlatformAdmin = PLATFORM_ADMIN_ROUTES.includes(pathname);
+  const denied =
+    (requiredPermission && !can(requiredPermission)) ||
+    (requiresPlatformAdmin && !user?.is_platform_admin);
 
   return (
     <div className="min-h-screen bg-background">
@@ -48,7 +78,7 @@ export default function AppLayout() {
         </div>
 
         <div className="p-4 sm:p-6 lg:p-8">
-          <Outlet />
+          {denied ? <AccessDenied /> : <Outlet />}
         </div>
       </main>
     </div>
