@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Plus, Search, Users, Pencil, Trash2, Package } from 'lucide-react';
+import { maskCpf } from '@/lib/mask';
 import moment from 'moment';
 
 const EMPTY = { name: '', cpf: '', email: '', phone: '', department: '', role: '', registration_number: '', status: 'Ativo', hire_date: '', notes: '' };
@@ -111,7 +112,7 @@ export default function Collaborators() {
                 </div>
 
                 <div className="space-y-1 text-xs text-muted-foreground mb-4">
-                  <p><span className="font-medium text-foreground">CPF:</span> {c.cpf}</p>
+                  <p><span className="font-medium text-foreground">CPF:</span> {maskCpf(c.cpf)}</p>
                   {c.department && <p><span className="font-medium text-foreground">Setor:</span> {c.department}</p>}
                   {c.email && <p><span className="font-medium text-foreground">E-mail:</span> {c.email}</p>}
                   {c.registration_number && <p><span className="font-medium text-foreground">Matrícula:</span> {c.registration_number}</p>}
