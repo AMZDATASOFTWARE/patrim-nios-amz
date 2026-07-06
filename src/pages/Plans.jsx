@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Check, Zap, Star, Crown, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PLANS } from '@/lib/plans';
+import AppFooter from '@/components/AppFooter';
 
 const planIcons = {
   starter: Zap,
@@ -160,6 +161,8 @@ export default function Plans() {
           <p className="text-slate-500 text-sm">✓ Cancele a qualquer momento &nbsp;·&nbsp; ✓ Dados sempre seus &nbsp;·&nbsp; ✓ Suporte em português</p>
         </div>
       </div>
+
+      <AppFooter className="bg-transparent border-slate-700/50" />
     </div>
   );
 }
