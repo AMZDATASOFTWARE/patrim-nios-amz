@@ -70,9 +70,9 @@ export default function AssetDetail() {
 
   const handleDelete = async () => {
     await AssetEntity.del(id);
-    await logAudit(AuditEntity, {
+    await logAudit({
       action: 'deleted', entity_type: 'Asset', entity_id: id,
-      entity_label: asset?.name || '', summary: `Excluiu o ativo "${asset?.name || ''}"`, actor: user,
+      entity_label: asset?.name || '', summary: `Excluiu o ativo "${asset?.name || ''}"`,
     });
     navigate('/Assets');
   };
