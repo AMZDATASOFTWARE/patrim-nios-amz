@@ -8,7 +8,7 @@
  *  user    - acesso mínimo: vê ativos atribuídos a si, escaneia QR
  *
  * Super-admin (role='admin' no sistema base44 + sem workspace próprio):
- *  Acessa painel /AdminPayments e vê todos os workspaces.
+ *  Acessa o painel de Administração (/SuperAdmin) e vê todos os workspaces.
  */
 
 export const ROLES = {
