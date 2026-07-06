@@ -150,9 +150,9 @@ export default function AssetForm() {
     try {
       if (editId) {
         await AssetEntity.update(editId, data);
-        await logAudit(AuditEntity, {
+        await logAudit({
           action: 'updated', entity_type: 'Asset', entity_id: editId,
-          entity_label: data.name, summary: `Editou o ativo "${data.name}"`, actor: user,
+          entity_label: data.name, summary: `Editou o ativo "${data.name}"`,
         });
       } else {
         // Criação passa pela function createAsset — o limite do plano e o status
@@ -161,9 +161,9 @@ export default function AssetForm() {
         if (!res?.data?.ok || !res.data.created) {
           throw new Error(res?.data?.error || 'Não foi possível salvar o ativo.');
         }
-        await logAudit(AuditEntity, {
+        await logAudit({
           action: 'created', entity_type: 'Asset', entity_id: res.data.ids?.[0] || '',
-          entity_label: data.name, summary: `Cadastrou o ativo "${data.name}"`, actor: user,
+          entity_label: data.name, summary: `Cadastrou o ativo "${data.name}"`,
         });
       }
       navigate('/Assets');
