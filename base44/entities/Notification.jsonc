@@ -8,11 +8,11 @@
     },
     "user_email": {
       "type": "string",
-      "title": "Destinatário (e-mail) — vazio = todos do workspace"
+      "title": "Destinat\u00e1rio (e-mail) \u2014 vazio = todos do workspace"
     },
     "title": {
       "type": "string",
-      "title": "Título"
+      "title": "T\u00edtulo"
     },
     "body": {
       "type": "string",
@@ -43,27 +43,63 @@
     "title"
   ],
   "rls": {
-    "//": "Notificação por destinatário (user_email) ou broadcast do workspace (user_email vazio). Membro só lê o que é seu ou o broadcast; só o destinatário marca como lida.",
-    "create": { "data.workspace_id": "{{user.data.workspace_id}}" },
+    "//": "Notifica\u00e7\u00e3o por destinat\u00e1rio (user_email) ou broadcast do workspace (user_email vazio). Create restrito a admin/manager (evita que qualquer membro dispare broadcast com link arbitr\u00e1rio). Membro s\u00f3 l\u00ea o que \u00e9 seu ou o broadcast; s\u00f3 o destinat\u00e1rio marca como lida.",
+    "create": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
     "read": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "$or": [
-          { "data.user_email": "{{user.email}}" },
-          { "data.user_email": "" }
-        ] }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "data.user_email": "{{user.email}}"
+            },
+            {
+              "data.user_email": ""
+            }
+          ]
+        }
       ]
     },
     "update": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "data.user_email": "{{user.email}}" }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "data.user_email": "{{user.email}}"
+        }
       ]
     },
     "delete": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "data.user_email": "{{user.email}}" }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "data.user_email": "{{user.email}}"
+        }
       ]
     }
   }
