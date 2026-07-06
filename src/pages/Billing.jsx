@@ -224,7 +224,7 @@ export default function Billing() {
                 {isCurrent ? (
                   <Button variant="outline" disabled className="w-full text-sm">Plano atual</Button>
                 ) : plan.id === 'enterprise' ? (
-                  <a href="mailto:contato@seusistema.com.br?subject=Interesse no plano Enterprise" className="block text-center py-2 px-4 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition-colors">
+                  <a href="mailto:ceo@amzdatasoftware.com?subject=Interesse no plano Enterprise" className="block text-center py-2 px-4 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-semibold transition-colors">
                     Falar com consultor
                   </a>
                 ) : (
@@ -245,7 +245,7 @@ export default function Billing() {
       </div>
 
       <p className="text-xs text-center text-muted-foreground">
-        Dúvidas sobre cobrança? Entre em contato: <a href="mailto:contato@seusistema.com.br" className="underline">contato@seusistema.com.br</a>
+        Dúvidas sobre cobrança? Entre em contato: <a href="mailto:ceo@amzdatasoftware.com" className="underline">ceo@amzdatasoftware.com</a>
       </p>
 
     </div>
