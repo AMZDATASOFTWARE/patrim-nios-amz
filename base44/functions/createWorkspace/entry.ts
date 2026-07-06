@@ -51,7 +51,10 @@ Deno.serve(async (req) => {
     });
 
     return Response.json({ ok: true, workspace }, { headers: corsHeaders });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+  } catch (_) {
+    return Response.json(
+      { error: 'Não foi possível criar o workspace.' },
+      { status: 500, headers: corsHeaders }
+    );
   }
 });
