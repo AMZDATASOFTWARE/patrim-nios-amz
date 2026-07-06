@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
 import { Building2, ArrowLeft } from 'lucide-react';
+import AppFooter from '@/components/AppFooter';
 
 // Public LGPD privacy policy. Grounded in what the app actually collects.
 // Legal placeholders in [colchetes] must be filled/reviewed by the controller.
 const CONTROLLER = 'AMZ Data Software';
-const CNPJ = '[preencher CNPJ]';
+const CNPJ = '53.646.811/0001-20';
 const CONTACT_EMAIL = 'ceo@amzdatasoftware.com';
 const LAST_UPDATE = '06/07/2026';
 
@@ -120,6 +121,8 @@ export default function PrivacyPolicy() {
           <Link to="/termos" className="text-blue-700 underline">Termos de Serviço</Link>
         </footer>
       </main>
+
+      <AppFooter />
     </div>
   );
 }
