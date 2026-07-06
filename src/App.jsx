@@ -21,6 +21,8 @@ import Reports from '@/pages/Reports';
 import AssetMap from '@/pages/AssetMap';
 import AssetLabel from '@/pages/AssetLabel';
 import PublicScan from '@/pages/PublicScan';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
+import TermsOfService from '@/pages/TermsOfService';
 import Suppliers from '@/pages/Suppliers';
 import UsersManagement from '@/pages/UsersManagement';
 import Settings from '@/pages/Settings';
@@ -39,11 +41,13 @@ import AdminPayments from '@/pages/AdminPayments';
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
 
-  // Rota pública — sem autenticação necessária (deve vir ANTES de qualquer verificação de auth)
-  if (window.location.pathname === '/scan') {
+  // Rotas públicas — sem autenticação necessária (devem vir ANTES de qualquer verificação de auth)
+  if (PUBLIC_PATHS.includes(window.location.pathname)) {
     return (
       <Routes>
         <Route path="/scan" element={<PublicScan />} />
+        <Route path="/privacidade" element={<PrivacyPolicy />} />
+        <Route path="/termos" element={<TermsOfService />} />
       </Routes>
     );
   }
@@ -128,14 +132,18 @@ const WorkspaceRoutes = () => {
   );
 };
 
+// Rotas totalmente públicas — renderizam sem AuthProvider (sem exigir login).
+const PUBLIC_PATHS = ['/scan', '/privacidade', '/termos'];
+
 function App() {
-  // Rota /scan é completamente pública — renderiza sem AuthProvider
-  if (window.location.pathname === '/scan') {
+  if (PUBLIC_PATHS.includes(window.location.pathname)) {
     return (
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <Routes>
             <Route path="/scan" element={<PublicScan />} />
+            <Route path="/privacidade" element={<PrivacyPolicy />} />
+            <Route path="/termos" element={<TermsOfService />} />
           </Routes>
         </Router>
         <Toaster />
