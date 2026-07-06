@@ -6,7 +6,8 @@ import { getPlan, PLANS } from '@/lib/plans';
 import { Button } from '@/components/ui/button';
 import { Check, Zap, Star, Crown, Users, Package, ArrowUpRight, ShieldCheck } from 'lucide-react';
 import moment from 'moment';
-import PaymentModal from '@/components/billing/PaymentModal';
+import { base44 } from '@/api/base44Client';
+import { toast } from 'sonner';
 
 const planIcons = { starter: Zap, professional: Star, enterprise: Crown };
 const planColors = {
@@ -20,7 +21,8 @@ export default function Billing() {
   const [assetCount, setAssetCount] = useState(0);
   const [userCount, setUserCount] = useState(0);
   const [upgrading, setUpgrading] = useState(null);
-  const [paymentPlan, setPaymentPlan] = useState(null);
+  const [annual, setAnnual] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
   const AssetEntity = useWorkspaceEntity('Asset');
 
   useEffect(() => {
@@ -31,11 +33,56 @@ export default function Billing() {
     setUserCount(memberCount);
   }, [workspace]);
 
+  // Retorno do Stripe Checkout (?checkout=success|cancelled)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const checkout = params.get('checkout');
+    if (!checkout) return;
+    if (checkout === 'success') {
+      toast.success('Pagamento confirmado! Seu plano será ativado em instantes.');
+      setTimeout(() => refreshWorkspace(), 4000);
+    } else if (checkout === 'cancelled') {
+      toast.info('Pagamento cancelado. Nenhuma cobrança foi feita.');
+    }
+    params.delete('checkout');
+    window.history.replaceState({}, '', `${window.location.pathname}${params.toString() ? `?${params}` : ''}`);
+  }, []);
+
   const currentPlan = getPlan(workspace?.plan);
   const PlanIcon = planIcons[currentPlan.id] || Zap;
 
-  const handleUpgrade = (planId) => {
-    setPaymentPlan(PLANS[planId]);
+  // Stripe Checkout — preço e intervalo são resolvidos no servidor (whitelist).
+  const handleUpgrade = async (planId) => {
+    setUpgrading(planId);
+    try {
+      const res = await base44.functions.invoke('stripeCheckout', {
+        plan: planId,
+        interval: annual ? 'year' : 'month',
+      });
+      if (res?.data?.ok && res.data.url) {
+        window.location.href = res.data.url;
+        return;
+      }
+      toast.error(res?.data?.error || 'Não foi possível iniciar o pagamento.');
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Não foi possível iniciar o pagamento.');
+    }
+    setUpgrading(null);
+  };
+
+  const handlePortal = async () => {
+    setPortalLoading(true);
+    try {
+      const res = await base44.functions.invoke('stripePortal', {});
+      if (res?.data?.ok && res.data.url) {
+        window.location.href = res.data.url;
+        return;
+      }
+      toast.error(res?.data?.error || 'Não foi possível abrir o portal de assinatura.');
+    } catch (err) {
+      toast.error(err?.response?.data?.error || 'Não foi possível abrir o portal de assinatura.');
+    }
+    setPortalLoading(false);
   };
 
   const trialDaysLeft = workspace?.trial_ends_at
@@ -88,6 +135,17 @@ export default function Billing() {
             ⏱️ Seu período de trial expira em <strong>{trialDaysLeft} dias</strong>. Escolha um plano para continuar.
           </div>
         )}
+
+        {workspace?.stripe_customer_id && (
+          <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handlePortal} disabled={portalLoading}>
+              {portalLoading ? 'Abrindo...' : 'Gerenciar assinatura'}
+            </Button>
+            <p className="text-xs text-muted-foreground">
+              Alterar cartão, trocar de plano, baixar faturas ou cancelar — com segurança, via Stripe.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Usage */}
@@ -117,6 +175,21 @@ export default function Billing() {
           </Link>
         </div>
 
+        <div className="flex items-center gap-3 mb-4">
+          <span className={`text-sm ${!annual ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>Mensal</span>
+          <button
+            type="button"
+            onClick={() => setAnnual(!annual)}
+            aria-label="Alternar cobrança anual"
+            className={`relative w-11 h-6 rounded-full transition-colors ${annual ? 'bg-primary' : 'bg-muted'}`}
+          >
+            <div className={`absolute top-1 left-1 w-4 h-4 rounded-full bg-white shadow transition-transform ${annual ? 'translate-x-5' : ''}`} />
+          </button>
+          <span className={`text-sm ${annual ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
+            Anual <span className="text-green-600 font-semibold">−2 meses grátis</span>
+          </span>
+        </div>
+
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           {Object.values(PLANS).map((plan) => {
             const Icon = planIcons[plan.id];
@@ -133,8 +206,8 @@ export default function Billing() {
                   <span className="font-bold text-foreground">{plan.name}</span>
                 </div>
                 <p className="text-2xl font-bold text-foreground mb-1">
-                  {plan.price ? `R$ ${plan.price.toLocaleString('pt-BR')}` : 'Consulte'}
-                  {plan.price && <span className="text-sm font-normal text-muted-foreground">/mês</span>}
+                  {plan.price ? `R$ ${(annual ? plan.priceAnnual : plan.price).toLocaleString('pt-BR')}` : 'Consulte'}
+                  {plan.price && <span className="text-sm font-normal text-muted-foreground">{annual ? '/ano' : '/mês'}</span>}
                 </p>
                 <p className="text-xs text-muted-foreground mb-4">
                   {plan.maxUsers === Infinity ? 'Usuários ilimitados' : `Até ${plan.maxUsers} usuários`}
@@ -175,13 +248,6 @@ export default function Billing() {
         Dúvidas sobre cobrança? Entre em contato: <a href="mailto:contato@seusistema.com.br" className="underline">contato@seusistema.com.br</a>
       </p>
 
-      {paymentPlan && (
-        <PaymentModal
-          plan={paymentPlan}
-          onClose={() => setPaymentPlan(null)}
-          onSuccess={() => { setPaymentPlan(null); refreshWorkspace(); }}
-        />
-      )}
     </div>
   );
 }
