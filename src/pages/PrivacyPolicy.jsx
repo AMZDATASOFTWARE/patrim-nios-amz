@@ -122,7 +122,7 @@ export default function PrivacyPolicy() {
         </footer>
       </main>
 
-      <AppFooter />
+      <AppFooter variant="band" />
     </div>
   );
 }
