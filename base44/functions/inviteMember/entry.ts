@@ -1,5 +1,12 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.35';
 
+// Mirrors src/lib/plans.js — null means unlimited (enterprise).
+const PLAN_USER_LIMITS: Record<string, number | null> = {
+  starter: 3,
+  professional: 15,
+  enterprise: null,
+};
+
 Deno.serve(async (req) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -37,6 +44,22 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Workspace não encontrado.' }, { status: 404, headers: corsHeaders });
     }
 
+    // Real plan-limit enforcement: owner (1) + invited members must fit the plan.
+    const limit = PLAN_USER_LIMITS[workspace.plan] ?? PLAN_USER_LIMITS.starter;
+    const currentUsers = 1 + (workspace.member_emails || []).length;
+    if (limit !== null && currentUsers >= limit) {
+      return Response.json(
+        { error: `Seu plano permite até ${limit} usuários. Faça upgrade em Plano & Cobrança para convidar mais membros.` },
+        { status: 403, headers: corsHeaders }
+      );
+    }
+    if (['suspended', 'cancelled'].includes(workspace.plan_status)) {
+      return Response.json(
+        { error: 'Conta suspensa. Regularize o pagamento para convidar membros.' },
+        { status: 403, headers: corsHeaders }
+      );
+    }
+
     await base44.auth.inviteUser(email, targetRole);
 
     const currentMembers = workspace.member_emails || [];
@@ -47,7 +70,10 @@ Deno.serve(async (req) => {
     }
 
     return Response.json({ ok: true }, { headers: corsHeaders });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500, headers: corsHeaders });
+  } catch (_) {
+    return Response.json(
+      { error: 'Não foi possível enviar o convite.' },
+      { status: 500, headers: corsHeaders }
+    );
   }
 });
