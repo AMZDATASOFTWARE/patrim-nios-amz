@@ -110,7 +110,7 @@ export default function PublicScan() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-blue-900 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 to-blue-900 flex flex-col items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full overflow-hidden">
 
         {/* Header */}
@@ -193,9 +193,7 @@ export default function PublicScan() {
         <div className="pb-6" />
       </div>
 
-      <div className="absolute bottom-0 left-0 right-0">
-        <AppFooter className="bg-transparent border-transparent" />
-      </div>
+      <AppFooter className="max-w-sm mt-4" />
     </div>
   );
 }
