@@ -20,6 +20,7 @@ import {
   Wrench,
   FileSignature,
   CreditCard,
+  ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { usePermissions } from '@/lib/permissions';
@@ -45,6 +46,7 @@ const navigation = [
   { name: 'Importar/Exportar', href: '/ImportExport',  icon: ArrowUpDown,     requiredPermission: 'view_reports' },
   { name: 'Plano & Cobrança', href: '/Billing',        icon: CreditCard,      requiredPermission: 'view_billing' },
   { name: 'Configurações',  href: '/Settings',         icon: Settings,        requiredPermission: 'view_settings' },
+  { name: 'Administração',  href: '/SuperAdmin',       icon: ShieldCheck,     platformAdminOnly: true },
 ];
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
@@ -53,6 +55,7 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   const { user } = useAuth();
   const { can } = usePermissions(user);
   const visibleNav = navigation.filter(item => {
+    if (item.platformAdminOnly) return !!user?.is_platform_admin;
     if (item.requiredPermission) return can(item.requiredPermission);
     return true;
   });
