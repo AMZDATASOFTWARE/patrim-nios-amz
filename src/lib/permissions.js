@@ -104,6 +104,18 @@ export function can(user, action) {
   return (PERMISSIONS[role] || PERMISSIONS.user).includes(action);
 }
 
+// O proprietário da conta (owner_email do workspace) responde pelo pagamento e,
+// por isso, sempre pode ver/gerenciar a cobrança — mesmo que seu papel tenha
+// sido alterado para um sem 'view_billing'. Evita que uma conta fique sem
+// ninguém capaz de regularizar o pagamento (ex.: único usuário não-admin).
+export function isWorkspaceOwner(user, workspace) {
+  return !!(user?.email && workspace?.owner_email && user.email === workspace.owner_email);
+}
+
+export function canManageBilling(user, workspace) {
+  return can(user, 'view_billing') || isWorkspaceOwner(user, workspace);
+}
+
 export function usePermissions(user) {
   const role = user?.role || 'user';
   return {
