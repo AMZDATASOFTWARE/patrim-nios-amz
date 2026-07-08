@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
@@ -26,6 +26,7 @@ export default function AssetForm() {
   const editId = urlParams.get('id');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!!editId);
+  const originalAssetRef = useRef(null);
   const AssetEntity = useWorkspaceEntity('Asset');
   const ConfigEntity = useWorkspaceEntity('DepreciationConfig');
   const AuditEntity = useWorkspaceEntity('AuditLog');
@@ -64,6 +65,7 @@ export default function AssetForm() {
         const assets = await AssetEntity.filter({ id: editId });
         if (assets.length > 0) {
           const asset = assets[0];
+          originalAssetRef.current = asset;
           setForm({
             name: asset.name || '',
             plaqueta: asset.plaqueta || '',
@@ -153,6 +155,7 @@ export default function AssetForm() {
         await logAudit({
           action: 'updated', entity_type: 'Asset', entity_id: editId,
           entity_label: data.name, summary: `Editou o ativo "${data.name}"`,
+          old_data: originalAssetRef.current, new_data: data,
         });
       } else {
         // Criação passa pela function createAsset — o limite do plano e o status
@@ -164,6 +167,7 @@ export default function AssetForm() {
         await logAudit({
           action: 'created', entity_type: 'Asset', entity_id: res.data.ids?.[0] || '',
           entity_label: data.name, summary: `Cadastrou o ativo "${data.name}"`,
+          new_data: data,
         });
       }
       navigate('/Assets');

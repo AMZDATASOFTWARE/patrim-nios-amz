@@ -11,14 +11,34 @@ import { base44 } from '@/api/base44Client';
  * Uso:
  *   await logAudit({
  *     action: 'deleted', entity_type: 'Asset', entity_id, entity_label,
- *     summary: 'Excluiu o ativo',
+ *     summary: 'Excluiu o ativo', old_data: assetObj,
  *   });
+ *
+ * Para updates, passe old_data e new_data — a function calcula changed_fields automaticamente.
  *
  * Nunca deixa uma falha de log quebrar a ação principal — por isso engole erros.
  */
-export async function logAudit({ action, entity_type, entity_id = '', entity_label = '', summary = '' }) {
+export async function logAudit({
+  action,
+  entity_type,
+  entity_id = '',
+  entity_label = '',
+  summary = '',
+  old_data = null,
+  new_data = null,
+  changed_fields = null,
+}) {
   try {
-    await base44.functions.invoke('logAudit', { action, entity_type, entity_id, entity_label, summary });
+    await base44.functions.invoke('logAudit', {
+      action,
+      entity_type,
+      entity_id,
+      entity_label,
+      summary,
+      old_data,
+      new_data,
+      changed_fields,
+    });
   } catch (_) {
     // Auditoria é best-effort; não interrompe o fluxo do usuário.
   }
@@ -30,6 +50,12 @@ export const AUDIT_ACTION_LABELS = {
   deleted: 'excluiu',
 };
 
+export const AUDIT_ACTION_PAST = {
+  created: 'criado',
+  updated: 'atualizado',
+  deleted: 'excluído',
+};
+
 export const AUDIT_ENTITY_LABELS = {
   Asset: 'Ativo',
   Supplier: 'Fornecedor',
@@ -37,4 +63,5 @@ export const AUDIT_ENTITY_LABELS = {
   MaintenanceRecord: 'Manutenção',
   AssetAssignment: 'Termo de responsabilidade',
   InventoryCount: 'Inventário',
+  Contract: 'Contrato',
 };

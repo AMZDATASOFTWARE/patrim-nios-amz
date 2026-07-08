@@ -38,6 +38,21 @@
     "summary": {
       "type": "string",
       "title": "Resumo"
+    },
+    "changed_fields": {
+      "type": "array",
+      "title": "Campos Alterados",
+      "items": {
+        "type": "string"
+      }
+    },
+    "old_data": {
+      "type": "string",
+      "title": "Dados Anteriores (JSON)"
+    },
+    "new_data": {
+      "type": "string",
+      "title": "Dados Novos (JSON)"
     }
   },
   "required": [

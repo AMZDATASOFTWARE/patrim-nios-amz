@@ -69,11 +69,12 @@ export default function AssetDetail() {
   }, [id, workspaceId]);
 
   const handleDelete = async () => {
-    await AssetEntity.del(id);
     await logAudit({
       action: 'deleted', entity_type: 'Asset', entity_id: id,
       entity_label: asset?.name || '', summary: `Excluiu o ativo "${asset?.name || ''}"`,
+      old_data: asset,
     });
+    await AssetEntity.del(id);
     navigate('/Assets');
   };
 
