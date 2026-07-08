@@ -150,6 +150,90 @@ export function SoundProvider({ children }) {
     osc.stop(now + 0.29);
   }, [canPlay]);
 
+  // Sucesso — acorde ascendente suave (< 1s)
+  const playSuccess = useCallback(() => {
+    if (!canPlay) return;
+    const ctx = ctxRef.current;
+    const fx = fxRef.current;
+    if (!ctx || ctx.state !== 'running' || !fx) return;
+
+    const now = ctx.currentTime;
+    const notes = [523.25, 659.25, 783.99];
+    notes.forEach((freq, i) => {
+      const start = now + i * 0.08;
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, start);
+      gain.gain.setValueAtTime(0, start);
+      gain.gain.linearRampToValueAtTime(0.015, start + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.3);
+      osc.connect(gain);
+      gain.connect(fx.master);
+      gain.connect(fx.delay);
+      osc.start(start);
+      osc.stop(start + 0.31);
+    });
+  }, [canPlay]);
+
+  // Erro — thud suave e grave
+  const playError = useCallback(() => {
+    if (!canPlay) return;
+    const ctx = ctxRef.current;
+    const fx = fxRef.current;
+    if (!ctx || ctx.state !== 'running' || !fx) return;
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filter = ctx.createBiquadFilter();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(70, now + 0.2);
+
+    filter.type = 'lowpass';
+    filter.frequency.value = 400;
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.025, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.35);
+
+    osc.connect(filter);
+    filter.connect(gain);
+    gain.connect(fx.master);
+
+    osc.start(now);
+    osc.stop(now + 0.36);
+  }, [canPlay]);
+
+  // Notificação — sino digital / gota sintetizada com eco
+  const playNotify = useCallback(() => {
+    if (!canPlay) return;
+    const ctx = ctxRef.current;
+    const fx = fxRef.current;
+    if (!ctx || ctx.state !== 'running' || !fx) return;
+
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(1100, now);
+    osc.frequency.exponentialRampToValueAtTime(440, now + 0.12);
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.02, now + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+
+    osc.connect(gain);
+    gain.connect(fx.master);
+    gain.connect(fx.delay);
+
+    osc.start(now);
+    osc.stop(now + 0.41);
+  }, [canPlay]);
+
   // Listeners globais — hover e click em elementos interativos
   useEffect(() => {
     if (!canPlay) return;
@@ -177,8 +261,19 @@ export function SoundProvider({ children }) {
     };
   }, [canPlay, playHover, playClick]);
 
+  // Listener de toasts — sucesso (default) ou erro (destructive)
+  useEffect(() => {
+    if (!canPlay) return;
+    const onToast = (e) => {
+      if (e.detail?.variant === 'destructive') playError();
+      else playSuccess();
+    };
+    window.addEventListener('toast-added', onToast);
+    return () => window.removeEventListener('toast-added', onToast);
+  }, [canPlay, playSuccess, playError]);
+
   return (
-    <SoundContext.Provider value={{ enabled, setEnabled, canPlay, playBubble, playHover, playClick }}>
+    <SoundContext.Provider value={{ enabled, setEnabled, canPlay, playBubble, playHover, playClick, playSuccess, playError, playNotify }}>
       {children}
     </SoundContext.Provider>
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Bell, CheckCheck } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -6,15 +6,18 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { buildDerivedAlerts } from '@/lib/notifications';
+import { useSound } from '@/lib/SoundContext';
 import moment from 'moment';
 
 export default function NotificationBell() {
   const { user } = useAuth();
   const NotificationEntity = useWorkspaceEntity('Notification');
   const AssetEntity = useWorkspaceEntity('Asset');
+  const { playNotify } = useSound();
   const [stored, setStored] = useState([]);
   const [derived, setDerived] = useState([]);
   const [open, setOpen] = useState(false);
+  const prevUnreadRef = useRef(null);
 
   const load = async () => {
     const [notifs, assets] = await Promise.all([
@@ -32,6 +35,13 @@ export default function NotificationBell() {
 
   const unreadStored = stored.filter((n) => !n.read);
   const unreadCount = unreadStored.length + derived.length;
+
+  useEffect(() => {
+    if (prevUnreadRef.current !== null && prevUnreadRef.current < unreadCount) {
+      playNotify();
+    }
+    prevUnreadRef.current = unreadCount;
+  }, [unreadCount, playNotify]);
 
   const items = useMemo(() => {
     const s = stored.map((n) => ({

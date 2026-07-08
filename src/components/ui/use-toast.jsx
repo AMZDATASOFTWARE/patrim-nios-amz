@@ -134,6 +134,8 @@ function toast({ ...props }) {
     },
   });
 
+  window.dispatchEvent(new CustomEvent('toast-added', { detail: { variant: props.variant } }));
+
   return {
     id,
     dismiss,
@@ -161,4 +163,4 @@ function useToast() {
   };
 }
 
-export { useToast, toast }; 
+export { useToast, toast };
