@@ -53,38 +53,39 @@
   }
 
   .dark {
-    --background: 222 47% 6%;
-    --foreground: 220 14% 92%;
-    --card: 222 47% 9%;
-    --card-foreground: 220 14% 92%;
-    --popover: 222 47% 9%;
-    --popover-foreground: 220 14% 92%;
-    --primary: 226 71% 50%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 222 40% 15%;
-    --secondary-foreground: 220 14% 92%;
-    --muted: 222 40% 15%;
-    --muted-foreground: 220 9% 55%;
-    --accent: 43 96% 56%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 62% 30%;
+    /* ── Tema Noturno Futurista ── */
+    --background: 218 65% 5%;
+    --foreground: 200 30% 96%;
+    --card: 222 55% 9%;
+    --card-foreground: 200 30% 96%;
+    --popover: 222 55% 9%;
+    --popover-foreground: 200 30% 96%;
+    --primary: 190 95% 55%;
+    --primary-foreground: 218 65% 5%;
+    --secondary: 222 40% 14%;
+    --secondary-foreground: 200 30% 96%;
+    --muted: 222 40% 12%;
+    --muted-foreground: 200 20% 65%;
+    --accent: 190 95% 55%;
+    --accent-foreground: 218 65% 5%;
+    --destructive: 0 72% 50%;
     --destructive-foreground: 0 0% 98%;
-    --border: 222 40% 18%;
-    --input: 222 40% 18%;
-    --ring: 226 71% 50%;
-    --chart-1: 226 71% 55%;
-    --chart-2: 43 96% 56%;
+    --border: 200 50% 16%;
+    --input: 200 50% 14%;
+    --ring: 190 95% 55%;
+    --chart-1: 190 95% 55%;
+    --chart-2: 226 71% 55%;
     --chart-3: 160 60% 50%;
     --chart-4: 280 65% 65%;
-    --chart-5: 340 75% 60%;
-    --sidebar-background: 222 47% 6%;
-    --sidebar-foreground: 220 14% 92%;
-    --sidebar-primary: 43 96% 56%;
-    --sidebar-primary-foreground: 222 47% 11%;
-    --sidebar-accent: 222 40% 12%;
-    --sidebar-accent-foreground: 220 14% 92%;
-    --sidebar-border: 222 40% 12%;
-    --sidebar-ring: 226 71% 50%;
+    --chart-5: 43 96% 56%;
+    --sidebar-background: 218 65% 4%;
+    --sidebar-foreground: 200 30% 96%;
+    --sidebar-primary: 190 95% 55%;
+    --sidebar-primary-foreground: 218 65% 5%;
+    --sidebar-accent: 222 40% 10%;
+    --sidebar-accent-foreground: 200 30% 96%;
+    --sidebar-border: 200 50% 14%;
+    --sidebar-ring: 190 95% 55%;
   }
 }
 
@@ -104,4 +105,56 @@
 .leaflet-container {
   position: relative;
   z-index: 0;
+}
+
+/* ── Tema Noturno Futurista: estilos aplicados ao .dark ── */
+
+/* Headings usam Space Grotesk no modo noturno */
+.dark h1,
+.dark h2,
+.dark h3,
+.dark h4 {
+  font-family: var(--font-display);
+}
+
+/* Fundo com gradiente sutil para dar profundidade "espaço profundo" */
+.dark body {
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -10%, hsl(190 95% 55% / 0.06) 0%, transparent 60%),
+    hsl(var(--background));
+}
+
+/* Sidebar com glow ciano na borda ativa */
+.dark aside.bg-sidebar {
+  box-shadow: 1px 0 0 hsl(190 95% 55% / 0.08), 4px 0 24px hsl(190 95% 55% / 0.04);
+}
+
+/* Nav item ativo com glow */
+.dark .bg-sidebar-primary {
+  box-shadow: 0 0 16px hsl(190 95% 55% / 0.35);
+}
+
+/* Cards com borda sutil ciano no hover */
+.dark .bg-card {
+  border-color: hsl(200 50% 16%);
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+.dark .bg-card:hover {
+  border-color: hsl(190 95% 55% / 0.3);
+  box-shadow: 0 0 24px hsl(190 95% 55% / 0.06);
+}
+
+/* Inputs com foco ciano */
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  border-color: hsl(190 95% 55% / 0.5);
+  box-shadow: 0 0 0 1px hsl(190 95% 55% / 0.3);
+}
+
+/* Top bar com borda holográfica */
+.dark .bg-card.sticky {
+  border-color: hsl(200 50% 14%);
+  backdrop-filter: blur(12px);
+  background: hsl(222 55% 9% / 0.85);
 }

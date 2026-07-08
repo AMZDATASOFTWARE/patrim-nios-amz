@@ -15,7 +15,7 @@ export default function ThemeToggle() {
       onClick={() => setTheme(isDark ? 'light' : 'dark')}
       className="p-2 rounded-lg hover:bg-muted transition-colors"
       aria-label="Alternar tema"
-      title={isDark ? 'Tema claro' : 'Tema escuro'}
+      title={isDark ? 'Voltar ao tema claro' : 'Tema noturno futurista'}
     >
       {isDark ? <Sun className="h-5 w-5 text-foreground" /> : <Moon className="h-5 w-5 text-foreground" />}
     </button>
