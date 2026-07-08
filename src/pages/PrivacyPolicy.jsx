@@ -29,7 +29,7 @@ export default function PrivacyPolicy() {
             </div>
             <span className="font-bold text-slate-900">Patrimônios AMZ</span>
           </div>
-          <Link to="/Dashboard" className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
+          <Link to="/landing" className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
             <ArrowLeft className="h-4 w-4" /> Voltar
           </Link>
         </div>
