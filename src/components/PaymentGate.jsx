@@ -1,18 +1,25 @@
 import { useWorkspace } from '@/lib/WorkspaceContext';
 import { useAuth } from '@/lib/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { ShieldAlert, CreditCard, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import moment from 'moment';
 
+// Rotas que precisam continuar acessíveis mesmo com o plano suspenso,
+// senão o usuário fica sem como pagar e reativar a própria conta.
+const PAYMENT_ESCAPE_PATHS = ['/Billing', '/Plans'];
+
 export default function PaymentGate({ children }) {
   const { workspace, loading } = useWorkspace();
   const { user } = useAuth();
+  const location = useLocation();
 
   if (loading) return null;
   if (!workspace) return children;
   // Super admin (dono da plataforma) nunca é bloqueado
   if (user?.is_platform_admin) return children;
+  // Billing/Plans ficam sempre acessíveis: é por lá que o usuário reativa a conta.
+  if (PAYMENT_ESCAPE_PATHS.includes(location.pathname)) return children;
 
   const status = workspace.plan_status;
   const trialEnds = workspace.trial_ends_at;
