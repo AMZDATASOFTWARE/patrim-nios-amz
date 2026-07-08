@@ -24,7 +24,7 @@ for (const m of _patched) {
  * Motor de sons ambientes procedurais (Web Audio API).
  * Gera "bolhas" e tons espaciais com eco — ativos apenas no tema dark.
  */
-export function SoundProvider({ children }) {
+export function SoundProvider({ children, forceDark = false }) {
   const { theme } = useTheme();
   const [enabled, setEnabled] = useState(() => {
     try { return localStorage.getItem('sound-enabled') !== 'false'; } catch { return true; }
@@ -32,7 +32,7 @@ export function SoundProvider({ children }) {
   const ctxRef = useRef(null);
   const fxRef = useRef(null);
 
-  const isDark = theme === 'dark';
+  const isDark = forceDark || theme === 'dark';
   const canPlay = enabled && isDark;
 
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowLeft, Sparkles } from 'lucide-react';
+import { SoundProvider, useSound } from '@/lib/SoundContext';
 import { PLANS } from '@/lib/plans';
 import AppFooter from '@/components/AppFooter';
 import FluidBackground from '@/components/landing/FluidBackground';
@@ -8,11 +9,20 @@ import SectionTag from '@/components/landing/SectionTag';
 import PlanCard from '@/components/landing/PlanCard';
 
 export default function Plans() {
+  return (
+    <SoundProvider forceDark>
+      <PlansInner />
+    </SoundProvider>
+  );
+}
+
+function PlansInner() {
   const [annual, setAnnual] = useState(false);
+  const { playBubble } = useSound();
 
   return (
     <div style={{ position: 'relative', minHeight: '100vh', background: 'var(--landing-bg)', overflow: 'hidden' }}>
-      <FluidBackground density={50} style={{ position: 'fixed', inset: 0 }} />
+      <FluidBackground density={50} onInteract={playBubble} style={{ position: 'fixed', inset: 0 }} />
 
       {/* Back */}
       <div style={{ position: 'absolute', top: 24, left: 24, zIndex: 10 }}>
