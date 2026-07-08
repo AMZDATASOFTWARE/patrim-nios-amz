@@ -62,7 +62,7 @@ export default function AssistantChat() {
     await base44.agents.addMessage(conversation, { role: 'user', content: text });
     // Registro assíncrono de consumo (fire-and-forget) — não atrasa a resposta.
     base44.functions.invoke('logCreditConsumption', {
-      credits: 1, agent_name: AGENT_NAME, event_type: 'mensagem_app',
+      credits: 1, credit_type: 'message', agent_name: AGENT_NAME, event_type: 'mensagem_app',
     }).catch(() => {});
     setSending(false);
   };

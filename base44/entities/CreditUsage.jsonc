@@ -18,6 +18,15 @@
       "type": "string",
       "title": "Tipo de Evento"
     },
+    "credit_type": {
+      "type": "string",
+      "title": "Tipo de Cr\u00e9dito",
+      "enum": [
+        "message",
+        "integration"
+      ],
+      "default": "message"
+    },
     "credits_used": {
       "type": "number",
       "title": "Cr\u00e9ditos Consumidos"

@@ -24,7 +24,9 @@ export default function CreditUsageCard() {
     const d = new Date(u.created_date);
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
   });
-  const monthCredits = monthUsage.reduce((s, u) => s + (u.credits_used || 0), 0);
+  // Registros antigos sem credit_type contam como mensagem.
+  const monthMessages = monthUsage.filter((u) => u.credit_type !== 'integration').reduce((s, u) => s + (u.credits_used || 0), 0);
+  const monthIntegrations = monthUsage.filter((u) => u.credit_type === 'integration').reduce((s, u) => s + (u.credits_used || 0), 0);
   const monthValue = monthUsage.reduce((s, u) => s + (u.price_to_client || 0), 0);
   const totalCredits = usage.reduce((s, u) => s + (u.credits_used || 0), 0);
 
@@ -40,10 +42,14 @@ export default function CreditUsageCard() {
       {loading ? (
         <p className="text-sm text-muted-foreground">Carregando...</p>
       ) : (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           <div>
-            <p className="text-2xl font-bold text-card-foreground">{monthCredits}</p>
-            <p className="text-xs text-muted-foreground mt-1">Créditos no mês</p>
+            <p className="text-2xl font-bold text-card-foreground">{monthMessages}</p>
+            <p className="text-xs text-muted-foreground mt-1">Mensagens no mês</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-card-foreground">{monthIntegrations}</p>
+            <p className="text-xs text-muted-foreground mt-1">Integrações no mês</p>
           </div>
           <div>
             <p className="text-2xl font-bold text-card-foreground">{formatCurrency(monthValue)}</p>

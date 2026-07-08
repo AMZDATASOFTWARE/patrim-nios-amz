@@ -2,13 +2,38 @@
   "name": "PricingConfig",
   "type": "object",
   "properties": {
+    "plan_price": {
+      "type": "number",
+      "title": "Pre\u00e7o Mensal do Plano (R$)"
+    },
+    "plan_message_credits": {
+      "type": "number",
+      "title": "Cr\u00e9ditos de Mensagens inclusos no Plano"
+    },
+    "plan_integration_credits": {
+      "type": "number",
+      "title": "Cr\u00e9ditos de Integra\u00e7\u00f5es inclusos no Plano"
+    },
+    "message_share_percent": {
+      "type": "number",
+      "title": "% do Plano atribu\u00eddo a Mensagens (rateio)",
+      "default": 50
+    },
+    "price_per_message_credit": {
+      "type": "number",
+      "title": "Pre\u00e7o ao Cliente por Cr\u00e9dito de Mensagem (R$)"
+    },
+    "price_per_integration_credit": {
+      "type": "number",
+      "title": "Pre\u00e7o ao Cliente por Cr\u00e9dito de Integra\u00e7\u00e3o (R$)"
+    },
     "cost_per_credit": {
       "type": "number",
-      "title": "Custo por Cr\u00e9dito para a Plataforma (R$)"
+      "title": "[Legado] Custo por Cr\u00e9dito (R$)"
     },
     "price_per_credit": {
       "type": "number",
-      "title": "Pre\u00e7o por Cr\u00e9dito ao Cliente (R$)"
+      "title": "[Legado] Pre\u00e7o por Cr\u00e9dito (R$)"
     },
     "currency": {
       "type": "string",
@@ -16,10 +41,7 @@
       "default": "BRL"
     }
   },
-  "required": [
-    "cost_per_credit",
-    "price_per_credit"
-  ],
+  "required": [],
   "rls": {
     "create": {
       "user_condition": {
