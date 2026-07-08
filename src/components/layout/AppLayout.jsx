@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import { Outlet, useLocation, Link } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
 import Sidebar from './Sidebar';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
+import FluidBackground from '@/components/landing/FluidBackground';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
 import { usePermissions } from '@/lib/permissions';
@@ -30,6 +32,9 @@ export default function AppLayout() {
   const { pathname } = useLocation();
   const { user } = useAuth();
   const { can } = usePermissions(user);
+  const { theme } = useTheme();
+  const [isDark, setIsDark] = useState(false);
+  useEffect(() => { setIsDark(theme === 'dark'); }, [theme]);
 
   // Guard de rota (defesa-em-profundidade): a proteção primária dos dados é server-side.
   const requiredPermission = ROUTE_PERMISSIONS[pathname];
@@ -40,6 +45,13 @@ export default function AppLayout() {
 
   return (
     <div className="min-h-screen bg-background">
+      {/* Background animado interativo (apenas no tema noturno) */}
+      {isDark && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
+          <FluidBackground density={60} style={{ position: 'absolute', inset: 0 }} />
+        </div>
+      )}
+
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
@@ -56,9 +68,9 @@ export default function AppLayout() {
       />
 
       <main
-        className={`transition-all duration-300 min-h-screen ${
+        className={`transition-all duration-300 min-h-screen relative ${
           collapsed ? 'lg:pl-16' : 'lg:pl-64'
-        }`}
+        } ${isDark ? 'z-10' : ''}`}
       >
         {/* Top bar */}
         <div className="flex items-center gap-3 h-14 px-4 border-b border-border bg-card sticky top-0 z-20">
