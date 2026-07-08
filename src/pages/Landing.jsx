@@ -91,7 +91,7 @@ function LandingInner() {
       <section style={{ position: 'relative', padding: '96px 0', textAlign: 'center' }}>
         <div className="max-w-4xl mx-auto px-4" style={{ position: 'relative', zIndex: 1 }}>
           <SectionTag style={{ marginBottom: 24 }}>
-            <Clock style={{ width: 14, height: 14 }} /> 14 dias grátis, sem cartão
+            <Clock style={{ width: 14, height: 14 }} /> 14 dias grátis, cartão opcional
           </SectionTag>
           <h1 style={{ ...display, fontSize: 'clamp(36px, 6vw, 60px)', fontWeight: 700, lineHeight: 1.1, margin: '0 0 24px', color: 'var(--landing-steam)' }}>
             Controle o patrimônio da sua<br />empresa de forma{' '}
@@ -114,7 +114,7 @@ function LandingInner() {
             </a>
           </div>
           <p style={{ fontSize: 14, color: 'hsl(200 30% 96% / 0.4)', marginTop: 20 }}>
-            ✓ Sem cartão &nbsp; ✓ Cancele quando quiser &nbsp; ✓ Suporte incluso
+            ✓ Cartão opcional &nbsp; ✓ Cancele quando quiser &nbsp; ✓ Suporte incluso
           </p>
         </div>
       </section>
@@ -288,7 +288,7 @@ function LandingInner() {
         <FluidBackground density={40} onInteract={playBubble} style={{ position: 'absolute', inset: 0 }} />
         <div className="max-w-2xl mx-auto px-4" style={{ position: 'relative' }}>
           <h2 style={{ ...display, fontSize: 40, fontWeight: 700, margin: '0 0 16px', color: 'var(--landing-steam)' }}>Pronto para organizar o patrimônio da sua empresa?</h2>
-          <p style={{ fontSize: 18, color: dim, margin: '0 0 32px' }}>Comece gratuitamente hoje. Configure em minutos, sem cartão de crédito.</p>
+          <p style={{ fontSize: 18, color: dim, margin: '0 0 32px' }}>Comece gratuitamente hoje. Configure em minutos, cartão de crédito opcional.</p>
           <Link to="/Dashboard">
             <button style={{ height: 52, padding: '0 40px', borderRadius: 10, background: 'var(--landing-cyan)', border: 'none', color: 'var(--landing-bg)', fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 17, cursor: 'pointer', boxShadow: 'var(--landing-glow)', display: 'inline-flex', alignItems: 'center', gap: 8 }}>
               Criar conta grátis <ArrowRight style={{ width: 18, height: 18 }} />
