@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { base44 } from '@/api/base44Client';
 import { SoundProvider, useSound } from '@/lib/SoundContext';
 import { PLANS } from '@/lib/plans';
 import {
@@ -77,9 +78,7 @@ function LandingInner() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
             <a href="#funcionalidades" className="nav-link" style={{ color: dim, font: '500 14px var(--font-sans)', textDecoration: 'none' }}>Funcionalidades</a>
             <a href="#precos" className="nav-link" style={{ color: dim, font: '500 14px var(--font-sans)', textDecoration: 'none' }}>Preços</a>
-            <Link to="/Dashboard">
-              <button style={{ height: 36, padding: '0 16px', borderRadius: 10, background: 'transparent', border: '1px solid var(--landing-line)', color: 'var(--landing-steam)', font: '500 14px var(--font-sans)', cursor: 'pointer' }}>Entrar</button>
-            </Link>
+            <button onClick={() => base44.auth.redirectToLogin('/Dashboard')} style={{ height: 36, padding: '0 16px', borderRadius: 10, background: 'transparent', border: '1px solid var(--landing-line)', color: 'var(--landing-steam)', font: '500 14px var(--font-sans)', cursor: 'pointer' }}>Entrar</button>
             <Link to="/Dashboard">
               <button style={{ height: 36, padding: '0 16px', borderRadius: 10, background: 'var(--landing-cyan)', border: 'none', color: 'var(--landing-bg)', font: '700 14px var(--font-display)', cursor: 'pointer' }}>Começar grátis</button>
             </Link>
