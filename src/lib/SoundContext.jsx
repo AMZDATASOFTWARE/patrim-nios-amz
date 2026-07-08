@@ -5,7 +5,7 @@ const SoundContext = createContext(null);
 
 /**
  * Motor de sons ambientes procedurais (Web Audio API).
- * Gera "bolhas" e tons espaciais com eco — ativos apenas no tema dark.
+ * Gera tons espaciais com eco + drone ambiental contínuo — ativos apenas no tema dark.
  */
 export function SoundProvider({ children }) {
   const { theme } = useTheme();
@@ -148,6 +148,85 @@ export function SoundProvider({ children }) {
 
     osc.start(now);
     osc.stop(now + 0.29);
+  }, [canPlay]);
+
+  // Drone ambiental contínuo — som espacial calmo (lobby de jogo)
+  const ambientRef = useRef(null);
+
+  useEffect(() => {
+    if (!canPlay) {
+      // Desliga o drone ao sair do dark ou desativar som
+      if (ambientRef.current) {
+        try {
+          const { nodes, ctx } = ambientRef.current;
+          nodes.forEach((n) => { try { n.stop?.(); } catch {} try { n.disconnect?.(); } catch {} });
+        } catch {}
+        ambientRef.current = null;
+      }
+      return;
+    }
+
+    // Só inicia após o AudioContext estar rodando (pós-interação)
+    let cancelled = false;
+    const startAmbient = () => {
+      if (cancelled || ambientRef.current) return;
+      const ctx = ctxRef.current;
+      const fx = fxRef.current;
+      if (!ctx || ctx.state !== 'running' || !fx) return;
+
+      const now = ctx.currentTime;
+
+      // 3 osciladores detuned → pad espacial
+      const freqs = [110, 165, 220];
+      const oscs = freqs.map((f, i) => {
+        const osc = ctx.createOscillator();
+        osc.type = 'sine';
+        osc.frequency.value = f * (1 + (Math.random() - 0.5) * 0.004);
+        return osc;
+      });
+
+      // Filtro com LFO para movimento
+      const filter = ctx.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 500;
+      filter.Q.value = 1.5;
+
+      const lfo = ctx.createOscillator();
+      lfo.type = 'sine';
+      lfo.frequency.value = 0.07;
+      const lfoGain = ctx.createGain();
+      lfoGain.gain.value = 200;
+      lfo.connect(lfoGain);
+      lfoGain.connect(filter.frequency);
+
+      // Gain principal bem baixo
+      const padGain = ctx.createGain();
+      padGain.gain.setValueAtTime(0, now);
+      padGain.gain.linearRampToValueAtTime(0.022, now + 4);
+
+      oscs.forEach((osc) => osc.connect(filter));
+      filter.connect(padGain);
+      padGain.connect(fx.master);
+      padGain.connect(fx.delay);
+
+      oscs.forEach((osc) => osc.start(now));
+      lfo.start(now);
+
+      ambientRef.current = { nodes: [...oscs, lfo, lfoGain, filter, padGain], padGain, ctx };
+    };
+
+    // Tenta iniciar imediatamente se já há contexto, ou espera interação
+    startAmbient();
+    if (!ambientRef.current) {
+      const handler = () => setTimeout(startAmbient, 100);
+      window.addEventListener('pointerdown', handler);
+      window.addEventListener('keydown', handler);
+      return () => {
+        cancelled = true;
+        window.removeEventListener('pointerdown', handler);
+        window.removeEventListener('keydown', handler);
+      };
+    }
   }, [canPlay]);
 
   // Listeners globais — hover e click em elementos interativos
