@@ -1,0 +1,58 @@
+{
+  "name": "CreditUsage",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "user_email": {
+      "type": "string",
+      "title": "Usu\u00e1rio"
+    },
+    "agent_name": {
+      "type": "string",
+      "title": "Agente"
+    },
+    "event_type": {
+      "type": "string",
+      "title": "Tipo de Evento"
+    },
+    "credits_used": {
+      "type": "number",
+      "title": "Cr\u00e9ditos Consumidos"
+    },
+    "cost_to_me": {
+      "type": "number",
+      "title": "Custo Plataforma (R$)"
+    },
+    "price_to_client": {
+      "type": "number",
+      "title": "Valor ao Cliente (R$)"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "credits_used"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    }
+  }
+}

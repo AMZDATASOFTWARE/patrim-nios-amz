@@ -21,6 +21,8 @@ import {
   FileSignature,
   CreditCard,
   ShieldCheck,
+  Sparkles,
+  Coins,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { usePermissions, canManageBilling } from '@/lib/permissions';
@@ -30,6 +32,7 @@ import AppFooter from '@/components/AppFooter';
 
 const navigation = [
   { name: 'Dashboard',      href: '/Dashboard',       icon: LayoutDashboard, requiredPermission: 'view_dashboard' },
+  { name: 'Assistente IA',  href: '/Assistant',        icon: Sparkles,        requiredPermission: 'view_dashboard' },
   { name: 'Ativos',         href: '/Assets',           icon: Package,         requiredPermission: 'view_assets' },
   { name: 'Inventário',     href: '/Inventory',        icon: ClipboardCheck,  requiredPermission: 'view_inventory' },
   { name: 'Mapa',           href: '/AssetMap',         icon: Map,             requiredPermission: 'view_map' },
@@ -47,6 +50,7 @@ const navigation = [
   { name: 'Plano & Cobrança', href: '/Billing',        icon: CreditCard,      requiredPermission: 'view_billing' },
   { name: 'Configurações',  href: '/Settings',         icon: Settings,        requiredPermission: 'view_settings' },
   { name: 'Administração',  href: '/SuperAdmin',       icon: ShieldCheck,     platformAdminOnly: true },
+  { name: 'Créditos de IA', href: '/AdminCredits',     icon: Coins,           platformAdminOnly: true },
 ];
 
 export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {

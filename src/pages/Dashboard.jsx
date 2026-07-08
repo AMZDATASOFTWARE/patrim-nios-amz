@@ -12,6 +12,7 @@ import DepreciationChart from '@/components/dashboard/DepreciationChart';
 import RecentAssets from '@/components/dashboard/RecentAssets';
 import ExternalLinks from '@/components/dashboard/ExternalLinks';
 import MaintenanceAlerts from '@/components/dashboard/MaintenanceAlerts';
+import CreditUsageCard from '@/components/dashboard/CreditUsageCard';
 import { Building2, TrendingDown, Package, DollarSign } from 'lucide-react';
 
 export default function Dashboard() {
@@ -121,6 +122,9 @@ export default function Dashboard() {
         <RecentAssets assets={assets} />
         <ExternalLinks />
       </div>
+
+      {/* Consumo de IA */}
+      <CreditUsageCard />
 
       {/* Maintenance & Alerts */}
       <MaintenanceAlerts assets={assets} />

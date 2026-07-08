@@ -1,0 +1,45 @@
+{
+  "name": "PricingConfig",
+  "type": "object",
+  "properties": {
+    "cost_per_credit": {
+      "type": "number",
+      "title": "Custo por Cr\u00e9dito para a Plataforma (R$)"
+    },
+    "price_per_credit": {
+      "type": "number",
+      "title": "Pre\u00e7o por Cr\u00e9dito ao Cliente (R$)"
+    },
+    "currency": {
+      "type": "string",
+      "title": "Moeda",
+      "default": "BRL"
+    }
+  },
+  "required": [
+    "cost_per_credit",
+    "price_per_credit"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    },
+    "read": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    },
+    "update": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    }
+  }
+}

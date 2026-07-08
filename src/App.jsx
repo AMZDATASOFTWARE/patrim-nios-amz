@@ -36,6 +36,8 @@ import WorkspaceSetup from '@/pages/WorkspaceSetup';
 import Billing from '@/pages/Billing';
 import Plans from '@/pages/Plans';
 import SuperAdmin from '@/pages/SuperAdmin';
+import AssistantChat from '@/pages/AssistantChat';
+import AdminCredits from '@/pages/AdminCredits';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -123,6 +125,8 @@ const WorkspaceRoutes = () => {
           <Route path="/ImportExport" element={<ImportExport />} />
           <Route path="/Billing" element={<Billing />} />
           <Route path="/SuperAdmin" element={<SuperAdmin />} />
+          <Route path="/Assistant" element={<AssistantChat />} />
+          <Route path="/AdminCredits" element={<AdminCredits />} />
         </Route>
         <Route path="*" element={<PageNotFound />} />
       </Routes>
