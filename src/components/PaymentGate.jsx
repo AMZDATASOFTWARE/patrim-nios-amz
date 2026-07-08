@@ -3,6 +3,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { Link, useLocation } from 'react-router-dom';
 import { ShieldAlert, CreditCard, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { canManageBilling } from '@/lib/permissions';
 import moment from 'moment';
 
 // Rotas que precisam continuar acessíveis mesmo com o plano suspenso,
@@ -34,6 +35,10 @@ export default function PaymentGate({ children }) {
   // Check plan payment overdue (expired > 7 days)
   const paymentOverdue = status === 'active' && planExpires && moment(planExpires).add(7, 'days').isBefore(moment());
 
+  // Só quem responde pela cobrança (admin ou proprietário da conta) vê o botão de
+  // pagar; os demais recebem orientação para acionar o responsável — sem botão morto.
+  const canBilling = canManageBilling(user, workspace);
+
   if (isSuspended || trialExpired || paymentOverdue) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-slate-800 flex items-center justify-center p-4">
@@ -51,15 +56,24 @@ export default function PaymentGate({ children }) {
           </div>
           <div className="p-8 space-y-5 text-center">
             <p className="text-slate-600 text-sm leading-relaxed">
-              Para reativar o acesso, escolha um plano e realize o pagamento. Seus dados estão preservados e serão restaurados imediatamente após a confirmação.
+              {canBilling
+                ? 'Para reativar o acesso, escolha um plano e realize o pagamento. Seus dados estão preservados e serão restaurados imediatamente após a confirmação.'
+                : 'Seus dados estão preservados. Assim que o pagamento for regularizado, o acesso será restaurado imediatamente.'}
             </p>
             <div className="flex flex-col gap-3">
-              <Link to="/Billing">
-                <Button className="w-full gap-2">
-                  <CreditCard className="h-4 w-4" />
-                  Regularizar pagamento
-                </Button>
-              </Link>
+              {canBilling ? (
+                <Link to="/Billing">
+                  <Button className="w-full gap-2">
+                    <CreditCard className="h-4 w-4" />
+                    Regularizar pagamento
+                  </Button>
+                </Link>
+              ) : (
+                <p className="text-sm text-slate-600 bg-slate-50 border border-slate-200 rounded-lg px-4 py-3">
+                  Para reativar o acesso, o <strong>proprietário da conta</strong>
+                  {workspace?.owner_email ? ` (${workspace.owner_email})` : ''} precisa regularizar o pagamento.
+                </p>
+              )}
               <a
                 href="mailto:ceo@amzdatasoftware.com?subject=Ajuda com minha conta"
                 className="flex items-center justify-center gap-2 text-sm text-slate-500 hover:text-slate-700 transition-colors"
