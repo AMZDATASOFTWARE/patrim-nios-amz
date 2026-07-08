@@ -24,11 +24,17 @@ Deno.serve(async (req) => {
 
     const svc = base44.asServiceRole;
     const fresh = (await svc.entities.User.filter({ id: user.id }))[0];
-    if (!fresh?.workspace_id || fresh.role !== 'admin') {
-      return json({ error: 'Apenas administradores podem gerenciar a assinatura.' }, 403);
+    if (!fresh?.workspace_id) {
+      return json({ error: 'Você não pertence a um workspace.' }, 400);
     }
     const ws = (await svc.entities.Workspace.filter({ id: fresh.workspace_id }))[0];
-    if (!ws?.stripe_customer_id) {
+    if (!ws) return json({ error: 'Workspace não encontrado.' }, 404);
+    // Admin ou proprietário da conta (owner_email) podem gerenciar a assinatura.
+    const isOwner = !!ws.owner_email && fresh.email === ws.owner_email;
+    if (fresh.role !== 'admin' && !isOwner) {
+      return json({ error: 'Apenas administradores podem gerenciar a assinatura.' }, 403);
+    }
+    if (!ws.stripe_customer_id) {
       return json({ error: 'Este workspace ainda não possui assinatura no Stripe.' }, 400);
     }
 
