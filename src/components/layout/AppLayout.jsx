@@ -6,6 +6,8 @@ import Sidebar from './Sidebar';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
 import FluidBackground from '@/components/landing/FluidBackground';
+import { SoundProvider, useSound } from '@/lib/SoundContext';
+import SoundToggle from './SoundToggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
 import { usePermissions } from '@/lib/permissions';
@@ -26,7 +28,7 @@ function AccessDenied() {
   );
 }
 
-export default function AppLayout() {
+function AppLayoutInner() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const { pathname } = useLocation();
@@ -35,6 +37,7 @@ export default function AppLayout() {
   const { theme } = useTheme();
   const [isDark, setIsDark] = useState(false);
   useEffect(() => { setIsDark(theme === 'dark'); }, [theme]);
+  const { playBubble } = useSound();
 
   // Guard de rota (defesa-em-profundidade): a proteção primária dos dados é server-side.
   const requiredPermission = ROUTE_PERMISSIONS[pathname];
@@ -48,7 +51,7 @@ export default function AppLayout() {
       {/* Background animado interativo (apenas no tema noturno) */}
       {isDark && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
-          <FluidBackground density={60} style={{ position: 'absolute', inset: 0 }} />
+          <FluidBackground density={60} onInteract={playBubble} style={{ position: 'absolute', inset: 0 }} />
         </div>
       )}
 
@@ -84,6 +87,7 @@ export default function AppLayout() {
           </button>
           <span className="font-semibold text-foreground lg:hidden">Patrimônio</span>
           <div className="ml-auto flex items-center gap-1">
+            <SoundToggle />
             <ThemeToggle />
             <NotificationBell />
           </div>
@@ -94,5 +98,13 @@ export default function AppLayout() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function AppLayout() {
+  return (
+    <SoundProvider>
+      <AppLayoutInner />
+    </SoundProvider>
   );
 }
