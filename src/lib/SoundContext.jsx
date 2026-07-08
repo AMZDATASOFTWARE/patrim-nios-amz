@@ -66,8 +66,8 @@ export function SoundProvider({ children }) {
     };
   }, [ensureAudio]);
 
-  // Bolha — sine sweep curto com eco (interação cursor → partículas)
-  const playBubble = useCallback((intensity = 0.5) => {
+  // Movimento do cursor — zumbido tecnológico discreto e baixo
+  const playBubble = useCallback(() => {
     if (!canPlay) return;
     const ctx = ctxRef.current;
     const fx = fxRef.current;
@@ -78,26 +78,23 @@ export function SoundProvider({ children }) {
     const gain = ctx.createGain();
     const filter = ctx.createBiquadFilter();
 
-    const base = 450 + Math.random() * 650;
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(base * 0.55, now);
-    osc.frequency.exponentialRampToValueAtTime(base, now + 0.045);
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(1200 + Math.random() * 800, now);
 
-    filter.type = 'lowpass';
-    filter.frequency.value = 2800;
+    filter.type = 'bandpass';
+    filter.frequency.value = 1600;
+    filter.Q.value = 8;
 
-    const vol = 0.01 + intensity * 0.02;
     gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(vol, now + 0.008);
-    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.13);
+    gain.gain.linearRampToValueAtTime(0.0015, now + 0.002);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.03);
 
     osc.connect(filter);
     filter.connect(gain);
     gain.connect(fx.master);
-    gain.connect(fx.delay);
 
     osc.start(now);
-    osc.stop(now + 0.14);
+    osc.stop(now + 0.035);
   }, [canPlay]);
 
   // Hover — blip suave e curto

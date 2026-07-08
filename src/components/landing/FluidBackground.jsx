@@ -89,9 +89,9 @@ export default function FluidBackground({ density = 70, onInteract, style, ...pr
       }
       if (maxIntensity > 0 && interactRef.current) {
         const sndNow = performance.now();
-        if (sndNow - lastSoundTime > 200) {
+        if (sndNow - lastSoundTime > 90) {
           lastSoundTime = sndNow;
-          interactRef.current(maxIntensity);
+          interactRef.current();
         }
       }
       ctx.lineWidth = dpr;
