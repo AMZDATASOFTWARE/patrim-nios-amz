@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -40,6 +40,16 @@
     --sidebar-accent-foreground: 220 14% 92%;
     --sidebar-border: 222 40% 18%;
     --sidebar-ring: 226 71% 40%;
+
+    /* ── Landing "Futurista" ── */
+    --font-display: 'Space Grotesk', 'Inter', sans-serif;
+    --landing-bg: hsl(218 65% 5%);
+    --landing-bg-2: hsl(222 55% 9%);
+    --landing-cyan: hsl(190 95% 55%);
+    --landing-cyan-soft: hsl(190 95% 55% / 0.15);
+    --landing-steam: hsl(200 30% 96%);
+    --landing-line: hsl(200 80% 60% / 0.18);
+    --landing-glow: 0 0 40px hsl(190 95% 55% / 0.35);
   }
 
   .dark {
