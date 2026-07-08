@@ -64,7 +64,9 @@
     {
       "entity_name": "LocationHistory",
       "allowed_operations": [
-        "read"
+        "read",
+        "update",
+        "create"
       ]
     },
     {
