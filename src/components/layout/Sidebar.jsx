@@ -23,7 +23,7 @@ import {
   ShieldCheck,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
-import { usePermissions } from '@/lib/permissions';
+import { usePermissions, canManageBilling } from '@/lib/permissions';
 import { useWorkspace } from '@/lib/WorkspaceContext';
 import { base44 } from '@/api/base44Client';
 import AppFooter from '@/components/AppFooter';
@@ -56,6 +56,8 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
   const { can } = usePermissions(user);
   const visibleNav = navigation.filter(item => {
     if (item.platformAdminOnly) return !!user?.is_platform_admin;
+    // Cobrança também aparece para o proprietário da conta (responde pelo pagamento).
+    if (item.href === '/Billing') return canManageBilling(user, workspace);
     if (item.requiredPermission) return can(item.requiredPermission);
     return true;
   });
