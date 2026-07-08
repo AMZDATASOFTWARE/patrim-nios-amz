@@ -52,13 +52,15 @@
       "entity_name": "InventoryCount",
       "allowed_operations": [
         "create",
-        "read"
+        "read",
+        "update"
       ]
     },
     {
       "entity_name": "InventoryItem",
       "allowed_operations": [
-        "read"
+        "read",
+        "update"
       ]
     },
     {
@@ -81,7 +83,8 @@
       "entity_name": "Notification",
       "allowed_operations": [
         "read",
-        "create"
+        "create",
+        "update"
       ]
     },
     {
