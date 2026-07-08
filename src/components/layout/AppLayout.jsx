@@ -10,7 +10,8 @@ import { SoundProvider, useSound } from '@/lib/SoundContext';
 import SoundToggle from './SoundToggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
-import { usePermissions } from '@/lib/permissions';
+import { useWorkspace } from '@/lib/WorkspaceContext';
+import { usePermissions, isWorkspaceOwner } from '@/lib/permissions';
 import { ROUTE_PERMISSIONS, PLATFORM_ADMIN_ROUTES } from '@/lib/routePermissions';
 
 // Tela de acesso restrito — mostrada quando o papel do usuário não permite a rota.
@@ -33,6 +34,7 @@ function AppLayoutInner() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { pathname } = useLocation();
   const { user } = useAuth();
+  const { workspace } = useWorkspace();
   const { can } = usePermissions(user);
   const { theme } = useTheme();
   const [isDark, setIsDark] = useState(false);
@@ -42,9 +44,13 @@ function AppLayoutInner() {
   // Guard de rota (defesa-em-profundidade): a proteção primária dos dados é server-side.
   const requiredPermission = ROUTE_PERMISSIONS[pathname];
   const requiresPlatformAdmin = PLATFORM_ADMIN_ROUTES.includes(pathname);
+  // O proprietário da conta sempre acessa a cobrança (responde pelo pagamento),
+  // mesmo que seu papel não tenha 'view_billing'.
+  const ownerBillingBypass = pathname === '/Billing' && isWorkspaceOwner(user, workspace);
   const denied =
-    (requiredPermission && !can(requiredPermission)) ||
-    (requiresPlatformAdmin && !user?.is_platform_admin);
+    !ownerBillingBypass &&
+    ((requiredPermission && !can(requiredPermission)) ||
+      (requiresPlatformAdmin && !user?.is_platform_admin));
 
   return (
     <div className="min-h-screen bg-background">
