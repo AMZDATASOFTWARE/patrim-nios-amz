@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT — Patrimônios AMZ
 
-> Documento de contexto para futuras sessões. Última atualização: **2026-07-06**.
+> Documento de contexto para futuras sessões. Última atualização: **2026-07-08**.
 > Mantenha este arquivo atualizado ao final de mudanças estruturais.
 
 ---
@@ -30,18 +30,19 @@
 - Papel sempre **combinado com tenant via `$and`**.
 - Entidades sensíveis: create/write bloqueado no SDK (só `is_platform_admin`), escritas por functions service-role.
 
-## 3. Entidades (15)
+## 3. Entidades (17)
 
-Tenant-owned: **Asset, Collaborator, AssetAssignment, Supplier, MaintenanceRecord, LocationHistory, InventoryCount, InventoryItem, Contract, DepreciationConfig, Notification, AuditLog, PaymentRequest**. Raiz: **Workspace**. Built-in: **User** (FLS por campo em role/workspace_id/is_platform_admin).
+Tenant-owned: **Asset, Collaborator, AssetAssignment, Supplier, MaintenanceRecord, LocationHistory, InventoryCount, InventoryItem, Contract, DepreciationConfig, Notification, AuditLog, PaymentRequest**. Raiz: **Workspace**. Built-in: **User** (FLS por campo em role/workspace_id/is_platform_admin). Plataforma (não-tenant, só platform-admin): **CreditUsage** (log de consumo de IA por workspace), **PricingConfig** (singleton de rateio/precificação).
 
-- `Asset.create` → bloqueado no SDK; cadastro pela function `createAsset` (valida limite de plano + status pagamento; carimba workspace).
+- `Asset.create` → bloqueado no SDK; cadastro pela function `createAsset` (valida limite de plano + status pagamento; carimba workspace) — **inclusive para o agente de IA**, que usa `createAsset` como function tool (não a operação de entidade — ver seção 6).
 - `AuditLog.create` → bloqueado no SDK; escrita pela function `logAudit` (carimba actor+workspace da sessão).
 - `Notification.create` → exige workspace **E** papel admin/manager.
 - `Workspace`/`PaymentRequest`/`User` → escrita só service-role/platform-admin. `Workspace` tem `stripe_customer_id`/`stripe_subscription_id` (gravados só por stripeCheckout/stripeWebhook).
+- `CreditUsage.create` → só service-role (via `logCreditConsumption`); `PricingConfig` → só platform-admin (via `creditReport`).
 
 ## 4. Backend functions (`base44/functions/*/entry.ts`)
 
-createWorkspace · acceptWorkspaceInvite · inviteMember (aplica limite de usuários do plano) · workspaceMembers (list/setRole/remove) · updateWorkspaceProfile · **createAsset** (lote ≤200; valida plano) · **logAudit** · notifyBilling (days server-side) · registerPublicScan (público; IP server-side; rate-limit 30s) · getPublicAssetInfo (público; projeção mínima) · **stripeCheckout** (preço server-side) · **stripeWebhook** (assinatura verificada; dunning; idempotente) · **stripePortal** · adminApi (platform-admin: workspaces/planos).
+createWorkspace · acceptWorkspaceInvite · inviteMember (aplica limite de usuários do plano) · workspaceMembers (list/setRole/remove) · updateWorkspaceProfile · **createAsset** (lote ≤200; valida plano; único caminho de cadastro, inclusive via agente de IA) · **logAudit** · notifyBilling (days server-side) · registerPublicScan (público; IP server-side; rate-limit 30s) · getPublicAssetInfo (público; projeção mínima) · **stripeCheckout** (preço server-side) · **stripeWebhook** (assinatura verificada; dunning; idempotente) · **stripePortal** · adminApi (platform-admin: workspaces/planos) · **logCreditConsumption** (registra consumo de créditos de IA do chat in-app) · **creditReport** (platform-admin: relatório de custo/margem de IA por workspace + edita rateio).
 
 ## 5. Stripe (LIVE — conta `acct_1TieigL04LdxLhj9`)
 
@@ -52,7 +53,18 @@ createWorkspace · acceptWorkspaceInvite · inviteMember (aplica limite de usuá
 - **Mapa preço→plano** duplicado em stripeCheckout/stripeWebhook e `src/lib/plans.js` — atualizar nos 3 se mudar preços.
 - E2E validado 2026-07-06 (checkout R$0 com cupom, ativação automática, cancelamento). MCP Stripe **não** gerencia webhooks/portal/coupons-update — isso é feito no dashboard pelo usuário.
 
-## 6. Frontend
+## 6. Assistente de IA (agente Base44)
+
+- **1 agente único** (não uma pirâmide de 4 agentes): `base44/agents/assistente_patrimonial.jsonc`. As *instructions* implementam 3 papéis (Pesquisador → Redator → Revisor) executados **internamente pelo mesmo modelo em sequência** — desenho deliberado, já que a Base44 não suporta orquestração nativa agente→agente ("Agent2Agent Integration" está só no feedback board da plataforma, não implementado).
+- **Isolamento por tenant:** não há instância de agente por workspace — é um singleton de app. O isolamento vem de RLS (cada `tool_config` de entidade herda a RLS do usuário na conversa) + memória com escopo `"both"` (Global & Per User). `allow_anonymous_access: false`.
+- **Ferramentas:** leitura/escrita (nunca `delete`) nas entidades tenant-owned + leitura de `Workspace`/`AuditLog`/`CreditUsage`/`PricingConfig`. Cadastro de ativos usa a function tool `createAsset` (não `Asset.create`, bloqueado por RLS — ver seção 3).
+- **Disponibilidade:** sem gate de plano — disponível para todos os planos (decisão consciente do usuário).
+- **Canais:** chat in-app (`src/pages/AssistantChat.jsx`, rota `/Assistant`) + WhatsApp (`base44.agents.getWhatsAppConnectURL`), número próprio atribuído pela Base44, sem webhook/API key a configurar.
+- **Base de conhecimento:** `context_files` (10 `.md`) + `selected_workspace_skill_ids` (10 skills).
+- **Custo de IA (observabilidade interna da AMZ, não é limite por cliente):** `CreditUsage`/`PricingConfig` + `logCreditConsumption`/`creditReport` + `src/pages/AdminCredits.jsx` (`/AdminCredits`, só platform-admin) fazem o rateio do custo do plano Base44 da própria AMZ e projetam margem por workspace.
+  - **Gap conhecido:** só o chat in-app chama `logCreditConsumption` — mensagens via WhatsApp não são contabilizadas (sem hook documentado de "mensagem recebida no canal"). Margem reportada subestima o custo real conforme o uso via WhatsApp cresce.
+
+## 7. Frontend
 
 - **Rotas públicas** (`PUBLIC_PATHS` em `src/App.jsx`): `/scan`, `/landing`, `/privacidade`, `/termos`. `/` → `/Dashboard`.
 - **Guard de rota por papel:** `src/lib/routePermissions.js` + `AppLayout` → "Acesso restrito" se o papel não permite (defesa-em-profundidade; dado protegido no servidor).
@@ -62,27 +74,29 @@ createWorkspace · acceptWorkspaceInvite · inviteMember (aplica limite de usuá
 - **Legais:** `/termos` e `/privacidade` com CNPJ real. **Rascunho — revisar com advogado.**
 - **Permissões:** `src/lib/permissions.js`. Máscara de CPF: `src/lib/mask.js` (CPF completo só no termo/PDF).
 
-## 7. Segurança (auditoria)
+## 8. Segurança (auditoria)
 
 Ver `AUDIT_REPORT.md`. **Zero CRÍTICO.** Fechados: N2, N4, N5, N7, N9, N10, N11, N12, N14, N15.
 Aceitos/adiados: **N1** (bloquear leitura de tenant suspenso — inviável limpo; escrita já bloqueada), **N6** (retenção IP/GPS — usuário optou manter; órfãos em `workspace_id="__orphan_quarantine__"`), **N13** (CORS `*` — baixo valor em endpoints por token).
 
-## 8. Pendências / gates de lançamento
+## 9. Pendências / gates de lançamento
 
 1. 🚦 **Pentest de 2 contas** (gate final; testa isolamento cross-tenant + `updateMe`).
 2. 📄 **Publish no builder** — frontend só chega aos usuários após Publish (functions fazem deploy sozinhas).
 3. ✍️ Revisar páginas legais com advogado.
 4. (Opcional) `Membership`/`Invitation`; limpar ações legadas de PaymentRequest no `adminApi`; raiz deslogado→Landing.
 
-## 9. Notas operacionais (sandbox)
+## 10. Notas operacionais (sandbox)
 
 - `run_command` inicia em `/` — usar `cd /app && ...`.
 - `npm run build` não faz stream; **exit 0 + `dist/` novo = ok**. Buildar após mudanças.
 - **create_checkpoint** antes/depois de mudanças estruturais.
 - Sandbox não faz curl externo — checar endpoints públicos pelo Bash local.
+- Não há ferramenta MCP para invocar conversa de agente (`agents.createConversation`/`addMessage`) nem para chamar functions diretamente — testar o assistente (chat/WhatsApp) exige o app real.
 - `Workspace.jsonc` tem escapes `\uXXXX` literais — ancorar edições em ASCII.
 - `update_entities` em massa exige **autorização explícita do usuário**.
 - Plataforma teve 503/429 em 2026-07-06 (indisponibilidade deles); esperar/reconectar resolve.
+- Editar `base44/agents/*.jsonc` parece propagar imediatamente (mesma mecânica de `edit_file`), mas isso **não foi confirmado empiricamente contra uma conversa real** — verificar no app após qualquer mudança de agente.
 
-## 10. Skills e memória
+## 11. Skills e memória
 Skills: `audit-base44`, `base44-backend`, `base44-frontend`, `base44-multitenant`. Memória: `project_patrimonios_amz_refactor.md`. Cópia deste doc também em `C:\Users\mateu\Desktop\glpi\PROJECT_CONTEXT.md`.
