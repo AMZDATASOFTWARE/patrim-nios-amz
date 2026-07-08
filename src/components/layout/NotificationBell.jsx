@@ -66,10 +66,14 @@ export default function NotificationBell() {
   const typeColor = (t) =>
     t === 'warning' ? 'bg-amber-500' : t === 'success' ? 'bg-emerald-500' : 'bg-blue-500';
 
+  const handleBellClick = () => {
+    if (unreadCount > 0) playNotify();
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button className="relative p-2 rounded-lg hover:bg-muted transition-colors" aria-label="Notificações">
+        <button onClick={handleBellClick} className="relative p-2 rounded-lg hover:bg-muted transition-colors" aria-label="Notificações">
           <Bell className="h-5 w-5 text-foreground" />
           {unreadCount > 0 && (
             <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-white text-[10px] font-bold flex items-center justify-center">

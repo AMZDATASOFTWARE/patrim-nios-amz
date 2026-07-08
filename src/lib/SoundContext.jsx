@@ -1,7 +1,24 @@
 import { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import { useTheme } from 'next-themes';
+import { toast as sonnerToast } from 'sonner';
 
 const SoundContext = createContext(null);
+
+// ── Ponte sonner → eventos de som ──
+// O app usa `toast` do sonner (não o shadcn use-toast). Interceptamos os métodos
+// do sonner em nível de módulo para disparar um evento que o SoundProvider escuta.
+const _originalToast = {};
+const _patched = ['success', 'error', 'warning', 'info', 'message'];
+for (const m of _patched) {
+  if (typeof sonnerToast[m] === 'function') {
+    _originalToast[m] = sonnerToast[m];
+    const soundType = (m === 'error' || m === 'warning') ? 'error' : 'success';
+    sonnerToast[m] = (...args) => {
+      window.dispatchEvent(new CustomEvent('app-toast', { detail: { type: soundType } }));
+      return _originalToast[m].apply(sonnerToast, args);
+    };
+  }
+}
 
 /**
  * Motor de sons ambientes procedurais (Web Audio API).
@@ -261,15 +278,15 @@ export function SoundProvider({ children }) {
     };
   }, [canPlay, playHover, playClick]);
 
-  // Listener de toasts — sucesso (default) ou erro (destructive)
+  // Listener de toasts — sucesso ou erro
   useEffect(() => {
     if (!canPlay) return;
     const onToast = (e) => {
-      if (e.detail?.variant === 'destructive') playError();
+      if (e.detail?.type === 'error') playError();
       else playSuccess();
     };
-    window.addEventListener('toast-added', onToast);
-    return () => window.removeEventListener('toast-added', onToast);
+    window.addEventListener('app-toast', onToast);
+    return () => window.removeEventListener('app-toast', onToast);
   }, [canPlay, playSuccess, playError]);
 
   return (

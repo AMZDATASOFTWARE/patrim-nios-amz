@@ -134,8 +134,6 @@ function toast({ ...props }) {
     },
   });
 
-  window.dispatchEvent(new CustomEvent('toast-added', { detail: { variant: props.variant } }));
-
   return {
     id,
     dismiss,
