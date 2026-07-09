@@ -561,3 +561,111 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
     </div>
   );
 }
+
+function AddSurplusDialog({ onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [plaqueta, setPlaqueta] = useState('');
+  const [description, setDescription] = useState('');
+  const [location, setLocation] = useState('');
+
+  const handleConfirm = async () => {
+    if (!description.trim()) { toast.error('Descrição é obrigatória.'); return; }
+    setSaving(true);
+    await onAdd({ plaqueta: plaqueta.trim(), description: description.trim(), location: location.trim() });
+    setSaving(false);
+    setOpen(false);
+    setPlaqueta(''); setDescription(''); setLocation('');
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="gap-2 shrink-0">
+          <PackagePlus className="h-4 w-4" /> Item não cadastrado
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Registrar item encontrado sem cadastro</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Descrição do item</Label>
+            <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Ex: Cadeira giratória preta" />
+          </div>
+          <div>
+            <Label>Plaqueta física (se houver)</Label>
+            <Input value={plaqueta} onChange={(e) => setPlaqueta(e.target.value)} />
+          </div>
+          <div>
+            <Label>Localização encontrada</Label>
+            <Input value={location} onChange={(e) => setLocation(e.target.value)} />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+          <Button onClick={handleConfirm} disabled={saving}>
+            {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Registrar'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function RegisterSurplusAssetDialog({ item, onConfirm }) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [name, setName] = useState(item.found_description || '');
+  const [category, setCategory] = useState('');
+  const [purchaseDate, setPurchaseDate] = useState(moment().format('YYYY-MM-DD'));
+
+  const handleConfirm = async () => {
+    if (!name.trim()) { toast.error('Descrição é obrigatória.'); return; }
+    if (!category) { toast.error('Selecione o grupo de patrimônio.'); return; }
+    setSaving(true);
+    await onConfirm({ name: name.trim(), category, purchase_date: purchaseDate });
+    setSaving(false);
+    setOpen(false);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="default" className="h-8 px-2 gap-1">
+          <PackagePlus className="h-4 w-4" /> Cadastrar
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Cadastrar ativo a partir da sobra</DialogTitle></DialogHeader>
+        <div className="space-y-4">
+          <div>
+            <Label>Descrição do bem</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} />
+          </div>
+          <div>
+            <Label>Grupo de patrimônio</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+              <SelectContent>
+                {categories.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div>
+            <Label>Data de aquisição (estimada)</Label>
+            <Input type="date" value={purchaseDate} onChange={(e) => setPurchaseDate(e.target.value)} />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Valor e taxa de depreciação ficam zerados — complete depois na edição do ativo.
+          </p>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+          <Button onClick={handleConfirm} disabled={saving}>
+            {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : 'Cadastrar'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
