@@ -55,6 +55,17 @@ export default function AssetForm() {
     supplier_name: '',
     external_link: '',
     registry_link: '',
+    property_registration_number: '',
+    property_registry_office: '',
+    property_iptu_number: '',
+    property_area_m2: '',
+    property_registration_type: '',
+    vehicle_plate: '',
+    vehicle_renavam: '',
+    vehicle_chassis: '',
+    vehicle_ipva_due_date: '',
+    vehicle_fuel_type: '',
+    vehicle_model_year: '',
     notes: '',
   });
 
@@ -92,6 +103,17 @@ export default function AssetForm() {
             invoice_url: asset.invoice_url || '',
             external_link: asset.external_link || '',
             registry_link: asset.registry_link || '',
+            property_registration_number: asset.property_registration_number || '',
+            property_registry_office: asset.property_registry_office || '',
+            property_iptu_number: asset.property_iptu_number || '',
+            property_area_m2: asset.property_area_m2 || '',
+            property_registration_type: asset.property_registration_type || '',
+            vehicle_plate: asset.vehicle_plate || '',
+            vehicle_renavam: asset.vehicle_renavam || '',
+            vehicle_chassis: asset.vehicle_chassis || '',
+            vehicle_ipva_due_date: asset.vehicle_ipva_due_date || '',
+            vehicle_fuel_type: asset.vehicle_fuel_type || '',
+            vehicle_model_year: asset.vehicle_model_year || '',
             notes: asset.notes || '',
           });
         }
@@ -145,6 +167,7 @@ export default function AssetForm() {
       depreciation_rate: parseFloat(form.depreciation_rate) || 0,
       useful_life_years: parseFloat(form.useful_life_years) || 0,
       residual_value: parseFloat(form.residual_value) || 0,
+      property_area_m2: parseFloat(form.property_area_m2) || 0,
       supplier_id: form.supplier_id || '',
       supplier_name: form.supplier_name || '',
     };
