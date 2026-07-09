@@ -14,10 +14,12 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   ClipboardCheck, Plus, ArrowLeft, Search, ScanLine, CheckCircle2,
-  AlertTriangle, XCircle, Clock, Play
+  AlertTriangle, XCircle, Clock, Play, PackagePlus, Ban
 } from 'lucide-react';
 import { toast } from 'sonner';
 import moment from 'moment';
+import { base44 } from '@/api/base44Client';
+import { logAudit } from '@/lib/audit';
 
 const categories = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
 
@@ -26,6 +28,7 @@ const STATUS_META = {
   encontrado: { label: 'Encontrado', icon: CheckCircle2, color: 'text-emerald-600', badge: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
   divergente: { label: 'Divergente', icon: AlertTriangle, color: 'text-amber-600', badge: 'bg-amber-100 text-amber-700 border-amber-200' },
   nao_encontrado: { label: 'Não encontrado', icon: XCircle, color: 'text-red-600', badge: 'bg-red-100 text-red-700 border-red-200' },
+  novo_sobra: { label: 'Novo / sobra', icon: PackagePlus, color: 'text-violet-600', badge: 'bg-violet-100 text-violet-700 border-violet-200' },
 };
 
 export default function Inventory() {
