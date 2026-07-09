@@ -297,6 +297,70 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
     }
   };
 
+  const handleAddSurplus = async ({ plaqueta, description, location }) => {
+    try {
+      const row = await ItemEntity.create({
+        inventory_id: inventoryId,
+        asset_id: '',
+        asset_name: description,
+        plaqueta: '',
+        found_plaqueta: plaqueta,
+        found_description: description,
+        found_location: location,
+        expected_location: '',
+        status: 'novo_sobra',
+        is_surplus: true,
+        resolution: 'pendente_resolucao',
+        counted_by: userEmail || '',
+        counted_at: new Date().toISOString(),
+      });
+      setItems((prev) => [...prev, row]);
+      toast.success('Item registrado como novo/sobra.');
+    } catch (e) {
+      toast.error(e?.message || 'Não foi possível registrar o item.');
+    }
+  };
+
+  const ignoreSurplus = async (item) => {
+    try {
+      await ItemEntity.update(item.id, { resolution: 'ignorado' });
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, resolution: 'ignorado' } : i)));
+    } catch (e) {
+      toast.error(e?.message || 'Não foi possível atualizar o item.');
+    }
+  };
+
+  const registerSurplusAsAsset = async (item, { name, category, purchase_date }) => {
+    try {
+      const res = await base44.functions.invoke('createAsset', {
+        assets: [{
+          name,
+          category,
+          purchase_date,
+          plaqueta: item.found_plaqueta || '',
+          location: item.found_location || '',
+          photo_url: item.found_photo_url || '',
+          acquisition_value: 0,
+          depreciation_rate: 0,
+        }],
+      });
+      if (!res?.data?.ok || !res.data.created) {
+        throw new Error(res?.data?.error || 'Não foi possível cadastrar o ativo.');
+      }
+      const newAssetId = res.data.ids?.[0] || '';
+      await logAudit({
+        action: 'created', entity_type: 'Asset', entity_id: newAssetId,
+        entity_label: name, summary: `Cadastrou o ativo "${name}" a partir de sobra de inventário`,
+        new_data: { name, category, purchase_date },
+      });
+      await ItemEntity.update(item.id, { resolution: 'cadastrado', resolved_asset_id: newAssetId, asset_id: newAssetId, asset_name: name });
+      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, resolution: 'cadastrado', resolved_asset_id: newAssetId, asset_id: newAssetId, asset_name: name } : i)));
+      toast.success('Ativo cadastrado a partir da sobra.');
+    } catch (e) {
+      toast.error(e?.message || 'Não foi possível cadastrar o ativo.');
+    }
+  };
+
   const handleScan = async (e) => {
     e.preventDefault();
     const code = scanCode.trim().toLowerCase();
