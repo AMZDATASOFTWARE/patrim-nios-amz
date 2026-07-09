@@ -13,7 +13,12 @@ const ALL_COLS = [
   'plaqueta', 'description', 'account', 'cost_center', 'useful_life_years',
   'residual_value', 'depreciation_start_date', 'location', 'status',
   'conservation_state', 'serial_number', 'fiscal_document', 'warranty_expiry_date',
-  'next_review_date', 'supplier_name', 'notes'
+  'next_review_date', 'supplier_name',
+  'property_registration_number', 'property_registry_office', 'property_iptu_number',
+  'property_area_m2', 'property_registration_type',
+  'vehicle_plate', 'vehicle_renavam', 'vehicle_chassis', 'vehicle_ipva_due_date',
+  'vehicle_fuel_type', 'vehicle_model_year',
+  'notes'
 ];
 
 const COL_LABELS = {
@@ -37,12 +42,23 @@ const COL_LABELS = {
   warranty_expiry_date: 'Vencimento da Garantia (AAAA-MM-DD)',
   next_review_date: 'Data da Próxima Revisão (AAAA-MM-DD)',
   supplier_name: 'Fornecedor',
+  property_registration_number: 'Número de Matrícula (Imóvel)',
+  property_registry_office: 'Cartório de Registro (Imóvel)',
+  property_iptu_number: 'Inscrição IPTU (Imóvel)',
+  property_area_m2: 'Área m² (Imóvel)',
+  property_registration_type: 'Tipo de Registro (Imóvel)',
+  vehicle_plate: 'Placa (Veículo)',
+  vehicle_renavam: 'RENAVAM (Veículo)',
+  vehicle_chassis: 'Chassi (Veículo)',
+  vehicle_ipva_due_date: 'Vencimento IPVA (AAAA-MM-DD) (Veículo)',
+  vehicle_fuel_type: 'Combustível (Veículo)',
+  vehicle_model_year: 'Ano/Modelo (Veículo)',
   notes: 'Observações',
 };
 
 const SAMPLE_ROWS = [
-  ['Notebook Dell Inspiron 15', 'Equipamentos', '4500', '2023-06-01', '20', 'PAT-001', 'Uso administrativo', '', 'TI', '5', '450', '2023-06-01', 'Escritório Central', 'Ativo', 'Bom', 'SN-12345', 'NF-001', '2025-06-01', '', 'Dell Brasil', ''],
-  ['Veículo Toyota Corolla', 'Veículos', '95000', '2022-03-15', '20', 'PAT-002', 'Uso da diretoria', '', 'Administrativo', '5', '9500', '2022-03-15', 'Garagem', 'Ativo', 'Ótimo', 'ABC1D234', 'NF-002', '', '', '', ''],
+  ['Notebook Dell Inspiron 15', 'Equipamentos', '4500', '2023-06-01', '20', 'PAT-001', 'Uso administrativo', '', 'TI', '5', '450', '2023-06-01', 'Escritório Central', 'Ativo', 'Bom', 'SN-12345', 'NF-001', '2025-06-01', '', 'Dell Brasil', '', '', '', '', '', '', '', '', '', '', '', ''],
+  ['Veículo Toyota Corolla', 'Veículos', '95000', '2022-03-15', '20', 'PAT-002', 'Uso da diretoria', '', 'Administrativo', '5', '9500', '2022-03-15', 'Garagem', 'Ativo', 'Ótimo', '', 'NF-002', '', '', '', '', '', '', '', '', 'ABC1D234', '', '', '', 'Flex', '2022/2023', ''],
 ];
 
 const VALID_CATEGORIES = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
@@ -99,6 +115,17 @@ function rowToAsset(row) {
     warranty_expiry_date: row.warranty_expiry_date?.trim() || undefined,
     next_review_date: row.next_review_date?.trim() || undefined,
     supplier_name: row.supplier_name?.trim() || undefined,
+    property_registration_number: row.property_registration_number?.trim() || undefined,
+    property_registry_office: row.property_registry_office?.trim() || undefined,
+    property_iptu_number: row.property_iptu_number?.trim() || undefined,
+    property_area_m2: row.property_area_m2 ? parseFloat(row.property_area_m2) : undefined,
+    property_registration_type: row.property_registration_type?.trim() || undefined,
+    vehicle_plate: row.vehicle_plate?.trim() || undefined,
+    vehicle_renavam: row.vehicle_renavam?.trim() || undefined,
+    vehicle_chassis: row.vehicle_chassis?.trim() || undefined,
+    vehicle_ipva_due_date: row.vehicle_ipva_due_date?.trim() || undefined,
+    vehicle_fuel_type: row.vehicle_fuel_type?.trim() || undefined,
+    vehicle_model_year: row.vehicle_model_year?.trim() || undefined,
     notes: row.notes?.trim() || undefined,
   };
 }
