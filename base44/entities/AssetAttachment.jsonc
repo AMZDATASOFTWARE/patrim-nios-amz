@@ -1,0 +1,127 @@
+{
+  "name": "AssetAttachment",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "asset_id": {
+      "type": "string",
+      "title": "ID do Ativo"
+    },
+    "file_url": {
+      "type": "string",
+      "title": "Arquivo"
+    },
+    "file_name": {
+      "type": "string",
+      "title": "Nome do Arquivo"
+    },
+    "file_type": {
+      "type": "string",
+      "title": "Tipo",
+      "enum": [
+        "foto",
+        "nota_fiscal",
+        "laudo",
+        "contrato",
+        "outro"
+      ],
+      "default": "foto"
+    },
+    "is_primary_photo": {
+      "type": "boolean",
+      "title": "Foto principal",
+      "default": false
+    },
+    "uploaded_by": {
+      "type": "string",
+      "title": "Enviado por"
+    },
+    "uploaded_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Enviado em"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observacoes"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "asset_id",
+    "file_url",
+    "file_type"
+  ],
+  "rls": {
+    "//": "Tenant + papel: admin/manager gerenciam anexos; viewer/user somente leitura. Mesmo padrao de MaintenanceRecord/Contract.",
+    "create": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "delete": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
