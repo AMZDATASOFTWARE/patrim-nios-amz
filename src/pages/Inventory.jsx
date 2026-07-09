@@ -272,12 +272,14 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
   };
 
   const stats = useMemo(() => {
-    const s = { pendente: 0, encontrado: 0, divergente: 0, nao_encontrado: 0 };
+    const s = { pendente: 0, encontrado: 0, divergente: 0, nao_encontrado: 0, novo_sobra: 0 };
     items.forEach((i) => { s[i.status] = (s[i.status] || 0) + 1; });
     return s;
   }, [items]);
 
-  const total = items.length;
+  // Sobras não entram no denominador do progresso: elas não fazem parte do
+  // universo pré-cadastrado que o inventário está conciliando.
+  const total = items.filter((i) => !i.is_surplus).length;
   const done = total - stats.pendente;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
@@ -313,7 +315,9 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
 
   const closeInventory = async () => {
     try {
-      // Itens ainda pendentes ao fechar viram "não encontrado".
+      // Itens ainda pendentes (do universo pré-cadastrado) ao fechar viram
+      // "não encontrado". Sobras (novo_sobra) NÃO entram nesse auto-flip — ficam
+      // como backlog aberto, pendente de resolução mesmo após o encerramento.
       const pendentes = items.filter((i) => i.status === 'pendente');
       for (const i of pendentes) {
         await ItemEntity.update(i.id, { status: 'nao_encontrado', counted_by: userEmail || '', counted_at: new Date().toISOString() });
@@ -323,11 +327,13 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
       // Notifica quem iniciou o inventário com o resumo da conciliação.
       const divergentes = items.filter((i) => i.status === 'divergente').length;
       const naoEncontrados = pendentes.length + items.filter((i) => i.status === 'nao_encontrado').length;
+      const sobrasPendentes = items.filter((i) => i.is_surplus && (!i.resolution || i.resolution === 'pendente_resolucao')).length;
       await NotificationEntity.create({
         user_email: count?.started_by || userEmail || '',
         title: `Inventário concluído: ${count?.name || ''}`,
-        body: `${items.length} itens conferidos • ${divergentes} divergente(s) • ${naoEncontrados} não encontrado(s).`,
-        type: (divergentes + naoEncontrados) > 0 ? 'warning' : 'success',
+        body: `${total} itens conferidos • ${divergentes} divergente(s) • ${naoEncontrados} não encontrado(s)` +
+          (sobrasPendentes > 0 ? ` • ${sobrasPendentes} item(ns) novo/sobra pendente(s) de resolução.` : '.'),
+        type: (divergentes + naoEncontrados + sobrasPendentes) > 0 ? 'warning' : 'success',
         link: '/Inventory',
         read: false,
       }).catch(() => {});
