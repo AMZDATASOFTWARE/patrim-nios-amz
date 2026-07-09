@@ -130,6 +130,51 @@
       "type": "string",
       "title": "Link do Registro (Cart\u00f3rio/Corretora)"
     },
+    "property_registration_number": {
+      "type": "string",
+      "title": "Numero de Matricula (Imovel)"
+    },
+    "property_registry_office": {
+      "type": "string",
+      "title": "Cartorio de Registro (Imovel)"
+    },
+    "property_iptu_number": {
+      "type": "string",
+      "title": "Inscricao IPTU (Imovel)"
+    },
+    "property_area_m2": {
+      "type": "number",
+      "title": "Area (m2) (Imovel)"
+    },
+    "property_registration_type": {
+      "type": "string",
+      "title": "Tipo de Registro (Imovel)"
+    },
+    "vehicle_plate": {
+      "type": "string",
+      "title": "Placa (Veiculo)"
+    },
+    "vehicle_renavam": {
+      "type": "string",
+      "title": "RENAVAM (Veiculo)"
+    },
+    "vehicle_chassis": {
+      "type": "string",
+      "title": "Chassi (Veiculo)"
+    },
+    "vehicle_ipva_due_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Vencimento do IPVA (Veiculo)"
+    },
+    "vehicle_fuel_type": {
+      "type": "string",
+      "title": "Combustivel (Veiculo)"
+    },
+    "vehicle_model_year": {
+      "type": "string",
+      "title": "Ano/Modelo (Veiculo)"
+    },
     "notes": {
       "type": "string",
       "title": "Observa\u00e7\u00f5es"
