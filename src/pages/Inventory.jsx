@@ -483,16 +483,19 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
 
       {/* Conferência rápida por plaqueta */}
       {isOpen && canManage && (
-        <form onSubmit={handleScan} className="bg-card rounded-xl border border-border p-4 shadow-sm flex gap-2 items-center">
-          <ScanLine className="h-5 w-5 text-muted-foreground shrink-0" />
-          <Input
-            value={scanCode}
-            onChange={(e) => setScanCode(e.target.value)}
-            placeholder="Bipe ou digite a plaqueta e tecle Enter para marcar como encontrado"
-            className="flex-1"
-          />
-          <Button type="submit" variant="secondary">Conferir</Button>
-        </form>
+        <div className="flex flex-col sm:flex-row gap-3">
+          <form onSubmit={handleScan} className="bg-card rounded-xl border border-border p-4 shadow-sm flex gap-2 items-center flex-1">
+            <ScanLine className="h-5 w-5 text-muted-foreground shrink-0" />
+            <Input
+              value={scanCode}
+              onChange={(e) => setScanCode(e.target.value)}
+              placeholder="Bipe ou digite a plaqueta e tecle Enter para marcar como encontrado"
+              className="flex-1"
+            />
+            <Button type="submit" variant="secondary">Conferir</Button>
+          </form>
+          <AddSurplusDialog onAdd={handleAddSurplus} />
+        </div>
       )}
 
       {/* Busca */}
@@ -508,18 +511,35 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
         ) : filtered.map((item) => {
           const meta = STATUS_META[item.status] || STATUS_META.pendente;
           const Icon = meta.icon;
+          const isPendingSurplus = item.is_surplus && (!item.resolution || item.resolution === 'pendente_resolucao');
+          const displayName = item.is_surplus ? (item.found_description || item.asset_name || '—') : (item.asset_name || '—');
+          const displayCode = item.is_surplus ? item.found_plaqueta : item.plaqueta;
+          const displayLocation = item.is_surplus ? item.found_location : item.expected_location;
           return (
             <div key={item.id} className="flex items-center justify-between gap-3 p-4">
               <div className="flex items-center gap-3 min-w-0">
                 <Icon className={`h-5 w-5 shrink-0 ${meta.color}`} />
                 <div className="min-w-0">
-                  <p className="font-medium text-foreground truncate">{item.asset_name || '—'}</p>
+                  <p className="font-medium text-foreground truncate">{displayName}</p>
                   <p className="text-xs text-muted-foreground truncate">
-                    {item.plaqueta ? `${item.plaqueta} • ` : ''}{item.expected_location || 'sem localização'}
+                    {displayCode ? `${displayCode} • ` : ''}{displayLocation || 'sem localização'}
+                    {item.is_surplus && item.resolution === 'cadastrado' ? ' • cadastrado como ativo' : ''}
+                    {item.is_surplus && item.resolution === 'ignorado' ? ' • ignorado' : ''}
                   </p>
                 </div>
               </div>
-              {isOpen && canManage ? (
+              {item.is_surplus ? (
+                isOpen && canManage && isPendingSurplus ? (
+                  <div className="flex items-center gap-1 shrink-0">
+                    <RegisterSurplusAssetDialog item={item} onConfirm={(vals) => registerSurplusAsAsset(item, vals)} />
+                    <Button size="sm" variant="outline" className="h-8 px-2 gap-1" onClick={() => ignoreSurplus(item)}>
+                      <Ban className="h-4 w-4" /> Ignorar
+                    </Button>
+                  </div>
+                ) : (
+                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full border shrink-0 ${meta.badge}`}>{meta.label}</span>
+                )
+              ) : isOpen && canManage ? (
                 <div className="flex items-center gap-1 shrink-0">
                   <Button size="sm" variant={item.status === 'encontrado' ? 'default' : 'outline'} className="h-8 px-2" onClick={() => markItem(item, 'encontrado')}>
                     <CheckCircle2 className="h-4 w-4" />
