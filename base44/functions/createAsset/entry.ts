@@ -30,8 +30,12 @@ const STRING_FIELDS = [
   'fiscal_document', 'warranty_expiry_date', 'next_review_date', 'depreciation_start_date',
   'supplier_id', 'supplier_name', 'photo_url', 'invoice_url', 'external_link',
   'registry_link', 'notes', 'purchase_date',
+  // Campos especificos por categoria (Imoveis / Veiculos) — opcionais, aditivos.
+  'property_registration_number', 'property_registry_office', 'property_iptu_number',
+  'property_registration_type', 'vehicle_plate', 'vehicle_renavam', 'vehicle_chassis',
+  'vehicle_ipva_due_date', 'vehicle_fuel_type', 'vehicle_model_year',
 ];
-const NUMBER_FIELDS = ['acquisition_value', 'depreciation_rate', 'useful_life_years', 'residual_value'];
+const NUMBER_FIELDS = ['acquisition_value', 'depreciation_rate', 'useful_life_years', 'residual_value', 'property_area_m2'];
 
 function sanitizeAsset(raw: Record<string, unknown>): { data?: Record<string, unknown>; error?: string } {
   const name = String(raw.name || '').trim().substring(0, 300);
