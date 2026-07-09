@@ -216,6 +216,57 @@ export default function AssetDetail() {
             </div>
           </div>
 
+          {/* Property-specific fields */}
+          {asset.category === 'Imóveis' && (asset.property_registration_number || asset.property_registry_office || asset.property_iptu_number || asset.property_area_m2 || asset.property_registration_type) && (
+            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-card-foreground mb-4">Dados do Imóvel</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {asset.property_registration_number && (
+                  <div><p className="text-sm text-muted-foreground">Matrícula</p><p className="text-card-foreground">{asset.property_registration_number}</p></div>
+                )}
+                {asset.property_registry_office && (
+                  <div><p className="text-sm text-muted-foreground">Cartório</p><p className="text-card-foreground">{asset.property_registry_office}</p></div>
+                )}
+                {asset.property_iptu_number && (
+                  <div><p className="text-sm text-muted-foreground">IPTU</p><p className="text-card-foreground">{asset.property_iptu_number}</p></div>
+                )}
+                {!!asset.property_area_m2 && (
+                  <div><p className="text-sm text-muted-foreground">Área</p><p className="text-card-foreground">{asset.property_area_m2} m²</p></div>
+                )}
+                {asset.property_registration_type && (
+                  <div><p className="text-sm text-muted-foreground">Tipo de Registro</p><p className="text-card-foreground">{asset.property_registration_type}</p></div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Vehicle-specific fields */}
+          {asset.category === 'Veículos' && (asset.vehicle_plate || asset.vehicle_renavam || asset.vehicle_chassis || asset.vehicle_ipva_due_date || asset.vehicle_fuel_type || asset.vehicle_model_year) && (
+            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-card-foreground mb-4">Dados do Veículo</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {asset.vehicle_plate && (
+                  <div><p className="text-sm text-muted-foreground">Placa</p><p className="text-card-foreground">{asset.vehicle_plate}</p></div>
+                )}
+                {asset.vehicle_renavam && (
+                  <div><p className="text-sm text-muted-foreground">RENAVAM</p><p className="text-card-foreground">{asset.vehicle_renavam}</p></div>
+                )}
+                {asset.vehicle_chassis && (
+                  <div><p className="text-sm text-muted-foreground">Chassi</p><p className="text-card-foreground">{asset.vehicle_chassis}</p></div>
+                )}
+                {asset.vehicle_model_year && (
+                  <div><p className="text-sm text-muted-foreground">Ano/Modelo</p><p className="text-card-foreground">{asset.vehicle_model_year}</p></div>
+                )}
+                {asset.vehicle_fuel_type && (
+                  <div><p className="text-sm text-muted-foreground">Combustível</p><p className="text-card-foreground">{asset.vehicle_fuel_type}</p></div>
+                )}
+                {asset.vehicle_ipva_due_date && (
+                  <div><p className="text-sm text-muted-foreground">Vencimento IPVA</p><p className="text-card-foreground">{moment(asset.vehicle_ipva_due_date).format('DD/MM/YYYY')}</p></div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Links */}
           {(asset.external_link || asset.registry_link) && (
             <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
