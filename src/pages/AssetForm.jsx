@@ -298,6 +298,68 @@ export default function AssetForm() {
           </div>
         </div>
 
+        {/* Property-specific fields */}
+        {form.category === 'Imóveis' && (
+          <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+            <h2 className="text-lg font-semibold text-card-foreground">Dados do Imóvel</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="property_registration_number">Número de Matrícula</Label>
+                <Input id="property_registration_number" value={form.property_registration_number} onChange={(e) => setForm({ ...form, property_registration_number: e.target.value })} placeholder="Ex: 12.345" />
+              </div>
+              <div>
+                <Label htmlFor="property_registry_office">Cartório de Registro</Label>
+                <Input id="property_registry_office" value={form.property_registry_office} onChange={(e) => setForm({ ...form, property_registry_office: e.target.value })} placeholder="Ex: 3º Cartório de Registro de Imóveis" />
+              </div>
+              <div>
+                <Label htmlFor="property_iptu_number">Inscrição IPTU</Label>
+                <Input id="property_iptu_number" value={form.property_iptu_number} onChange={(e) => setForm({ ...form, property_iptu_number: e.target.value })} />
+              </div>
+              <div>
+                <Label htmlFor="property_area_m2">Área (m²)</Label>
+                <Input id="property_area_m2" type="number" step="0.01" value={form.property_area_m2} onChange={(e) => setForm({ ...form, property_area_m2: e.target.value })} />
+              </div>
+              <div className="sm:col-span-2">
+                <Label htmlFor="property_registration_type">Tipo de Registro</Label>
+                <Input id="property_registration_type" value={form.property_registration_type} onChange={(e) => setForm({ ...form, property_registration_type: e.target.value })} placeholder="Ex: Escritura definitiva" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Vehicle-specific fields */}
+        {form.category === 'Veículos' && (
+          <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+            <h2 className="text-lg font-semibold text-card-foreground">Dados do Veículo</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="vehicle_plate">Placa</Label>
+                <Input id="vehicle_plate" value={form.vehicle_plate} onChange={(e) => setForm({ ...form, vehicle_plate: e.target.value })} placeholder="Ex: ABC1D23" />
+              </div>
+              <div>
+                <Label htmlFor="vehicle_renavam">RENAVAM</Label>
+                <Input id="vehicle_renavam" value={form.vehicle_renavam} onChange={(e) => setForm({ ...form, vehicle_renavam: e.target.value })} />
+              </div>
+              <div>
+                <Label htmlFor="vehicle_chassis">Chassi</Label>
+                <Input id="vehicle_chassis" value={form.vehicle_chassis} onChange={(e) => setForm({ ...form, vehicle_chassis: e.target.value })} />
+              </div>
+              <div>
+                <Label htmlFor="vehicle_model_year">Ano/Modelo</Label>
+                <Input id="vehicle_model_year" value={form.vehicle_model_year} onChange={(e) => setForm({ ...form, vehicle_model_year: e.target.value })} placeholder="Ex: 2022/2023" />
+              </div>
+              <div>
+                <Label htmlFor="vehicle_fuel_type">Combustível</Label>
+                <Input id="vehicle_fuel_type" value={form.vehicle_fuel_type} onChange={(e) => setForm({ ...form, vehicle_fuel_type: e.target.value })} placeholder="Ex: Flex" />
+              </div>
+              <div>
+                <Label htmlFor="vehicle_ipva_due_date">Vencimento do IPVA</Label>
+                <Input id="vehicle_ipva_due_date" type="date" value={form.vehicle_ipva_due_date} onChange={(e) => setForm({ ...form, vehicle_ipva_due_date: e.target.value })} />
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Financial Info */}
         <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
           <h2 className="text-lg font-semibold text-card-foreground">Informações Financeiras</h2>
