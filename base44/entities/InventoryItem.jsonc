@@ -8,7 +8,7 @@
     },
     "inventory_id": {
       "type": "string",
-      "title": "ID do Inventário"
+      "title": "ID do Invent\u00e1rio"
     },
     "asset_id": {
       "type": "string",
@@ -24,22 +24,53 @@
     },
     "expected_location": {
       "type": "string",
-      "title": "Localização esperada"
+      "title": "Localiza\u00e7\u00e3o esperada"
     },
     "status": {
       "type": "string",
-      "title": "Situação",
+      "title": "Situa\u00e7\u00e3o",
       "enum": [
         "pendente",
         "encontrado",
         "divergente",
-        "nao_encontrado"
+        "nao_encontrado",
+        "novo_sobra"
       ],
       "default": "pendente"
     },
     "found_location": {
       "type": "string",
-      "title": "Localização encontrada"
+      "title": "Localiza\u00e7\u00e3o encontrada"
+    },
+    "is_surplus": {
+      "type": "boolean",
+      "title": "\u00c9 sobra (achado sem cadastro pr\u00e9vio)",
+      "default": false
+    },
+    "found_plaqueta": {
+      "type": "string",
+      "title": "Plaqueta f\u00edsica encontrada"
+    },
+    "found_description": {
+      "type": "string",
+      "title": "Descri\u00e7\u00e3o do item encontrado"
+    },
+    "found_photo_url": {
+      "type": "string",
+      "title": "Foto do item encontrado"
+    },
+    "resolution": {
+      "type": "string",
+      "title": "Resolu\u00e7\u00e3o da sobra",
+      "enum": [
+        "pendente_resolucao",
+        "cadastrado",
+        "ignorado"
+      ]
+    },
+    "resolved_asset_id": {
+      "type": "string",
+      "title": "ID do ativo cadastrado a partir desta sobra"
     },
     "counted_by": {
       "type": "string",
@@ -52,7 +83,7 @@
     },
     "notes": {
       "type": "string",
-      "title": "Observações"
+      "title": "Observa\u00e7\u00f5es"
     }
   },
   "required": [
@@ -65,30 +96,68 @@
     "//": "Tenant + papel: admin/manager conferem itens; viewer/user somente leitura.",
     "create": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "$or": [
-          { "user_condition": { "role": "admin" } },
-          { "user_condition": { "role": "manager" } }
-        ] }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
       ]
     },
-    "read": { "data.workspace_id": "{{user.data.workspace_id}}" },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
     "update": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "$or": [
-          { "user_condition": { "role": "admin" } },
-          { "user_condition": { "role": "manager" } }
-        ] }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
       ]
     },
     "delete": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "$or": [
-          { "user_condition": { "role": "admin" } },
-          { "user_condition": { "role": "manager" } }
-        ] }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
       ]
     }
   }
