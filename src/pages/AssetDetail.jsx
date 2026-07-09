@@ -15,6 +15,7 @@ import {
   calculateMonthlyDepreciation, calculateDepreciationPercentage, getUsefulLifeFromRate
 } from '@/lib/depreciation';
 import AssetStatusBadge from '@/components/assets/AssetStatusBadge';
+import AttachmentsSection from '@/components/assets/AttachmentsSection';
 import MaintenanceSection from '@/components/assets/MaintenanceSection';
 import AssignmentSection from '@/components/assets/AssignmentSection';
 import LocationHistoryMini from '@/components/assets/LocationHistoryMini';
@@ -295,6 +296,9 @@ export default function AssetDetail() {
           )}
         </div>
       </div>
+
+      {/* Attachments and Photos */}
+      <AttachmentsSection assetId={asset.id} onPrimaryPhotoChange={(url) => setAsset((prev) => ({ ...prev, photo_url: url }))} />
 
       {/* Location History + Map */}
       <LocationHistoryMini assetId={asset.id} />
