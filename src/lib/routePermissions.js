@@ -12,6 +12,7 @@ export const ROUTE_PERMISSIONS = {
   '/Transfers': 'view_transfers',
   '/Maintenance': 'view_maintenance',
   '/Contracts': 'view_contracts',
+  '/CiapCredits': 'view_fiscal_credits',
   '/Depreciation': 'view_depreciation',
   '/Reports': 'view_reports',
   '/ImportExport': 'view_reports',
