@@ -30,4 +30,4 @@ export const ROUTE_PERMISSIONS = {
 };
 
 // Rotas que exigem platform-admin (dono da plataforma), não papel de workspace.
-export const PLATFORM_ADMIN_ROUTES = ['/SuperAdmin'];
+export const PLATFORM_ADMIN_ROUTES = ['/SuperAdmin', '/AdminCredits'];
