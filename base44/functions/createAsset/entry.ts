@@ -24,6 +24,7 @@ const PLAN_ASSET_LIMITS: Record<string, number | null> = {
 const CATEGORIES = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
 const STATUSES = ['Ativo', 'Em Manutenção', 'Inativo', 'Alienado'];
 const CONSERVATION = ['Novo', 'Ótimo', 'Bom', 'Regular', 'Ruim'];
+const OWNERSHIP_TYPES = ['proprio', 'terceiros', 'locado', 'comodato'];
 
 const STRING_FIELDS = [
   'plaqueta', 'description', 'account', 'cost_center', 'location', 'serial_number',
@@ -34,6 +35,8 @@ const STRING_FIELDS = [
   'property_registration_number', 'property_registry_office', 'property_iptu_number',
   'property_registration_type', 'vehicle_plate', 'vehicle_renavam', 'vehicle_chassis',
   'vehicle_ipva_due_date', 'vehicle_fuel_type', 'vehicle_model_year',
+  // Titularidade / obras em andamento (item 9).
+  'real_owner_name', 'real_owner_document', 'construction_completion_date',
 ];
 const NUMBER_FIELDS = ['acquisition_value', 'depreciation_rate', 'useful_life_years', 'residual_value', 'property_area_m2'];
 
@@ -54,6 +57,8 @@ function sanitizeAsset(raw: Record<string, unknown>): { data?: Record<string, un
   if (!data.purchase_date) return { error: 'Data de aquisição é obrigatória.' };
   data.status = STATUSES.includes(raw.status as string) ? raw.status : 'Ativo';
   if (CONSERVATION.includes(raw.conservation_state as string)) data.conservation_state = raw.conservation_state;
+  data.ownership_type = OWNERSHIP_TYPES.includes(raw.ownership_type as string) ? raw.ownership_type : 'proprio';
+  data.is_construction_in_progress = raw.is_construction_in_progress === true || raw.is_construction_in_progress === 'true';
   return { data };
 }
 
