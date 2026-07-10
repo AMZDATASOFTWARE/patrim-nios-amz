@@ -38,6 +38,8 @@ import Plans from '@/pages/Plans';
 import SuperAdmin from '@/pages/SuperAdmin';
 import AssistantChat from '@/pages/AssistantChat';
 import AdminCredits from '@/pages/AdminCredits';
+import Transfers from '@/pages/Transfers';
+import AcceptTransfer from '@/pages/AcceptTransfer';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -47,6 +49,7 @@ const AuthenticatedApp = () => {
     return (
       <Routes>
         <Route path="/scan" element={<PublicScan />} />
+        <Route path="/aceitar-transferencia" element={<AcceptTransfer />} />
         <Route path="/landing" element={<Landing />} />
         <Route path="/privacidade" element={<PrivacyPolicy />} />
         <Route path="/termos" element={<TermsOfService />} />
@@ -107,6 +110,7 @@ const WorkspaceRoutes = () => {
           <Route path="/Dashboard" element={<Dashboard />} />
           <Route path="/Assets" element={<Assets />} />
           <Route path="/Inventory" element={<Inventory />} />
+          <Route path="/Transfers" element={<Transfers />} />
           <Route path="/Maintenance" element={<Maintenance />} />
           <Route path="/Contracts" element={<Contracts />} />
           <Route path="/AssetForm" element={<AssetForm />} />
@@ -135,7 +139,7 @@ const WorkspaceRoutes = () => {
 };
 
 // Rotas totalmente públicas — renderizam sem AuthProvider (sem exigir login).
-const PUBLIC_PATHS = ['/scan', '/landing', '/privacidade', '/termos'];
+const PUBLIC_PATHS = ['/scan', '/aceitar-transferencia', '/landing', '/privacidade', '/termos'];
 
 function App() {
   if (PUBLIC_PATHS.includes(window.location.pathname)) {
@@ -144,6 +148,7 @@ function App() {
         <Router>
           <Routes>
             <Route path="/scan" element={<PublicScan />} />
+            <Route path="/aceitar-transferencia" element={<AcceptTransfer />} />
             <Route path="/landing" element={<Landing />} />
             <Route path="/privacidade" element={<PrivacyPolicy />} />
             <Route path="/termos" element={<TermsOfService />} />
