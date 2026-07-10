@@ -110,7 +110,7 @@ export default function AssignmentSection({ assetId, assetName }) {
     setSavingSignature(false);
   };
 
-  const generatePDF = (rec) => {
+  const generatePDF = async (rec) => {
     const doc = new jsPDF();
     doc.setFontSize(18);
     doc.text('TERMO DE RESPONSABILIDADE DE USO DE PATRIMÔNIO', 14, 20);
