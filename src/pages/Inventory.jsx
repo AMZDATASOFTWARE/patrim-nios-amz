@@ -14,12 +14,14 @@ import {
 } from '@/components/ui/alert-dialog';
 import {
   ClipboardCheck, Plus, ArrowLeft, Search, ScanLine, CheckCircle2,
-  AlertTriangle, XCircle, Clock, Play, PackagePlus, Ban
+  AlertTriangle, XCircle, Clock, Play, PackagePlus, Ban, Camera, CloudOff, RefreshCw
 } from 'lucide-react';
 import { toast } from 'sonner';
 import moment from 'moment';
 import { base44 } from '@/api/base44Client';
 import { logAudit } from '@/lib/audit';
+import CameraScanner from '@/components/assets/CameraScanner';
+import { enqueueScan, loadQueue, clearQueue } from '@/lib/offlineInventory';
 
 const categories = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
 
