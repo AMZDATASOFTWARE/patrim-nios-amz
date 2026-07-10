@@ -26,6 +26,18 @@
       ]
     },
     {
+      "entity_name": "CiapCredit",
+      "allowed_operations": [
+        "read"
+      ]
+    },
+    {
+      "entity_name": "AccountMappingRule",
+      "allowed_operations": [
+        "read"
+      ]
+    },
+    {
       "entity_name": "AssetAssignment",
       "allowed_operations": [
         "read",
