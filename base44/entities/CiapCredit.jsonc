@@ -1,0 +1,123 @@
+{
+  "name": "CiapCredit",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "asset_id": {
+      "type": "string",
+      "title": "ID do Ativo"
+    },
+    "asset_name": {
+      "type": "string",
+      "title": "Ativo"
+    },
+    "nf_entry_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data de entrada da NF"
+    },
+    "icms_value": {
+      "type": "number",
+      "title": "Valor do ICMS do bem (R$)"
+    },
+    "installments_total": {
+      "type": "number",
+      "title": "Parcelas totais (padrao 48)",
+      "default": 48
+    },
+    "installments_appropriated": {
+      "type": "number",
+      "title": "Parcelas apropriadas",
+      "default": 0
+    },
+    "monthly_credit_value": {
+      "type": "number",
+      "title": "Credito mensal (R$)"
+    },
+    "pis_cofins_base": {
+      "type": "number",
+      "title": "Base PIS/COFINS (R$)"
+    },
+    "pis_rate": {
+      "type": "number",
+      "title": "Aliquota PIS (%)"
+    },
+    "cofins_rate": {
+      "type": "number",
+      "title": "Aliquota COFINS (%)"
+    },
+    "regime": {
+      "type": "string",
+      "title": "Regime",
+      "enum": [
+        "nao_cumulativo",
+        "cumulativo"
+      ],
+      "default": "nao_cumulativo"
+    },
+    "status": {
+      "type": "string",
+      "title": "Situacao",
+      "enum": [
+        "em_apropriacao",
+        "concluido",
+        "suspenso"
+      ],
+      "default": "em_apropriacao"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observacoes"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "asset_id",
+    "icms_value"
+  ],
+  "rls": {
+    "//": "Risco fiscal real: write restrito a ADMIN (nao manager, diferente do padrao usual). Leitura por todo o workspace.",
+    "create": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
