@@ -1,15 +1,7 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { MoreHorizontal } from 'lucide-react';
-import { useAuth } from '@/lib/AuthContext';
-import { useWorkspace } from '@/lib/WorkspaceContext';
-import {
-  ROUTE_ALIASES,
-  buildNavContext,
-  getMobileTabs,
-  getVisibleGroups,
-} from '@/lib/navigationConfig';
-import { usePendingTransfersCount } from '@/hooks/usePendingTransfersCount';
+import { useMobileNav } from '@/contexts/MobileNavContext';
 import MoreSheet from './MoreSheet';
 
 const KEYBOARD_THRESHOLD_PX = 150;
@@ -32,31 +24,14 @@ function useKeyboardOpen() {
 }
 
 export default function MobileTabBar() {
-  const location = useLocation();
-  const { user } = useAuth();
-  const { workspace } = useWorkspace();
-  const pendingTransfers = usePendingTransfersCount();
-  const [moreOpen, setMoreOpen] = useState(false);
+  // Tabs, active-route matching, badges, and the "Mais" open state all come from
+  // MobileNavContext — the swipe gesture (SwipeableTabArea) shares the exact same
+  // state, so tapping and swiping can never fall out of sync (design doc §4).
+  const { tabs, hasMore, visibleGroups, aiItem, isActive, badgeFor, moreOpen, setMoreOpen } = useMobileNav();
   const keyboardOpen = useKeyboardOpen();
 
-  const ctx = useMemo(
-    () => buildNavContext(user, workspace),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [user?.role, user?.is_platform_admin, user?.email, workspace?.owner_email]
-  );
-  const { tabs, hasMore } = useMemo(() => getMobileTabs(ctx), [ctx]);
-  const visibleGroups = useMemo(() => getVisibleGroups(ctx), [ctx]);
-  const aiItem = useMemo(
-    () => visibleGroups.flatMap((g) => g.items).find((i) => i.id === 'assistant'),
-    [visibleGroups]
-  );
-
-  const activeHref = ROUTE_ALIASES[location.pathname] || location.pathname;
-  const isActive = (href) => href === activeHref;
   const tabIsActive = tabs.some((tab) => isActive(tab.href));
   const moreIsActive = hasMore && !tabIsActive;
-
-  const badgeFor = (item) => (item.badge === 'pendingTransfers' ? pendingTransfers : 0);
 
   if (tabs.length === 0) return null;
 
