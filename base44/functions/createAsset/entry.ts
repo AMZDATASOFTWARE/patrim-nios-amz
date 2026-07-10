@@ -37,8 +37,14 @@ const STRING_FIELDS = [
   'vehicle_ipva_due_date', 'vehicle_fuel_type', 'vehicle_model_year',
   // Titularidade / obras em andamento (item 9).
   'real_owner_name', 'real_owner_document', 'construction_completion_date',
+  // Depreciacao fiscal (item 4) — data.
+  'fiscal_depreciation_start_date',
 ];
-const NUMBER_FIELDS = ['acquisition_value', 'depreciation_rate', 'useful_life_years', 'residual_value', 'property_area_m2'];
+const NUMBER_FIELDS = [
+  'acquisition_value', 'depreciation_rate', 'useful_life_years', 'residual_value', 'property_area_m2',
+  // Depreciacao fiscal (item 4) — numericos.
+  'fiscal_depreciation_rate', 'fiscal_useful_life_years', 'fiscal_residual_value',
+];
 
 function sanitizeAsset(raw: Record<string, unknown>): { data?: Record<string, unknown>; error?: string } {
   const name = String(raw.name || '').trim().substring(0, 300);
