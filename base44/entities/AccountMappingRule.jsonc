@@ -1,0 +1,119 @@
+{
+  "name": "AccountMappingRule",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "match_type": {
+      "type": "string",
+      "title": "Aplica-se a",
+      "enum": [
+        "categoria",
+        "centro_custo",
+        "todos"
+      ],
+      "default": "categoria"
+    },
+    "match_value": {
+      "type": "string",
+      "title": "Valor (categoria ou centro de custo)"
+    },
+    "debit_account": {
+      "type": "string",
+      "title": "Conta de debito (despesa de depreciacao)"
+    },
+    "credit_account": {
+      "type": "string",
+      "title": "Conta de credito (depreciacao acumulada)"
+    },
+    "cost_center_code": {
+      "type": "string",
+      "title": "Codigo do centro de custo (contabil)"
+    },
+    "history_template": {
+      "type": "string",
+      "title": "Historico padrao"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observacoes"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "match_type",
+    "debit_account",
+    "credit_account"
+  ],
+  "rls": {
+    "//": "Tenant + papel: admin/manager configuram o mapeamento contabil; viewer/user somente leitura.",
+    "create": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "delete": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
