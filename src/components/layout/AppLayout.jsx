@@ -10,7 +10,7 @@ import { MobileNavProvider } from '@/contexts/MobileNavContext';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
 import FluidBackground from '@/components/landing/FluidBackground';
-import { SoundProvider, useSound } from '@/lib/SoundContext';
+import { SoundProvider } from '@/lib/SoundContext';
 import SoundToggle from './SoundToggle';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/AuthContext';
@@ -44,7 +44,6 @@ function AppLayoutInner() {
   const { theme } = useTheme();
   const [isDark, setIsDark] = useState(false);
   useEffect(() => { setIsDark(theme === 'dark'); }, [theme]);
-  const { playBubble } = useSound();
 
   // Guard de rota (defesa-em-profundidade): a proteção primária dos dados é server-side.
   const requiredPermission = ROUTE_PERMISSIONS[pathname];
@@ -63,7 +62,7 @@ function AppLayoutInner() {
       {/* Background animado interativo (apenas no tema noturno) */}
       {isDark && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none' }}>
-          <FluidBackground density={60} onInteract={playBubble} style={{ position: 'absolute', inset: 0 }} />
+          <FluidBackground density={60} style={{ position: 'absolute', inset: 0 }} />
         </div>
       )}
 
