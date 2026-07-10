@@ -96,6 +96,10 @@
       "type": "string",
       "title": "N\u00famero de S\u00e9rie"
     },
+    "rfid_tag_id": {
+      "type": "string",
+      "title": "Tag RFID"
+    },
     "fiscal_document": {
       "type": "string",
       "title": "N\u00famero da Nota Fiscal"
