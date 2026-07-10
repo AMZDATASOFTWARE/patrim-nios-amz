@@ -15,6 +15,7 @@ export const ROUTE_PERMISSIONS = {
   '/CiapCredits': 'view_fiscal_credits',
   '/Depreciation': 'view_depreciation',
   '/Reports': 'view_reports',
+  '/AccountingExport': 'view_accounting_export',
   '/ImportExport': 'view_reports',
   '/AssetMap': 'view_map',
   '/AssetLabel': 'view_labels',
