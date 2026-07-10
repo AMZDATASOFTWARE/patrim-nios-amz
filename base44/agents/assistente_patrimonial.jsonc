@@ -20,6 +20,12 @@
       ]
     },
     {
+      "entity_name": "AssetTransfer",
+      "allowed_operations": [
+        "read"
+      ]
+    },
+    {
       "entity_name": "AssetAssignment",
       "allowed_operations": [
         "read",
