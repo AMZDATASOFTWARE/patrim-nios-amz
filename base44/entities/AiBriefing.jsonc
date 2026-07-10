@@ -1,0 +1,79 @@
+{
+  "name": "AiBriefing",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "domain": {
+      "type": "string",
+      "title": "Dominio",
+      "enum": [
+        "assets_docs",
+        "field_ops",
+        "maintenance_contracts",
+        "fiscal_accounting",
+        "registries_structure",
+        "governance_admin"
+      ]
+    },
+    "agent_name": {
+      "type": "string",
+      "title": "Agente supervisor"
+    },
+    "headline": {
+      "type": "string",
+      "title": "Manchete"
+    },
+    "summary": {
+      "type": "string",
+      "title": "Analise (paragrafo investigativo)"
+    },
+    "kpis_json": {
+      "type": "string",
+      "title": "KPIs do dia (JSON serializado)"
+    },
+    "computed_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Gerado em"
+    },
+    "generation_status": {
+      "type": "string",
+      "title": "Status da geracao",
+      "enum": [
+        "ok",
+        "partial",
+        "error"
+      ],
+      "default": "ok"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "domain",
+    "computed_at"
+  ],
+  "rls": {
+    "//": "Snapshot diario gerado pela function generateDailyBriefings (service-role). Somente leitura por tenant no SDK; create/update/delete bloqueados para qualquer cliente (mesmo padrao de AlertDispatchLog) \u2014 nenhum usuario, nem admin do workspace, escreve aqui diretamente.",
+    "create": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    }
+  }
+}
