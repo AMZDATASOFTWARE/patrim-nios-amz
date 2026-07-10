@@ -34,7 +34,7 @@ export const ROLE_COLORS = {
 
 const PERMISSIONS = {
   admin: [
-    'view_dashboard', 'view_assets', 'create_asset', 'edit_asset', 'delete_asset',
+    'view_dashboard', 'view_ai_briefing', 'view_assets', 'create_asset', 'edit_asset', 'delete_asset',
     'view_financials', 'view_depreciation', 'view_reports', 'export_reports',
     'view_suppliers', 'manage_suppliers',
     'view_users', 'manage_users', 'invite_users',
@@ -53,7 +53,7 @@ const PERMISSIONS = {
     'view_company', 'manage_company',
   ],
   manager: [
-    'view_dashboard', 'view_assets', 'create_asset', 'edit_asset',
+    'view_dashboard', 'view_ai_briefing', 'view_assets', 'create_asset', 'edit_asset',
     'view_financials', 'view_depreciation', 'view_reports', 'export_reports',
     'view_suppliers', 'manage_suppliers',
     'view_users',
@@ -70,7 +70,7 @@ const PERMISSIONS = {
     'view_company',
   ],
   viewer: [
-    'view_dashboard', 'view_assets',
+    'view_dashboard', 'view_ai_briefing', 'view_assets',
     'view_financials', 'view_depreciation', 'view_reports',
     'view_suppliers',
     'view_map', 'view_assignments',
