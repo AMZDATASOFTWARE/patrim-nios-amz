@@ -169,12 +169,13 @@ function CollapsedRail({ groups, isActive, pendingTransfers }) {
   );
 }
 
-export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose }) {
+export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose, scrollToGroupId }) {
   const location = useLocation();
   const { workspace } = useWorkspace();
   const { user } = useAuth();
   const navState = useNavGroupsState();
   const pendingTransfers = usePendingTransfersCount();
+  const drawerGroupRefs = useRef({});
 
   const ctx = useMemo(
     () => buildNavContext(user, workspace),
@@ -192,6 +193,15 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
     if (group?.collapsible) navState.openGroup(group.id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.pathname, navState.openGroup]);
+
+  // Tablet rail tap: open the drawer already expanded and scrolled to that group
+  // (scroll before paint, no smooth — smooth on open reads as lag; TabletRail spec §6.2).
+  useLayoutEffect(() => {
+    if (!mobileOpen || !scrollToGroupId) return;
+    navState.openGroup(scrollToGroupId);
+    drawerGroupRefs.current[scrollToGroupId]?.scrollIntoView({ block: 'start' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mobileOpen, scrollToGroupId, navState.openGroup]);
 
   return (
     <>
@@ -283,7 +293,11 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         {/* Navigation — grouped, touch targets ≥44px, all groups expanded */}
         <nav aria-label="Navegação principal" className="flex-1 px-2 py-4 overflow-y-auto">
           {visibleGroups.map((group) => (
-            <div key={group.id} className="mt-4 first:mt-0">
+            <div
+              key={group.id}
+              ref={(el) => { drawerGroupRefs.current[group.id] = el; }}
+              className="mt-4 first:mt-0"
+            >
               {group.label && (
                 <p className="px-3 pb-1 text-[11px] font-semibold uppercase tracking-wider text-sidebar-foreground/60">
                   {group.label}
