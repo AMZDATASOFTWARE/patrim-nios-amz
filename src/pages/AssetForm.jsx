@@ -66,6 +66,11 @@ export default function AssetForm() {
     vehicle_ipva_due_date: '',
     vehicle_fuel_type: '',
     vehicle_model_year: '',
+    ownership_type: 'proprio',
+    real_owner_name: '',
+    real_owner_document: '',
+    is_construction_in_progress: false,
+    construction_completion_date: '',
     notes: '',
   });
 
@@ -114,6 +119,11 @@ export default function AssetForm() {
             vehicle_ipva_due_date: asset.vehicle_ipva_due_date || '',
             vehicle_fuel_type: asset.vehicle_fuel_type || '',
             vehicle_model_year: asset.vehicle_model_year || '',
+            ownership_type: asset.ownership_type || 'proprio',
+            real_owner_name: asset.real_owner_name || '',
+            real_owner_document: asset.real_owner_document || '',
+            is_construction_in_progress: !!asset.is_construction_in_progress,
+            construction_completion_date: asset.construction_completion_date || '',
             notes: asset.notes || '',
           });
         }
