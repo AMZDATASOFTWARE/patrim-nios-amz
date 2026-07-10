@@ -481,6 +481,53 @@ export default function AssetForm() {
           </div>
         </div>
 
+        {/* Titularidade / obra em andamento */}
+        <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+          <h2 className="text-lg font-semibold text-card-foreground">Titularidade</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label>Tipo de titularidade</Label>
+              <Select value={form.ownership_type} onValueChange={(v) => setForm({ ...form, ownership_type: v })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="proprio">Próprio</SelectItem>
+                  <SelectItem value="terceiros">Bem de terceiros</SelectItem>
+                  <SelectItem value="locado">Locado</SelectItem>
+                  <SelectItem value="comodato">Comodato</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {form.ownership_type !== 'proprio' && (
+              <>
+                <div>
+                  <Label htmlFor="real_owner_name">Proprietário real</Label>
+                  <Input id="real_owner_name" value={form.real_owner_name} onChange={(e) => setForm({ ...form, real_owner_name: e.target.value })} placeholder="Nome/razão social do dono do bem" />
+                </div>
+                <div>
+                  <Label htmlFor="real_owner_document">CNPJ/CPF do proprietário real</Label>
+                  <Input id="real_owner_document" value={form.real_owner_document} onChange={(e) => setForm({ ...form, real_owner_document: e.target.value })} />
+                </div>
+              </>
+            )}
+          </div>
+          <div className="flex items-center gap-3 pt-2 border-t border-border">
+            <input
+              id="is_construction_in_progress"
+              type="checkbox"
+              className="h-4 w-4 rounded border-input"
+              checked={form.is_construction_in_progress}
+              onChange={(e) => setForm({ ...form, is_construction_in_progress: e.target.checked })}
+            />
+            <Label htmlFor="is_construction_in_progress" className="cursor-pointer">Obra/imobilização em andamento (não deprecia até a conclusão)</Label>
+          </div>
+          {form.is_construction_in_progress && (
+            <div className="sm:w-1/2">
+              <Label htmlFor="construction_completion_date">Previsão de conclusão</Label>
+              <Input id="construction_completion_date" type="date" value={form.construction_completion_date} onChange={(e) => setForm({ ...form, construction_completion_date: e.target.value })} />
+            </div>
+          )}
+        </div>
+
         {/* Attachments */}
         <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
           <h2 className="text-lg font-semibold text-card-foreground">Anexos e Links</h2>
