@@ -200,8 +200,7 @@ function ReportsView({
     const stale = [];
     const staleThreshold = moment().subtract(STALE_DAYS, 'days');
     filteredAssets.forEach((a) => {
-      const usefulLife = a.useful_life_years || getUsefulLifeFromRate(a.depreciation_rate);
-      const depPct = calculateDepreciationPercentage(a.purchase_date, a.acquisition_value, a.residual_value || 0, usefulLife);
+      const depPct = getAssetDepreciation(a).depPct;
       if (depPct >= 100 && a.status === 'Ativo') fullyDepreciated.push(a);
       if (!a.photo_url && !a.invoice_url && !attachmentAssetIds.has(a.id)) noAttachment.push(a);
       const last = locationLatest[a.id];
