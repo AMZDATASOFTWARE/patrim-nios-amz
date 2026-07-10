@@ -168,4 +168,8 @@
   .tablet-rail {
     display: flex;
   }
+  /* Content must clear the fixed 64px rail exactly when the rail itself is visible. */
+  .tablet-rail-offset {
+    padding-left: 4rem;
+  }
 }
