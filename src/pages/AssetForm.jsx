@@ -53,6 +53,7 @@ export default function AssetForm() {
     status: 'Ativo',
     conservation_state: 'Novo',
     serial_number: '',
+    rfid_tag_id: '',
     fiscal_document: '',
     supplier_id: '',
     supplier_name: '',
@@ -111,6 +112,7 @@ export default function AssetForm() {
             status: asset.status || 'Ativo',
             conservation_state: asset.conservation_state || 'Novo',
             serial_number: asset.serial_number || '',
+            rfid_tag_id: asset.rfid_tag_id || '',
             fiscal_document: asset.fiscal_document || '',
             warranty_expiry_date: asset.warranty_expiry_date || '',
             next_review_date: asset.next_review_date || '',
@@ -273,6 +275,11 @@ export default function AssetForm() {
             <div>
               <Label htmlFor="serial_number">Número de Série</Label>
               <Input id="serial_number" value={form.serial_number} onChange={(e) => setForm({ ...form, serial_number: e.target.value })} placeholder="Ex: SN-ABC123456" />
+            </div>
+
+            <div>
+              <Label htmlFor="rfid_tag_id">Tag RFID</Label>
+              <Input id="rfid_tag_id" value={form.rfid_tag_id} onChange={(e) => setForm({ ...form, rfid_tag_id: e.target.value })} placeholder="Leia com o leitor RFID ou digite o EPC" />
             </div>
 
             <div>
