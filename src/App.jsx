@@ -37,6 +37,7 @@ import Billing from '@/pages/Billing';
 import Plans from '@/pages/Plans';
 import SuperAdmin from '@/pages/SuperAdmin';
 import AssistantChat from '@/pages/AssistantChat';
+import AiBriefings from '@/pages/AiBriefings';
 import AdminCredits from '@/pages/AdminCredits';
 import Transfers from '@/pages/Transfers';
 import AcceptTransfer from '@/pages/AcceptTransfer';
@@ -111,6 +112,7 @@ const WorkspaceRoutes = () => {
         <Route path="/Plans" element={<Plans />} />
         <Route element={<AppLayout />}>
           <Route path="/Dashboard" element={<Dashboard />} />
+          <Route path="/AiBriefings" element={<AiBriefings />} />
           <Route path="/Assets" element={<Assets />} />
           <Route path="/Inventory" element={<Inventory />} />
           <Route path="/Transfers" element={<Transfers />} />
