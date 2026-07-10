@@ -41,6 +41,7 @@ const PERMISSIONS = {
     'view_map', 'view_assignments', 'manage_assignments',
     'view_labels', 'manage_labels',
     'view_inventory', 'manage_inventory',
+    'view_transfers', 'manage_transfers',
     'view_maintenance', 'manage_maintenance',
     'view_contracts', 'manage_contracts',
     'view_audit',
@@ -56,6 +57,7 @@ const PERMISSIONS = {
     'view_map', 'view_assignments', 'manage_assignments',
     'view_labels', 'manage_labels',
     'view_inventory', 'manage_inventory',
+    'view_transfers', 'manage_transfers',
     'view_maintenance', 'manage_maintenance',
     'view_contracts', 'manage_contracts',
     'view_settings',
@@ -68,11 +70,12 @@ const PERMISSIONS = {
     'view_map', 'view_assignments',
     'view_labels',
     'view_inventory',
+    'view_transfers',
     'view_maintenance',
     'view_contracts',
   ],
   user: [
-    'view_assets', 'view_assignments', 'view_map',
+    'view_assets', 'view_assignments', 'view_map', 'view_transfers',
   ],
 };
 
