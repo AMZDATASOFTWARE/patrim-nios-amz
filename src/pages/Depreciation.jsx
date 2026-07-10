@@ -72,7 +72,11 @@ export default function Depreciation() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Depreciação</h1>
-          <p className="text-muted-foreground mt-1">Cálculo de depreciação pelo Método da Linha Reta</p>
+          <p className="text-muted-foreground mt-1">
+            {basis === 'diferenca'
+              ? 'Diferença entre depreciação societária e fiscal (base temporária)'
+              : `Livro ${basis === 'fiscal' ? 'fiscal' : 'societário'} — Método da Linha Reta`}
+          </p>
         </div>
         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
           <SelectTrigger className="w-48">
@@ -84,6 +88,19 @@ export default function Depreciation() {
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      {/* Seletor de livro */}
+      <div className="inline-flex rounded-lg border border-border bg-card p-1">
+        {BASES.map((b) => (
+          <button
+            key={b.key}
+            onClick={() => setBasis(b.key)}
+            className={`px-4 py-1.5 text-sm font-medium rounded-md transition-colors ${basis === b.key ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            {b.label}
+          </button>
+        ))}
       </div>
 
       {/* Summary cards */}
@@ -115,10 +132,10 @@ export default function Depreciation() {
                 <th className="text-left font-semibold p-4">Ativo</th>
                 <th className="text-left font-semibold p-4">Categoria</th>
                 <th className="text-right font-semibold p-4">Valor Aquisição</th>
-                <th className="text-right font-semibold p-4">Dep. Acumulada</th>
+                <th className="text-right font-semibold p-4">{isDiff ? 'Dep. Soc. − Fiscal' : 'Dep. Acumulada'}</th>
                 <th className="text-right font-semibold p-4">Valor Atual</th>
                 <th className="text-right font-semibold p-4">Dep. Mensal</th>
-                <th className="text-center font-semibold p-4">Progresso</th>
+                {!isDiff && <th className="text-center font-semibold p-4">Progresso</th>}
                 <th className="p-4"></th>
               </tr>
             </thead>
@@ -131,12 +148,14 @@ export default function Depreciation() {
                   <td className="p-4 text-right text-destructive font-medium">{formatCurrency(row.accumulated)}</td>
                   <td className="p-4 text-right text-primary font-medium">{formatCurrency(row.currentValue)}</td>
                   <td className="p-4 text-right">{formatCurrency(row.monthly)}</td>
-                  <td className="p-4">
-                    <div className="flex items-center gap-2">
-                      <Progress value={row.depPct} className="h-1.5 flex-1" />
-                      <span className="text-xs text-muted-foreground w-12 text-right">{row.depPct.toFixed(0)}%</span>
-                    </div>
-                  </td>
+                  {!isDiff && (
+                    <td className="p-4">
+                      <div className="flex items-center gap-2">
+                        <Progress value={row.depPct} className="h-1.5 flex-1" />
+                        <span className="text-xs text-muted-foreground w-12 text-right">{row.depPct.toFixed(0)}%</span>
+                      </div>
+                    </td>
+                  )}
                   <td className="p-4">
                     <Link to={`/AssetDetail?id=${row.id}`} className="text-primary hover:text-primary/80">
                       <ArrowRight className="h-4 w-4" />
