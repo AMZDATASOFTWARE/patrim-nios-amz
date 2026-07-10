@@ -7,11 +7,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { TrendingDown, ArrowRight } from 'lucide-react';
 
 const categories = ['Todas', 'Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
+const BASES = [
+  { key: 'societaria', label: 'Societária' },
+  { key: 'fiscal', label: 'Fiscal' },
+  { key: 'diferenca', label: 'Diferença' },
+];
 
 export default function Depreciation() {
   const [assets, setAssets] = useState([]);
   const [loading, setLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState('Todas');
+  const [basis, setBasis] = useState('societaria');
   const AssetEntity = useWorkspaceEntity('Asset');
   const { workspaceId } = AssetEntity;
 
@@ -36,10 +42,24 @@ export default function Depreciation() {
     categoryFilter === 'Todas' || a.category === categoryFilter
   );
 
+  const isDiff = basis === 'diferenca';
   const rows = filteredAssets.map((asset) => {
     const usefulLife = asset.useful_life_years || getUsefulLifeFromRate(asset.depreciation_rate);
-    const { currentValue, accumulated, monthly, depPct, cip } = getAssetDepreciation(asset);
-    return { ...asset, currentValue, accumulated, monthly, depPct, usefulLife, cip };
+    const soc = getAssetDepreciation(asset, 'societaria');
+    const fis = getAssetDepreciation(asset, 'fiscal');
+    if (isDiff) {
+      // Diferença (societária − fiscal) — base temporaria relevante para apuração.
+      return {
+        ...asset, usefulLife, cip: soc.cip,
+        accumulated: soc.accumulated - fis.accumulated,
+        currentValue: soc.currentValue - fis.currentValue,
+        monthly: soc.monthly - fis.monthly,
+        depPct: 0,
+        socAcc: soc.accumulated, fisAcc: fis.accumulated,
+      };
+    }
+    const d = basis === 'fiscal' ? fis : soc;
+    return { ...asset, ...d, usefulLife };
   });
 
   const totalAcquisition = rows.reduce((s, r) => s + (r.acquisition_value || 0), 0);
