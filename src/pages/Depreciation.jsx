@@ -1,10 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { Link } from 'react-router-dom';
-import {
-  formatCurrency, calculateCurrentValue, calculateAccumulatedDepreciation,
-  calculateMonthlyDepreciation, calculateDepreciationPercentage, getUsefulLifeFromRate
-} from '@/lib/depreciation';
+import { formatCurrency, getUsefulLifeFromRate, getAssetDepreciation } from '@/lib/depreciation';
 import { Progress } from '@/components/ui/progress';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { TrendingDown, ArrowRight } from 'lucide-react';
@@ -41,11 +38,8 @@ export default function Depreciation() {
 
   const rows = filteredAssets.map((asset) => {
     const usefulLife = asset.useful_life_years || getUsefulLifeFromRate(asset.depreciation_rate);
-    const currentValue = calculateCurrentValue(asset.purchase_date, asset.acquisition_value, asset.residual_value || 0, usefulLife);
-    const accumulated = calculateAccumulatedDepreciation(asset.purchase_date, asset.acquisition_value, asset.residual_value || 0, usefulLife);
-    const monthly = calculateMonthlyDepreciation(asset.acquisition_value, asset.residual_value || 0, usefulLife);
-    const depPct = calculateDepreciationPercentage(asset.purchase_date, asset.acquisition_value, asset.residual_value || 0, usefulLife);
-    return { ...asset, currentValue, accumulated, monthly, depPct, usefulLife };
+    const { currentValue, accumulated, monthly, depPct, cip } = getAssetDepreciation(asset);
+    return { ...asset, currentValue, accumulated, monthly, depPct, usefulLife, cip };
   });
 
   const totalAcquisition = rows.reduce((s, r) => s + (r.acquisition_value || 0), 0);
@@ -111,7 +105,7 @@ export default function Depreciation() {
             <tbody>
               {rows.map((row) => (
                 <tr key={row.id} className="border-b border-border hover:bg-muted/30 transition-colors">
-                  <td className="p-4 font-medium">{row.name}</td>
+                  <td className="p-4 font-medium">{row.name}{row.cip ? <span className="ml-2 text-[10px] font-medium px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-700 border border-amber-200">obra</span> : ''}</td>
                   <td className="p-4 text-muted-foreground">{row.category}</td>
                   <td className="p-4 text-right">{formatCurrency(row.acquisition_value)}</td>
                   <td className="p-4 text-right text-destructive font-medium">{formatCurrency(row.accumulated)}</td>
