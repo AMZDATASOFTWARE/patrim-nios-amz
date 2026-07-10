@@ -492,6 +492,34 @@ export default function AssetForm() {
           </div>
         </div>
 
+        {/* Depreciação Fiscal (opcional) */}
+        <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+          <div>
+            <h2 className="text-lg font-semibold text-card-foreground">Depreciação Fiscal (opcional)</h2>
+            <p className="text-sm text-muted-foreground">Preencha apenas se a taxa fiscal (Receita Federal) diferir da societária/gerencial acima. Em branco, o livro fiscal espelha o societário.</p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="fiscal_depreciation_rate">Taxa Fiscal Anual (%)</Label>
+              <Input id="fiscal_depreciation_rate" type="number" step="0.1" value={form.fiscal_depreciation_rate}
+                onChange={(e) => setForm({ ...form, fiscal_depreciation_rate: e.target.value, fiscal_useful_life_years: e.target.value > 0 ? (100 / parseFloat(e.target.value)).toFixed(1) : '' })} placeholder="Ex: 25" />
+            </div>
+            <div>
+              <Label htmlFor="fiscal_useful_life_years">Vida Útil Fiscal (anos)</Label>
+              <Input id="fiscal_useful_life_years" type="number" step="0.1" value={form.fiscal_useful_life_years}
+                onChange={(e) => setForm({ ...form, fiscal_useful_life_years: e.target.value, fiscal_depreciation_rate: e.target.value > 0 ? (100 / parseFloat(e.target.value)).toFixed(1) : '' })} placeholder="Ex: 4" />
+            </div>
+            <div>
+              <Label htmlFor="fiscal_residual_value">Valor Residual Fiscal (R$)</Label>
+              <Input id="fiscal_residual_value" type="number" step="0.01" value={form.fiscal_residual_value} onChange={(e) => setForm({ ...form, fiscal_residual_value: e.target.value })} placeholder="0,00" />
+            </div>
+            <div>
+              <Label htmlFor="fiscal_depreciation_start_date">Início da Depreciação Fiscal</Label>
+              <Input id="fiscal_depreciation_start_date" type="date" value={form.fiscal_depreciation_start_date} onChange={(e) => setForm({ ...form, fiscal_depreciation_start_date: e.target.value })} />
+            </div>
+          </div>
+        </div>
+
         {/* Titularidade / obra em andamento */}
         <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
           <h2 className="text-lg font-semibold text-card-foreground">Titularidade</h2>
