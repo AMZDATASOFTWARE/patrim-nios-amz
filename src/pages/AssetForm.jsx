@@ -71,6 +71,10 @@ export default function AssetForm() {
     real_owner_document: '',
     is_construction_in_progress: false,
     construction_completion_date: '',
+    fiscal_depreciation_rate: '',
+    fiscal_useful_life_years: '',
+    fiscal_residual_value: '',
+    fiscal_depreciation_start_date: '',
     notes: '',
   });
 
@@ -124,6 +128,10 @@ export default function AssetForm() {
             real_owner_document: asset.real_owner_document || '',
             is_construction_in_progress: !!asset.is_construction_in_progress,
             construction_completion_date: asset.construction_completion_date || '',
+            fiscal_depreciation_rate: asset.fiscal_depreciation_rate || '',
+            fiscal_useful_life_years: asset.fiscal_useful_life_years || '',
+            fiscal_residual_value: asset.fiscal_residual_value || '',
+            fiscal_depreciation_start_date: asset.fiscal_depreciation_start_date || '',
             notes: asset.notes || '',
           });
         }
@@ -178,6 +186,9 @@ export default function AssetForm() {
       useful_life_years: parseFloat(form.useful_life_years) || 0,
       residual_value: parseFloat(form.residual_value) || 0,
       property_area_m2: parseFloat(form.property_area_m2) || 0,
+      fiscal_depreciation_rate: parseFloat(form.fiscal_depreciation_rate) || 0,
+      fiscal_useful_life_years: parseFloat(form.fiscal_useful_life_years) || 0,
+      fiscal_residual_value: parseFloat(form.fiscal_residual_value) || 0,
       supplier_id: form.supplier_id || '',
       supplier_name: form.supplier_name || '',
     };
