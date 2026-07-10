@@ -3,9 +3,7 @@ import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileText, Download, Table, AlertTriangle, ImageOff, Clock } from 'lucide-react';
-import {
-  formatCurrency, calculateDepreciationPercentage, getUsefulLifeFromRate, getAssetDepreciation
-} from '@/lib/depreciation';
+import { formatCurrency, getAssetDepreciation } from '@/lib/depreciation';
 import moment from 'moment';
 import jsPDF from 'jspdf';
 
