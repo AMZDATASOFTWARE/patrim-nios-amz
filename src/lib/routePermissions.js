@@ -25,6 +25,7 @@ export const ROUTE_PERMISSIONS = {
   '/AuditTrail': 'view_audit',
   '/Settings': 'view_settings',
   '/CompanyProfile': 'view_company',
+  '/Branches': 'view_branches',
   '/Billing': 'view_billing',
 };
 
