@@ -103,10 +103,9 @@ function AppLayoutInner() {
           </div>
         </div>
 
-        <div
-          className="p-4 sm:p-6 lg:p-8"
-          style={{ paddingBottom: 'calc(1rem + 56px + env(safe-area-inset-bottom))' }}
-        >
+        {/* Extra bottom padding on <768 clears the fixed MobileTabBar (56px + safe area);
+            md+ reverts to the normal p-6/p-8 rhythm since the tab bar is hidden there. */}
+        <div className="p-4 sm:p-6 lg:p-8 pb-[calc(1rem+56px+env(safe-area-inset-bottom))] md:pb-6 lg:pb-8">
           {denied ? <AccessDenied /> : <Outlet />}
         </div>
       </main>
