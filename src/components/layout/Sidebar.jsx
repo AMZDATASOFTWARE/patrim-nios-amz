@@ -42,6 +42,7 @@ const navigation = [
   { name: 'Manutenções',    href: '/Maintenance',      icon: Wrench,          requiredPermission: 'view_maintenance' },
   { name: 'Contratos',      href: '/Contracts',        icon: FileSignature,   requiredPermission: 'view_contracts' },
   { name: 'Depreciação',    href: '/Depreciation',     icon: TrendingDown,    requiredPermission: 'view_depreciation' },
+  { name: 'Créditos CIAP',   href: '/CiapCredits',      icon: Landmark,        requiredPermission: 'view_fiscal_credits' },
   { name: 'Relatórios',     href: '/Reports',          icon: FileText,        requiredPermission: 'view_reports' },
   { name: 'Fornecedores',   href: '/Suppliers',        icon: Truck,           requiredPermission: 'view_suppliers' },
   { name: 'Colaboradores',  href: '/Collaborators',    icon: Users,           requiredPermission: 'view_users' },
