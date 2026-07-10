@@ -30,9 +30,11 @@
 - Papel sempre **combinado com tenant via `$and`**.
 - Entidades sensíveis: create/write bloqueado no SDK (só `is_platform_admin`), escritas por functions service-role.
 
-## 3. Entidades (17)
+## 3. Entidades (19)
 
-Tenant-owned: **Asset, Collaborator, AssetAssignment, Supplier, MaintenanceRecord, LocationHistory, InventoryCount, InventoryItem, Contract, DepreciationConfig, Notification, AuditLog, PaymentRequest**. Raiz: **Workspace**. Built-in: **User** (FLS por campo em role/workspace_id/is_platform_admin). Plataforma (não-tenant, só platform-admin): **CreditUsage** (log de consumo de IA por workspace), **PricingConfig** (singleton de rateio/precificação).
+Tenant-owned: **Asset, Collaborator, AssetAssignment, AssetAttachment, Supplier, MaintenanceRecord, LocationHistory, InventoryCount, InventoryItem, Contract, DepreciationConfig, Notification, AuditLog, AlertDispatchLog, PaymentRequest**. Raiz: **Workspace**. Built-in: **User** (FLS por campo em role/workspace_id/is_platform_admin). Plataforma (não-tenant, só platform-admin): **CreditUsage** (log de consumo de IA por workspace), **PricingConfig** (singleton de rateio/precificação).
+
+**Roadmap paridade AfixCode (plano local `~/.claude/plans/c-users-mateu-...twinkly-eagle.md`) — Onda 1 entregue 2026-07-09:** `Asset` +campos por categoria (`property_*` imóveis, `vehicle_*` veículos, opcionais/aditivos, aceitos em createAsset/ImportExport); `InventoryItem` +5º estado `novo_sobra`+`is_surplus`/`found_*`/`resolution` (sobras não entram no progresso/auto-flip); **AssetAttachment** (múltiplos anexos, dual-write em `Asset.photo_url`); **AlertDispatchLog** (dedup de alertas, write só service-role). Ondas 2-4 pendentes.
 
 - `Asset.create` → bloqueado no SDK; cadastro pela function `createAsset` (valida limite de plano + status pagamento; carimba workspace) — **inclusive para o agente de IA**, que usa `createAsset` como function tool (não a operação de entidade — ver seção 6).
 - `AuditLog.create` → bloqueado no SDK; escrita pela function `logAudit` (carimba actor+workspace da sessão).
@@ -42,7 +44,7 @@ Tenant-owned: **Asset, Collaborator, AssetAssignment, Supplier, MaintenanceRecor
 
 ## 4. Backend functions (`base44/functions/*/entry.ts`)
 
-createWorkspace · acceptWorkspaceInvite · inviteMember (aplica limite de usuários do plano) · workspaceMembers (list/setRole/remove) · updateWorkspaceProfile · **createAsset** (lote ≤200; valida plano; único caminho de cadastro, inclusive via agente de IA) · **logAudit** · notifyBilling (days server-side) · registerPublicScan (público; IP server-side; rate-limit 30s) · getPublicAssetInfo (público; projeção mínima) · **stripeCheckout** (preço server-side) · **stripeWebhook** (assinatura verificada; dunning; idempotente) · **stripePortal** · adminApi (platform-admin: workspaces/planos) · **logCreditConsumption** (registra consumo de créditos de IA do chat in-app) · **creditReport** (platform-admin: relatório de custo/margem de IA por workspace + edita rateio).
+createWorkspace · acceptWorkspaceInvite · inviteMember (aplica limite de usuários do plano) · workspaceMembers (list/setRole/remove) · updateWorkspaceProfile · **createAsset** (lote ≤200; valida plano; único caminho de cadastro, inclusive via agente de IA; allowlist estende campos por categoria) · **logAudit** · notifyBilling (days server-side) · registerPublicScan (público; IP server-side; rate-limit 30s) · getPublicAssetInfo (público; projeção mínima) · **stripeCheckout** (preço server-side) · **stripeWebhook** (assinatura verificada; dunning; idempotente) · **stripePortal** · adminApi (platform-admin: workspaces/planos) · **logCreditConsumption** (registra consumo de créditos de IA do chat in-app) · **creditReport** (platform-admin: relatório de custo/margem de IA por workspace + edita rateio) · **dispatchExpiryAlerts** (1ª automation cron do projeto: alerta garantia/revisão/IPVA/contrato vencendo → Notification+e-mail, dedup via AlertDispatchLog; ⚠️ sintaxe do cron em function.jsonc não verificada — confirmar no dashboard).
 
 ## 5. Stripe (LIVE — conta `acct_1TieigL04LdxLhj9`)
 
