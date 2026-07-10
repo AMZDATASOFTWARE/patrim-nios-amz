@@ -404,13 +404,20 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
     }
   };
 
+  const findByCode = (raw) => {
+    const code = (raw || '').trim().toLowerCase();
+    if (!code) return null;
+    return items.find(
+      (i) => (i.plaqueta || '').toLowerCase() === code
+        || (i.found_plaqueta || '').toLowerCase() === code
+        || (i.asset_name || '').toLowerCase() === code
+    );
+  };
+
   const handleScan = async (e) => {
     e.preventDefault();
-    const code = scanCode.trim().toLowerCase();
-    if (!code) return;
-    const match = items.find(
-      (i) => (i.plaqueta || '').toLowerCase() === code || (i.asset_name || '').toLowerCase() === code
-    );
+    if (!scanCode.trim()) return;
+    const match = findByCode(scanCode);
     if (!match) {
       toast.error(`Nenhum item com plaqueta/nome "${scanCode}".`);
     } else {
@@ -418,6 +425,14 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
       toast.success(`${match.asset_name} conferido.`);
     }
     setScanCode('');
+  };
+
+  const handleCameraDetect = (text) => {
+    const match = findByCode(text);
+    if (!match) { toast.error(`Nenhum item para "${text}".`); return; }
+    if (match.status === 'encontrado') { toast(`${match.asset_name} já conferido.`); return; }
+    markItem(match, 'encontrado');
+    toast.success(`${match.asset_name} conferido.`);
   };
 
   const closeInventory = async () => {
@@ -524,7 +539,24 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
         </div>
       </div>
 
-      {/* Conferência rápida por plaqueta */}
+      {/* Banner offline / sincronização pendente */}
+      {(!isOnline || pending > 0) && (
+        <div className={`flex items-center justify-between gap-3 rounded-xl border p-3 text-sm ${!isOnline ? 'bg-amber-50 border-amber-200 text-amber-800' : 'bg-blue-50 border-blue-200 text-blue-800'}`}>
+          <div className="flex items-center gap-2">
+            <CloudOff className="h-4 w-4" />
+            {!isOnline
+              ? `Sem conexão — as conferências estão sendo salvas no aparelho${pending > 0 ? ` (${pending} pendente(s))` : ''}.`
+              : `${pending} conferência(s) aguardando sincronização.`}
+          </div>
+          {isOnline && pending > 0 && (
+            <Button size="sm" variant="outline" className="gap-1" disabled={syncing} onClick={flushQueue}>
+              <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} /> Sincronizar
+            </Button>
+          )}
+        </div>
+      )}
+
+      {/* Conferência rápida por plaqueta / câmera */}
       {isOpen && canManage && (
         <div className="flex flex-col sm:flex-row gap-3">
           <form onSubmit={handleScan} className="bg-card rounded-xl border border-border p-4 shadow-sm flex gap-2 items-center flex-1">
@@ -532,11 +564,21 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
             <Input
               value={scanCode}
               onChange={(e) => setScanCode(e.target.value)}
-              placeholder="Bipe ou digite a plaqueta e tecle Enter para marcar como encontrado"
+              placeholder="Bipe, digite a plaqueta, ou use a câmera"
               className="flex-1"
             />
             <Button type="submit" variant="secondary">Conferir</Button>
           </form>
+          <Dialog open={cameraOpen} onOpenChange={setCameraOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" className="gap-2 shrink-0"><Camera className="h-4 w-4" /> Câmera</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>Escanear com a câmera</DialogTitle></DialogHeader>
+              {cameraOpen && <CameraScanner onDetected={handleCameraDetect} />}
+              <p className="text-xs text-muted-foreground">A janela continua aberta para escanear vários itens em sequência.</p>
+            </DialogContent>
+          </Dialog>
           <AddSurplusDialog onAdd={handleAddSurplus} />
         </div>
       )}
