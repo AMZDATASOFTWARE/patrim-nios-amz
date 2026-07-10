@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Building2, ChevronDown, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
