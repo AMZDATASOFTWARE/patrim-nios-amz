@@ -22,6 +22,10 @@
       "type": "string",
       "title": "Plaqueta"
     },
+    "rfid_tag_id": {
+      "type": "string",
+      "title": "Tag RFID"
+    },
     "expected_location": {
       "type": "string",
       "title": "Localiza\u00e7\u00e3o esperada"
