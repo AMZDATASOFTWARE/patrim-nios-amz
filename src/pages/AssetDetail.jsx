@@ -267,6 +267,33 @@ export default function AssetDetail() {
             </div>
           )}
 
+          {/* Titularidade / obra em andamento */}
+          {((asset.ownership_type && asset.ownership_type !== 'proprio') || asset.is_construction_in_progress) && (
+            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+              <h2 className="text-lg font-semibold text-card-foreground mb-4">Titularidade</h2>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                {asset.ownership_type && asset.ownership_type !== 'proprio' && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Tipo</p>
+                    <p className="text-card-foreground capitalize">{{ terceiros: 'Bem de terceiros', locado: 'Locado', comodato: 'Comodato' }[asset.ownership_type] || asset.ownership_type}</p>
+                  </div>
+                )}
+                {asset.real_owner_name && (
+                  <div><p className="text-sm text-muted-foreground">Proprietário real</p><p className="text-card-foreground">{asset.real_owner_name}</p></div>
+                )}
+                {asset.real_owner_document && (
+                  <div><p className="text-sm text-muted-foreground">CNPJ/CPF</p><p className="text-card-foreground">{asset.real_owner_document}</p></div>
+                )}
+                {asset.is_construction_in_progress && (
+                  <div>
+                    <p className="text-sm text-muted-foreground">Obra em andamento</p>
+                    <p className="text-amber-600">Sim{asset.construction_completion_date ? ` — prev. ${moment(asset.construction_completion_date).format('DD/MM/YYYY')}` : ''}</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Links */}
           {(asset.external_link || asset.registry_link) && (
             <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
