@@ -28,6 +28,8 @@ export default function AssetForm() {
   const [loading, setLoading] = useState(!!editId);
   const originalAssetRef = useRef(null);
   const AssetEntity = useWorkspaceEntity('Asset');
+  const BranchEntity = useWorkspaceEntity('Branch');
+  const [branches, setBranches] = useState([]);
   const ConfigEntity = useWorkspaceEntity('DepreciationConfig');
   const AuditEntity = useWorkspaceEntity('AuditLog');
   const { user } = useAuth();
@@ -40,6 +42,7 @@ export default function AssetForm() {
     category: 'Equipamentos',
     account: '',
     cost_center: '',
+    branch_id: '',
     acquisition_value: '',
     purchase_date: '',
     depreciation_start_date: '',
@@ -79,6 +82,10 @@ export default function AssetForm() {
   });
 
   useEffect(() => {
+    BranchEntity.list('-created_date', 200).then(setBranches).catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (editId) {
       const loadAsset = async () => {
         // filter do helper injeta workspace_id — impede editar ativo de outro tenant pelo id.
@@ -93,6 +100,7 @@ export default function AssetForm() {
             category: asset.category || 'Equipamentos',
             account: asset.account || '',
             cost_center: asset.cost_center || '',
+            branch_id: asset.branch_id || '',
             acquisition_value: asset.acquisition_value || '',
             purchase_date: asset.purchase_date || '',
             depreciation_start_date: asset.depreciation_start_date || '',
@@ -306,6 +314,19 @@ export default function AssetForm() {
               <Label htmlFor="cost_center">Centro de Custo / Departamento</Label>
               <Input id="cost_center" value={form.cost_center} onChange={(e) => setForm({ ...form, cost_center: e.target.value })} placeholder="Ex: Produção - Galpão 1" />
             </div>
+
+            {branches.length > 0 && (
+              <div>
+                <Label>Filial</Label>
+                <Select value={form.branch_id || 'none'} onValueChange={(v) => setForm({ ...form, branch_id: v === 'none' ? '' : v })}>
+                  <SelectTrigger><SelectValue placeholder="Sem filial" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem filial</SelectItem>
+                    {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
 
             <div className="sm:col-span-2">
               <Label htmlFor="location">Localização Física</Label>
