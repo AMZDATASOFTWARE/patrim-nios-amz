@@ -283,10 +283,30 @@ export default function AssignmentSection({ assetId, assetName }) {
                     {rec.expected_return_date && <div><span className="text-muted-foreground">Dev. prevista: </span>{moment(rec.expected_return_date).format('DD/MM/YYYY')}</div>}
                     {rec.return_date && <div><span className="text-muted-foreground">Dev. realizada: </span>{moment(rec.return_date).format('DD/MM/YYYY')}</div>}
                   </div>
+                  {rec.signed && (
+                    <div className="flex items-center gap-2 text-xs text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">
+                      <BadgeCheck className="h-4 w-4" />
+                      Assinado digitalmente {rec.signed_at ? `em ${moment(rec.signed_at).format('DD/MM/YYYY HH:mm')}` : ''}{rec.signed_by_name ? ` por ${rec.signed_by_name}` : ''}.
+                    </div>
+                  )}
                   <div className="flex gap-2 flex-wrap">
                     <Button size="sm" variant="outline" className="gap-1" onClick={() => generatePDF(rec)}>
                       <FileText className="h-3 w-3" /> Gerar PDF
                     </Button>
+                    {!rec.signed && (
+                      <Dialog open={signingId === rec.id} onOpenChange={(v) => setSigningId(v ? rec.id : null)}>
+                        <DialogTrigger asChild>
+                          <Button size="sm" variant="outline" className="gap-1 text-primary border-primary/30">
+                            <PenTool className="h-3 w-3" /> Assinar termo
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader><DialogTitle>Assinatura de {rec.collaborator_name}</DialogTitle></DialogHeader>
+                          <SignaturePad confirming={savingSignature} onConfirm={(dataUrl) => handleSign(rec, dataUrl)} />
+                          <p className="text-xs text-muted-foreground">Assinatura eletrônica simples (captura + hash de integridade). Não substitui assinatura ICP-Brasil.</p>
+                        </DialogContent>
+                      </Dialog>
+                    )}
                     {rec.status === 'Ativo' && (
                       <Button size="sm" variant="outline" className="gap-1 text-emerald-600 border-emerald-200" onClick={() => handleReturn(rec.id)}>
                         <CheckCircle className="h-3 w-3" /> Registrar Devolução
