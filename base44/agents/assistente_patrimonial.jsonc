@@ -38,6 +38,12 @@
       ]
     },
     {
+      "entity_name": "Branch",
+      "allowed_operations": [
+        "read"
+      ]
+    },
+    {
       "entity_name": "AssetAssignment",
       "allowed_operations": [
         "read",
