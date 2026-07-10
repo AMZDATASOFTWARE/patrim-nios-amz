@@ -196,6 +196,7 @@ function NewInventoryDialog({ AssetEntity, CountEntity, ItemEntity, userEmail, o
           asset_id: a.id,
           asset_name: a.name || '',
           plaqueta: a.plaqueta || '',
+          rfid_tag_id: a.rfid_tag_id || '',
           expected_location: a.location || '',
           status: 'pendente',
         });
@@ -410,6 +411,7 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
     return items.find(
       (i) => (i.plaqueta || '').toLowerCase() === code
         || (i.found_plaqueta || '').toLowerCase() === code
+        || (i.rfid_tag_id || '').toLowerCase() === code
         || (i.asset_name || '').toLowerCase() === code
     );
   };
