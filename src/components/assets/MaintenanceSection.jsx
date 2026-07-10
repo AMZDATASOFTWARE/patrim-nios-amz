@@ -21,6 +21,9 @@ export default function MaintenanceSection({ assetId, assetName = '' }) {
     cost: '',
     provider: '',
     type: 'Corretiva',
+    technician_name: '',
+    parts_used: '',
+    checklist: '',
   });
 
   useEffect(() => {
@@ -43,7 +46,7 @@ export default function MaintenanceSection({ assetId, assetName = '' }) {
       status: 'concluida',
       cost: parseFloat(form.cost) || 0,
     });
-    setForm({ date: new Date().toISOString().split('T')[0], description: '', cost: '', provider: '', type: 'Corretiva' });
+    setForm({ date: new Date().toISOString().split('T')[0], description: '', cost: '', provider: '', type: 'Corretiva', technician_name: '', parts_used: '', checklist: '' });
     setOpen(false);
     loadRecords();
   };
@@ -101,6 +104,18 @@ export default function MaintenanceSection({ assetId, assetName = '' }) {
                   <Label>Fornecedor</Label>
                   <Input value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })} />
                 </div>
+                <div>
+                  <Label>Técnico responsável</Label>
+                  <Input value={form.technician_name} onChange={(e) => setForm({ ...form, technician_name: e.target.value })} />
+                </div>
+                <div>
+                  <Label>Peças utilizadas</Label>
+                  <Input value={form.parts_used} onChange={(e) => setForm({ ...form, parts_used: e.target.value })} placeholder="Ex: 2x correia, 1x filtro" />
+                </div>
+              </div>
+              <div>
+                <Label>Checklist (um item por linha)</Label>
+                <Textarea value={form.checklist} onChange={(e) => setForm({ ...form, checklist: e.target.value })} rows={3} placeholder={"Verificar nível de óleo\nTestar freios\nLimpar filtros"} />
               </div>
               <Button type="submit" className="w-full">Registrar</Button>
             </form>
@@ -134,6 +149,13 @@ export default function MaintenanceSection({ assetId, assetName = '' }) {
                 </div>
                 <p className="text-sm text-card-foreground">{record.description}</p>
                 {record.provider && <p className="text-xs text-muted-foreground mt-1">Fornecedor: {record.provider}</p>}
+                {record.technician_name && <p className="text-xs text-muted-foreground">Técnico: {record.technician_name}</p>}
+                {record.parts_used && <p className="text-xs text-muted-foreground">Peças: {record.parts_used}</p>}
+                {record.checklist && (
+                  <ul className="text-xs text-muted-foreground mt-1 list-disc list-inside space-y-0.5">
+                    {record.checklist.split('\n').filter((l) => l.trim()).map((l, idx) => <li key={idx}>{l}</li>)}
+                  </ul>
+                )}
               </div>
               <div className="flex items-center gap-3 ml-4">
                 <span className="font-semibold text-card-foreground">{formatCurrency(record.cost)}</span>
