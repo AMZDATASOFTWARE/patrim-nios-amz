@@ -1,16 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Download, Table } from 'lucide-react';
+import { FileText, Download, Table, AlertTriangle, ImageOff, Clock } from 'lucide-react';
 import {
   formatCurrency, calculateCurrentValue, calculateAccumulatedDepreciation,
-  calculateMonthlyDepreciation, getUsefulLifeFromRate
+  calculateMonthlyDepreciation, calculateDepreciationPercentage, getUsefulLifeFromRate
 } from '@/lib/depreciation';
 import moment from 'moment';
 import jsPDF from 'jspdf';
 
 const categories = ['Todas', 'Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
+const STALE_DAYS = 90;
 
 export default function Reports() {
   const [assets, setAssets] = useState([]);
@@ -19,15 +20,32 @@ export default function Reports() {
   const [costCenterFilter, setCostCenterFilter] = useState('Todos');
   const [generating, setGenerating] = useState(false);
   const AssetEntity = useWorkspaceEntity('Asset');
+  const LocationEntity = useWorkspaceEntity('LocationHistory');
+  const AttachmentEntity = useWorkspaceEntity('AssetAttachment');
   const { workspaceId } = AssetEntity;
+  const [locationLatest, setLocationLatest] = useState({});
+  const [attachmentAssetIds, setAttachmentAssetIds] = useState(new Set());
 
   useEffect(() => {
     if (!workspaceId) return;
     setLoading(true);
-    AssetEntity.list('-created_date', 200).then(data => {
+    AssetEntity.list('-created_date', 2000).then(data => {
       setAssets(data);
       setLoading(false);
     });
+    // Última movimentação conhecida por ativo (para o relatório de "parados").
+    LocationEntity.list('-scanned_at', 2000).then((rows) => {
+      const latest = {};
+      rows.forEach((r) => {
+        if (!r.asset_id) return;
+        if (!latest[r.asset_id] || r.scanned_at > latest[r.asset_id]) latest[r.asset_id] = r.scanned_at;
+      });
+      setLocationLatest(latest);
+    }).catch(() => {});
+    // Ativos que possuem ao menos um anexo (para o relatório "sem foto/documento").
+    AttachmentEntity.list('-uploaded_at', 5000).then((rows) => {
+      setAttachmentAssetIds(new Set(rows.map((r) => r.asset_id)));
+    }).catch(() => {});
   }, [workspaceId]);
 
   const costCenters = ['Todos', ...Array.from(new Set(assets.map(a => a.cost_center).filter(Boolean)))];
