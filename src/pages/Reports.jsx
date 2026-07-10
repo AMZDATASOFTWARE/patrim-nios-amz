@@ -179,6 +179,54 @@ export default function Reports() {
   const totalDep = rows.reduce((s, r) => s + r.accumulated, 0);
 
   return (
+    <ReportsView
+      {...{
+        assets, filteredAssets, categories, categoryFilter, setCategoryFilter,
+        costCenters, costCenterFilter, setCostCenterFilter, exportPDF, exportCSV,
+        generating, rows, totalAcq, totalCur, totalDep, locationLatest, attachmentAssetIds,
+      }}
+    />
+  );
+}
+
+function ReportsView({
+  assets, filteredAssets, categories, categoryFilter, setCategoryFilter,
+  costCenters, costCenterFilter, setCostCenterFilter, exportPDF, exportCSV,
+  generating, rows, totalAcq, totalCur, totalDep, locationLatest, attachmentAssetIds,
+}) {
+  // Relatórios de auditoria (100% computados sobre o conjunto filtrado).
+  const audit = useMemo(() => {
+    const fullyDepreciated = [];
+    const noAttachment = [];
+    const stale = [];
+    const staleThreshold = moment().subtract(STALE_DAYS, 'days');
+    filteredAssets.forEach((a) => {
+      const usefulLife = a.useful_life_years || getUsefulLifeFromRate(a.depreciation_rate);
+      const depPct = calculateDepreciationPercentage(a.purchase_date, a.acquisition_value, a.residual_value || 0, usefulLife);
+      if (depPct >= 100 && a.status === 'Ativo') fullyDepreciated.push(a);
+      if (!a.photo_url && !a.invoice_url && !attachmentAssetIds.has(a.id)) noAttachment.push(a);
+      const last = locationLatest[a.id];
+      if (!last || moment(last).isBefore(staleThreshold)) stale.push({ ...a, lastMove: last });
+    });
+    return { fullyDepreciated, noAttachment, stale };
+  }, [filteredAssets, locationLatest, attachmentAssetIds]);
+
+  const exportAuditCSV = (list, cols, filename) => {
+    const header = cols.map((c) => c.label).join(';');
+    const lines = list.map((a) => cols.map((c) => {
+      const v = c.get(a);
+      return typeof v === 'string' && v.includes(';') ? `"${v}"` : (v ?? '');
+    }).join(';'));
+    const blob = new Blob(['﻿' + [header, ...lines].join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${filename}_${moment().format('YYYYMMDD')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -257,6 +305,62 @@ export default function Reports() {
             <p className="text-2xl font-bold text-destructive">{formatCurrency(totalDep)}</p>
           </div>
         </div>
+      </div>
+
+      {/* Relatórios de auditoria */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <AuditReportCard
+          icon={AlertTriangle}
+          color="amber"
+          title="Totalmente depreciados em uso"
+          description="Bens 100% depreciados ainda com status Ativo"
+          count={audit.fullyDepreciated.length}
+          onExport={() => exportAuditCSV(
+            audit.fullyDepreciated,
+            [
+              { label: 'Ativo', get: (a) => a.name },
+              { label: 'Plaqueta', get: (a) => a.plaqueta || '' },
+              { label: 'Categoria', get: (a) => a.category },
+              { label: 'Valor Aquisição', get: (a) => (a.acquisition_value || 0).toFixed(2) },
+              { label: 'Valor Residual', get: (a) => (a.residual_value || 0).toFixed(2) },
+            ],
+            'bens_totalmente_depreciados'
+          )}
+        />
+        <AuditReportCard
+          icon={ImageOff}
+          color="slate"
+          title="Sem foto ou documento"
+          description="Bens sem nenhuma foto/anexo cadastrado"
+          count={audit.noAttachment.length}
+          onExport={() => exportAuditCSV(
+            audit.noAttachment,
+            [
+              { label: 'Ativo', get: (a) => a.name },
+              { label: 'Plaqueta', get: (a) => a.plaqueta || '' },
+              { label: 'Categoria', get: (a) => a.category },
+              { label: 'Localização', get: (a) => a.location || '' },
+            ],
+            'bens_sem_anexo'
+          )}
+        />
+        <AuditReportCard
+          icon={Clock}
+          color="blue"
+          title={`Parados há mais de ${STALE_DAYS} dias`}
+          description="Sem nenhuma movimentação de localização registrada"
+          count={audit.stale.length}
+          onExport={() => exportAuditCSV(
+            audit.stale,
+            [
+              { label: 'Ativo', get: (a) => a.name },
+              { label: 'Plaqueta', get: (a) => a.plaqueta || '' },
+              { label: 'Categoria', get: (a) => a.category },
+              { label: 'Última movimentação', get: (a) => a.lastMove ? moment(a.lastMove).format('DD/MM/YYYY') : 'nunca' },
+            ],
+            'bens_parados'
+          )}
+        />
       </div>
 
       {/* Preview table */}
