@@ -9,6 +9,7 @@ export const ROUTE_PERMISSIONS = {
   '/AssetDetail': 'view_assets',
   '/AssetForm': 'create_asset',
   '/Inventory': 'view_inventory',
+  '/Transfers': 'view_transfers',
   '/Maintenance': 'view_maintenance',
   '/Contracts': 'view_contracts',
   '/Depreciation': 'view_depreciation',
