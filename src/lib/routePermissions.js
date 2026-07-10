@@ -5,6 +5,7 @@
 // (ex.: /Notifications). A checagem primária dos dados continua no servidor.
 export const ROUTE_PERMISSIONS = {
   '/Dashboard': 'view_dashboard',
+  '/AiBriefings': 'view_ai_briefing',
   '/Assets': 'view_assets',
   '/AssetDetail': 'view_assets',
   '/AssetForm': 'create_asset',
