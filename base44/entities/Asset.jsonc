@@ -204,6 +204,23 @@
       "format": "date",
       "title": "Previsao de conclusao da obra"
     },
+    "fiscal_depreciation_rate": {
+      "type": "number",
+      "title": "Taxa de Depreciacao Fiscal Anual (%)"
+    },
+    "fiscal_useful_life_years": {
+      "type": "number",
+      "title": "Vida Util Fiscal (anos)"
+    },
+    "fiscal_residual_value": {
+      "type": "number",
+      "title": "Valor Residual Fiscal (R$)"
+    },
+    "fiscal_depreciation_start_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Inicio da Depreciacao Fiscal"
+    },
     "notes": {
       "type": "string",
       "title": "Observa\u00e7\u00f5es"
