@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT — Patrimônios AMZ
 
-> Documento de contexto para futuras sessões. Última atualização: **2026-07-08**.
+> Documento de contexto para futuras sessões. Última atualização: **2026-07-10**.
 > Mantenha este arquivo atualizado ao final de mudanças estruturais.
 
 ---
@@ -8,97 +8,168 @@
 ## 1. Identidade do projeto
 
 - **Produto:** Patrimônios AMZ — SaaS de gestão de patrimônio (ativos fixos, depreciação, QR codes, manutenção, inventário, fornecedores, colaboradores, contratos).
-- **Plataforma:** app **Base44**. `appId = 69b9bbe612ad0c22812b5339`.
+- **Plataforma:** app **Base44** (não é checkout local). `appId = 69b9bbe612ad0c22812b5339`.
 - **Acesso via MCP:** ferramentas `mcp__ceacbca7-89ad-43b1-97c5-f609098437f5__*` (list_entity_schemas, query_entities, read_file, edit_file, write_file, run_command, create_checkpoint, etc.). Sempre passar o `appId`.
 - **URL pública do app:** `https://patrimoni-asset-flow.base44.app`
 - **Empresa (dados reais):** Amz Data Software · CNPJ 53.646.811/0001-20 · ceo@amzdatasoftware.com · (91) 98134-2990 · dev responsável: Mateus da Silva Gonçalves. (Fonte única no código: `src/lib/company.js`.)
+- **Pasta local:** `C:\Users\mateu\Desktop\glpi` — contém `AUDIT_REPORT.md` (auditoria) e este arquivo. Um GLPI local existe só como **referência de arquitetura**, não é alvo de mudanças.
 - **Stack:** React + Vite (frontend), Deno serverless (backend functions Base44), Stripe (pagamentos). UI em pt-BR; código/identificadores em inglês.
-- **LGPD:** aplica-se integralmente (trata CPF, e-mail, telefone, endereço, geolocalização, IP). CFM **não** se aplica.
+- **LGPD:** aplica-se integralmente (trata CPF, e-mail, telefone, endereço, geolocalização, IP). CFM **não** se aplica (não é app de saúde).
 
 ## 2. Modelo multi-tenant (isolamento por empresa)
 
 - **Tenant = `Workspace`**, chave = `workspace_id` em toda entidade tenant-owned.
-- **Membership** modelada por campos no `User` (`workspace_id`, `role`) + `member_emails[]` no `Workspace`. **1 workspace por usuário**. Multi-empresa por usuário exigiria entidade `Membership`/`Invitation`.
-- **Papéis:** `admin`, `manager`, `viewer`, `user`. Além disso `is_platform_admin` (dono da plataforma), gravável só por service-role.
-- Isolamento **lógico, enforced server-side** via RLS + backend functions com `asServiceRole`.
+- **Membership** modelada por campos no `User` (`workspace_id`, `role`) + `member_emails[]` no `Workspace`. **1 workspace por usuário** (não há entidade `Membership`; trocar de empresa é destrutivo). Para multi-empresa por usuário / white-label seria preciso criar `Membership`/`Invitation`.
+- **Papéis (role):** `admin`, `manager`, `viewer`, `user`. Além disso, `is_platform_admin` (booleano no `User`) = dono da plataforma (super-admin), gravável só por service-role.
+- **Isolamento é lógico, enforced server-side** via RLS das entidades + backend functions com `asServiceRole`.
 
-### Regra de ouro
-**Editar `base44/entities/*.jsonc` é o que atualiza a RLS de forma durável.** Mudança só ao vivo (`update_entity_schema`) é revertida num redeploy. Sempre editar o `.jsonc` e verificar com `list_entity_schemas`.
+### Regra de ouro (aprendida na prática)
+**Editar `base44/entities/*.jsonc` é o que atualiza a RLS de forma durável.** Uma mudança feita só ao vivo (`update_entity_schema`) é revertida num redeploy a partir do repo. Sempre editar o `.jsonc` e verificar com `list_entity_schemas`.
 
-### Padrão de RLS correto
-- Escopo por tenant usa **`{{user.data.workspace_id}}`** (não `{{user.workspace_id}}` — este resolve vazio).
-- Papel sempre **combinado com tenant via `$and`**.
-- Entidades sensíveis: create/write bloqueado no SDK (só `is_platform_admin`), escritas por functions service-role.
+### Padrão de RLS (correto)
+- Escopo por tenant usa **`{{user.data.workspace_id}}`** (campos custom do usuário ficam em `user.data.*` — usar `{{user.workspace_id}}` é bug: resolve vazio).
+- Papel sempre **combinado com tenant via `$and`** (nunca `role` sozinho como alternativa ao tenant).
+- Entidades sensíveis com create/write bloqueado no SDK (`is_platform_admin`) e escritas feitas por functions service-role.
 
-## 3. Entidades (25)
+## 3. Entidades (26)
 
-Tenant-owned: **Asset, Collaborator, AssetAssignment, AssetAttachment, AssetTransfer, Branch, Supplier, MaintenanceRecord, LocationHistory, InventoryCount, InventoryItem, Contract, DepreciationConfig, Notification, AuditLog, AlertDispatchLog, CiapCredit, CiapAppropriationLog, AccountMappingRule, PaymentRequest**. Raiz: **Workspace**. Built-in: **User** (FLS por campo em role/workspace_id/is_platform_admin). Plataforma (não-tenant, só platform-admin): **CreditUsage** (log de consumo de IA por workspace), **PricingConfig** (singleton de rateio/precificação).
+Tenant-owned (têm `workspace_id`, RLS escopada + papel): **Asset, Collaborator, AssetAssignment, AssetAttachment, AssetTransfer, Branch, Supplier, MaintenanceRecord, LocationHistory, InventoryCount, InventoryItem, Contract, DepreciationConfig, Notification, AuditLog, AlertDispatchLog, CiapCredit, CiapAppropriationLog, AccountMappingRule, PaymentRequest, AiBriefing**. Raiz do tenant: **Workspace**. Built-in: **User** (com FLS por campo em `role`/`workspace_id`/`is_platform_admin`). Plataforma (não-tenant, só platform-admin): **CreditUsage** (log de consumo de IA por workspace, read escopado ao próprio workspace), **PricingConfig** (singleton de rateio/precificação, só platform-admin lê/escreve).
 
-**Roadmap paridade AfixCode (plano local `~/.claude/plans/c-users-mateu-...twinkly-eagle.md`):** Onda 1 (2026-07-09): `Asset` +campos por categoria (`property_*`/`vehicle_*`); `InventoryItem` +estado `novo_sobra`; **AssetAttachment** (múltiplos anexos, dual-write em photo_url); **AlertDispatchLog**. Onda 2 (2026-07-09): item 9 `Asset` +`ownership_type`/`real_owner_*`/`is_construction_in_progress` + helper `getAssetDepreciation` com guard CIP em depreciation.js; item 13 `MaintenanceRecord` +`technician_name`/`parts_used`/`checklist`; item 6 entidade **AssetTransfer** (RLS de campo em status/token, functions request/respond/getPublicTransferInfo, páginas /Transfers + pública /aceitar-transferencia); item 3 `AssetAssignment` +campos de assinatura (RLS de campo, function signAssignment, canvas SignaturePad, PDF com hash — assinatura eletrônica simples, NÃO ICP-Brasil; sub-fluxo remoto por e-mail adiado). Onda 3 (2026-07-09): item 4 depreciação dupla fiscal×societaria (`Asset` +`fiscal_*` colunas; `getAssetDepreciation(asset,basis)`; abas Societaria/Fiscal/Diferenca em Depreciation.jsx); item 5 **CiapCredit**(write só admin)+**CiapAppropriationLog**(service-role) + function `appropriateCiapCredits`(1/48 mensal, cron criar no dashboard) + página /CiapCredits (defaults fiscais simplificados — revisar c/ contador); item 12 **AccountMappingRule** + página /AccountingExport (CSV de lançamentos client-side). Onda 4 (2026-07-10): item 11 entidade **Branch** (create só via function `createBranch` = enterprise+admin, fecha promessa plans.js; `Asset.branch_id`; página /Branches; seletor no form só se houver filiais, sem backfill); item 1 câmera de inventário (`html5-qrcode`, `CameraScanner.jsx`) + fila offline (`offlineInventory.js`+`syncInventoryScans`) — **service worker/PWA instalável DEFERIDO**; item 15 `Asset.rfid_tag_id`+`InventoryItem.rfid_tag_id`+match no inventário (leitores HID já funcionam; **Web Bluetooth GATT DEFERIDO**). **Roadmap Ondas 1-4 concluído.** Follow-ups adiados: assinatura remota por e-mail, service worker, Web Bluetooth GATT, "API de integração" do Enterprise (2ª promessa plans.js ainda sem implementação).
+**AiBriefing (2026-07-10)** — snapshot diário do "Diário do Patrimônio" (mosaico de 6 supervisores de IA). Uma linha por `(workspace_id, domain)` por dia (`domain` enum dos 6: assets_docs/field_ops/maintenance_contracts/fiscal_accounting/registries_structure/governance_admin). Campos: `agent_name`, `headline`, `summary`, `kpis_json` (string JSON — array de `{label,value,formatted,severity}`, evita array-de-objetos nativo), `computed_at`, `generation_status` (ok/partial/error). RLS: **read tenant-scoped; create/update/delete só service-role/platform-admin** (mesmo padrão de AlertDispatchLog — nenhum usuário escreve direto). Ver seção 6.1.
 
-- `Asset.create` → bloqueado no SDK; cadastro pela function `createAsset` (valida limite de plano + status pagamento; carimba workspace) — **inclusive para o agente de IA**, que usa `createAsset` como function tool (não a operação de entidade — ver seção 6).
-- `AuditLog.create` → bloqueado no SDK; escrita pela function `logAudit` (carimba actor+workspace da sessão).
+**Roadmap de paridade AfixCode/AfixInv (plano em `~/.claude/plans/c-users-mateu-desktop-cms-files-53553-1-twinkly-eagle.md`):**
+
+*Onda 1 (2026-07-09):* `Asset` +campos por categoria (Imóveis `property_*`, Veículos `vehicle_*`, opcionais/aditivos, aceitos em `createAsset`+`ImportExport`); `InventoryItem` +5º estado `novo_sobra`+`is_surplus`/`found_*`/`resolution` (sobra fora do progresso/auto-flip); **AssetAttachment** (múltiplos anexos, dual-write em `Asset.photo_url`, `AttachmentsSection.jsx`); **AlertDispatchLog** (dedup de alertas, write só service-role).
+
+*Onda 2 (2026-07-09):*
+- **Item 9 — bens de terceiros + obras em andamento:** `Asset` +`ownership_type` (proprio/terceiros/locado/comodato), `real_owner_name/document`, `is_construction_in_progress`, `construction_completion_date`. `depreciation.js` ganhou `getAssetDepreciation(asset)` — **ponto único** de cálculo com guard de CIP (obra em andamento não deprecia); rewired em AssetDetail/Reports/Depreciation. `createAsset` sanitiza booleano+enum de titularidade.
+- **Item 13 — CMMS leve:** `MaintenanceRecord` +`technician_name`/`parts_used`/`checklist` (strings simples — evita array-de-objetos, risco não confirmado na plataforma). UI em `MaintenanceSection.jsx`.
+- **Item 6 — transferência com aceite (chain-of-custody):** entidade **AssetTransfer** (create bloqueado no SDK; **RLS de campo** em `status`/`decided_at`/`decision_notes`/`acceptance_token*` = só `is_platform_admin`/service-role). Functions `requestAssetTransfer`, `respondAssetTransfer` (sessão OU token público), `getPublicTransferInfo`. UI: `TransferSection.jsx` (AssetDetail), página `/Transfers`, página pública `/aceitar-transferencia?token=`. Perms `view_transfers`/`manage_transfers`.
+- **Item 3 — assinatura digital real (fluxo presencial):** `AssetAssignment` +`signature_file_url`/`signature_hash`/`signed_at`/`signed_by_ip`/`signed_by_name`/`signature_method` + `signed` — **todos com RLS de campo** = só service-role grava. Function `signAssignment` (upload PNG + SHA-256 + carimbo). Componente canvas `SignaturePad.jsx` (sem dep externa) no `AssignmentSection.jsx`; PDF embute assinatura + hash. **É assinatura eletrônica simples (captura+hash), NÃO ICP-Brasil** — comunicado na UI/PDF. **Follow-up pendente:** sub-fluxo de assinatura remota por link/e-mail (`requestAssignmentSignature`/`submitPublicSignature`/página `/assinar-termo`) foi adiado; só o presencial foi entregue.
+
+*Onda 3 (2026-07-09):*
+- **Item 4 — depreciação dupla fiscal×societária:** `Asset` +`fiscal_depreciation_rate`/`fiscal_useful_life_years`/`fiscal_residual_value`/`fiscal_depreciation_start_date` (colunas opcionais — **decisão: colunas em vez da entidade `AssetDepreciationBasis` do plano**, mais simples, 2 livros bastam pro BR). `getAssetDepreciation(asset, basis)` agora aceita `basis='societaria'|'fiscal'` (fiscal ausente = espelha societária). `Depreciation.jsx` ganhou abas Societária/Fiscal/**Diferença** (base temporária). Seção "Depreciação Fiscal (opcional)" no `AssetForm`; `createAsset` allowlist estendida.
+- **Item 5 — CIAP + PIS/COFINS (campos + relatório, SEM SPED binário):** entidades **CiapCredit** (write só **admin** — risco fiscal) + **CiapAppropriationLog** (write só service-role). Function `appropriateCiapCredits` (apropria 1/48 por mês, idempotente por competência, dry_run; roda manual por platform-admin — **cron mensal precisa ser criado no dashboard**, MCP não processa function.jsonc). Página `/CiapCredits` (CRUD + export CSV). Perms `view_fiscal_credits` (todos) / `manage_fiscal_credits` (admin). **⚠️ Defaults fiscais (1/48, alíquotas) são simplificação — revisar com contador antes de apuração real** (aviso na UI).
+- **Item 12 — exportação contábil parametrizável:** entidade **AccountMappingRule** (mapeia categoria/centro de custo → conta débito/crédito). Página `/AccountingExport` (client-side, como Reports): configura regras + gera CSV de lançamentos de depreciação por competência+livro para importar em qualquer ERP. Perms `view_accounting_export`/`manage_accounting_export`.
+
+*Onda 4 (2026-07-10):*
+- **Item 11 — multi-filial real:** entidade **Branch** (create bloqueado no SDK → function `createBranch` que exige **plano enterprise + admin**, fechando a promessa "Múltiplas filiais" do `plans.js`). `Asset.branch_id` (dimensão adicional ao `cost_center`, não substitui). Página `/Branches` (com upsell se não-Enterprise). Seletor de filial no `AssetForm` **só aparece se houver filiais** (zero mudança para quem não usa — **sem migração/backfill retroativo**, decisão de risco zero em produção). Perms `view_branches`/`manage_branches`.
+- **Item 1 — inventário com câmera + offline (parcial):** dependência `html5-qrcode` (instalada via `npm install` no sandbox — **funciona!**). Componente `CameraScanner.jsx` decodifica QR+código de barras pela câmera do navegador. Fila offline resiliente (`src/lib/offlineInventory.js`, localStorage) + function `syncInventoryScans` (flush em lote ao reconectar). `Inventory.jsx`: botão Câmera, banner offline/pendências, `markItem` otimista que enfileira quando offline/falha. **DEFERIDO: service worker / PWA instalável (app shell offline)** — parte mais arriscada (cache velho pode quebrar app em produção); só a resiliência de fila foi entregue, não o "abrir o app sem sinal".
+- **Item 15 — RFID (parcial/honesto):** `Asset.rfid_tag_id` + `InventoryItem.rfid_tag_id` (populado no snapshot) + casamento por RFID no `findByCode` do inventário. **Leitores RFID Bluetooth em modo HID/teclado já funcionam hoje** (digitam o EPC no campo de bipe). **DEFERIDO: integração Web Bluetooth GATT** — protocolo depende do modelo do leitor (spike de hardware), só Chrome/Android; não foi escrito às cegas.
+
+**Roadmap concluído (Ondas 1-4).** Follow-ups conscientes adiados: assinatura remota por e-mail (item 3), service worker/PWA offline instalável (item 1), Web Bluetooth GATT RFID (item 15), "API de integração" do plano Enterprise (2ª promessa do plans.js ainda sem implementação — decidir: construir API mínima ou remover a claim).
+
+**Padrão reutilizável estabelecido (Onda 2):** endpoints públicos com token single-use + validade (espelham `registerPublicScan`/`getPublicAssetInfo`); RLS de campo (`rls.update` dentro da propriedade, restrita a `is_platform_admin`) para proteger campos que só functions podem gravar — mesmo mecanismo do `User.role`. Rotas públicas: adicionar em TODOS os 3 lugares de `App.jsx` (early-return do AuthenticatedApp, const `PUBLIC_PATHS`, bloco do `App()`).
+
+Notas de RLS específicas:
+- `Asset.create` → **bloqueado no SDK** (só platform-admin); todo cadastro passa pela function `createAsset` (valida limite de plano + status de pagamento e carimba `workspace_id`) — **inclusive para o agente de IA**, que usa `createAsset` como function tool em vez de `Asset.create` (ver seção 6).
+- `AuditLog.create` → **bloqueado no SDK**; toda escrita pela function `logAudit` (carimba actor+workspace da sessão → trilha à prova de falsificação).
 - `Notification.create` → exige workspace **E** papel admin/manager.
-- `Workspace`/`PaymentRequest`/`User` → escrita só service-role/platform-admin. `Workspace` tem `stripe_customer_id`/`stripe_subscription_id` (gravados só por stripeCheckout/stripeWebhook).
+- `Workspace`/`PaymentRequest`/`User` → create/update/delete só service-role/platform-admin.
+- `Workspace` tem `stripe_customer_id` e `stripe_subscription_id` (gravados só por stripeCheckout/stripeWebhook).
 - `CreditUsage.create` → só service-role (via `logCreditConsumption`); `PricingConfig` → só platform-admin (via `creditReport`).
+- `AiBriefing.create/update/delete` → só service-role (via `generateDailyBriefings`); read tenant-scoped.
 
 ## 4. Backend functions (`base44/functions/*/entry.ts`)
 
-createWorkspace · acceptWorkspaceInvite · inviteMember (aplica limite de usuários do plano) · workspaceMembers (list/setRole/remove) · updateWorkspaceProfile · **createAsset** (lote ≤200; valida plano; único caminho de cadastro, inclusive via agente de IA; allowlist estende campos por categoria) · **logAudit** · notifyBilling (days server-side) · registerPublicScan (público; IP server-side; rate-limit 30s) · getPublicAssetInfo (público; projeção mínima) · **stripeCheckout** (preço server-side) · **stripeWebhook** (assinatura verificada; dunning; idempotente) · **stripePortal** · adminApi (platform-admin: workspaces/planos) · **logCreditConsumption** (registra consumo de créditos de IA do chat in-app) · **creditReport** (platform-admin: relatório de custo/margem de IA por workspace + edita rateio) · **dispatchExpiryAlerts** (1ª automation agendada do projeto: alerta garantia/revisão/IPVA/contrato vencendo → Notification+e-mail, dedup via AlertDispatchLog; platform-admin pode chamar manual com `{dry_run:true}`. **LIÇÃO:** sync MCP NÃO processa automações de function.jsonc — a automação diária 7h07 foi criada MANUALMENTE no dashboard, essa é a fonte de verdade; endpoint invocável sem auth, dedup bounded).
+| Função | Papel |
+|---|---|
+| `createWorkspace` | Cria workspace + define user como admin (bloqueia 2º workspace). |
+| `acceptWorkspaceInvite` | Auto-vincula usuário convidado (varre `member_emails`). |
+| `inviteMember` | Convida membro (admin/manager); **aplica limite de usuários do plano** (3/15/∞). |
+| `workspaceMembers` | list/setRole/remove membros (service-role; projeção segura, sem is_platform_admin). |
+| `updateWorkspaceProfile` | Edita só perfil da empresa (whitelist de campos; admin). |
+| `createAsset` | **Cadastro de ativos** (lote ≤200): valida plano (limite de ativos + `plan_status`) e carimba workspace. RLS bloqueia `Asset.create` no SDK para todo mundo (só platform-admin) — esta function é o **único** caminho de cadastro, inclusive para o agente de IA (ver seção 6). |
+| `logAudit` | Escreve `AuditLog` com actor/workspace da sessão. |
+| `notifyBilling` | E-mails de lembrete (trial/atraso); `days` calculado **server-side**; só envia se realmente aplicável. |
+| `registerPublicScan` | Endpoint público `/scan`: registra scan (IP server-side, GPS por consentimento); **rate-limit** 30s por IP+ativo. |
+| `getPublicAssetInfo` | Endpoint público: projeção mínima do ativo (id/nome/categoria/status/foto/plaqueta). |
+| `stripeCheckout` | Cria sessão de checkout (admin; plano/intervalo em whitelist; **preço vem de mapa server-side**). |
+| `stripeWebhook` | Público, **assinatura verificada**; ativa/renova/suspende/cancela plano; dunning (payment_failed/action_required → e-mail). Idempotente. |
+| `stripePortal` | Abre o portal do cliente Stripe (admin). |
+| `adminApi` | Platform-admin: listWorkspaces / updateWorkspacePlan (+ ações legadas de PaymentRequest, hoje sem uso). |
+| `logCreditConsumption` | Registra consumo de créditos de IA (mensagem/integração) do workspace da sessão; custo calculado por rateio do `PricingConfig`. Chamado fire-and-forget pelo `AssistantChat.jsx` a cada mensagem enviada **no chat in-app**. |
+| `creditReport` | Platform-admin: agrega `CreditUsage` por workspace (custo real × valor faturável × margem) e permite editar o rateio (`PricingConfig`). |
+| `requestAssetTransfer` / `respondAssetTransfer` / `getPublicTransferInfo` | Fluxo de transferência com aceite (item 6). Request cria a `AssetTransfer` (service-role) + token + e-mail; respond aceita por sessão do destinatário OU token público, aplica `Asset.location`/`cost_center` + `LocationHistory` + `AuditLog`; getPublicTransferInfo = projeção mínima por token para a página `/aceitar-transferencia`. |
+| `signAssignment` | Assinatura presencial do termo (item 3): recebe PNG base64, faz upload, SHA-256, carimba campos protegidos por RLS de campo. |
+| `appropriateCiapCredits` | Apropriação mensal do crédito CIAP (item 5, 1/48). Idempotente por competência; roda por platform-admin/cron; dry_run. **Cron mensal criar no dashboard.** |
+| `createBranch` | Cria filial (item 11): exige plano **enterprise** + admin. RLS bloqueia `Branch.create` no SDK. |
+| `syncInventoryScans` | Flush em lote da fila offline de conferências de inventário (item 1): admin/manager, workspace-scoped, até 500 scans. |
+| `generateDailyBriefings` | **Gera o mosaico diário de 6 supervisores de IA** (2026-07-10). Service-role, itera workspaces ativos/trial; para CADA workspace calcula os KPIs dos 6 domínios **na própria function** (toda query escopada `{workspace_id}`) e passa só o JSON já isolado ao LLM via `svc.integrations.Core.InvokeLLM` (persona de cada agente como system prompt) → grava/upsert `AiBriefing` por (workspace, domínio, dia). **Isolamento vem da function, não do agente** (por isso os 6 agentes têm `tool_configs: []` — não leem entidade). Lança 6 créditos/workspace em `CreditUsage` (mesmo pool, sem gate de plano). Guard: cron (sem user) roda tudo; usuário logado precisa ser platform-admin; aceita `{dry_run, only_workspace_id}`. **Cron diário precisa ser criado manualmente no dashboard** (MCP não processa function.jsonc — mesma lição do dispatchExpiryAlerts). |
+| `dispatchExpiryAlerts` | **1ª automation agendada do projeto.** Varre garantia/revisão/IPVA/contrato vencendo (marcos T-30/15/7/1), cria `Notification` + e-mail, dedup via `AlertDispatchLog`. Roda com service-role; cron não tem user, platform-admin pode chamar manual com `{dry_run:true}`. **LIÇÃO IMPORTANTE:** o sync do sandbox via MCP **NÃO processa automações de `function.jsonc`** (isso só acontece via `base44 functions deploy` pela CLI). A automação agendada (diária 7h07) foi **criada manualmente no dashboard** (Automações → Nova automação → Agendada → função `dispatchExpiryAlerts`) — essa é a fonte de verdade. Não recriar via `function.jsonc` (risco de duplicar). Endpoint é publicamente invocável sem auth (dedup bounded); blindar com segredo se necessário. |
 
-## 5. Stripe (LIVE — conta `acct_1TieigL04LdxLhj9`)
+## 5. Stripe (billing — LIVE, conta `acct_1TieigL04LdxLhj9` "AMZ Data Software Facilities")
 
-- **Preços:** Starter `prod_UpipD0wgrT1TM4` (mês `price_1Tq3NlL04LdxLhj992EfmEd6` R$97 / ano `price_1Tq3NxL04LdxLhj9BaDzwnTN` R$970); Professional `prod_Upip3emBd6KeAs` (mês `price_1Tq3NzL04LdxLhj9doQPyFcB` R$247 / ano `price_1Tq3OAL04LdxLhj9KJXiWcuW` R$2.470); Enterprise sob consulta.
-- **Webhook:** `patrimoniosstrip` → `.../functions/stripeWebhook`, 9 eventos. Legado `captivating-legacy` excluído.
-- **Secrets Base44:** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` (configurados).
-- Portal + e-mails nativos + Smart Retries (cancelar ao esgotar) ativados no dashboard.
-- **Mapa preço→plano** duplicado em stripeCheckout/stripeWebhook e `src/lib/plans.js` — atualizar nos 3 se mudar preços.
-- E2E validado 2026-07-06 (checkout R$0 com cupom, ativação automática, cancelamento). MCP Stripe **não** gerencia webhooks/portal/coupons-update — isso é feito no dashboard pelo usuário.
+- **Produtos/preços (live):**
+  - Starter: `prod_UpipD0wgrT1TM4` — mês `price_1Tq3NlL04LdxLhj992EfmEd6` (R$97), ano `price_1Tq3NxL04LdxLhj9BaDzwnTN` (R$970).
+  - Professional: `prod_Upip3emBd6KeAs` — mês `price_1Tq3NzL04LdxLhj9doQPyFcB` (R$247), ano `price_1Tq3OAL04LdxLhj9KJXiWcuW` (R$2.470).
+  - Enterprise: "sob consulta" (mailto, sem checkout).
+- **Webhook:** endpoint `patrimoniosstrip` → `https://patrimoni-asset-flow.base44.app/functions/stripeWebhook`, 9 eventos (checkout.session.completed, customer.subscription.created/updated/deleted, invoice.paid, invoice.payment_failed, invoice.payment_action_required). Webhook legado `captivating-legacy` foi excluído.
+- **Secrets no Base44 (nomes exatos):** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`. (Configurados e verificados.)
+- **Portal do cliente + e-mails nativos + Smart Retries (cancelar ao esgotar)** ativados no dashboard Stripe.
+- **Mapa preço→plano** duplicado em `stripeCheckout`/`stripeWebhook` — se mudar preços, atualizar lá e em `src/lib/plans.js`.
+- **E2E testado 2026-07-06:** checkout Professional c/ cupom 100% (R$0), webhook ativou plano sozinho, cancelamento via portal (cancel_at_period_end). Cupom de teste já excluído.
+- **Limitações do MCP Stripe:** não cria/edita webhooks nem portal/coupons-update, não lê webhook endpoints. Essas ações são feitas pelo usuário no dashboard.
 
 ## 6. Assistente de IA (agente Base44)
 
-- **1 agente único** (não uma pirâmide de 4 agentes): `base44/agents/assistente_patrimonial.jsonc`. As *instructions* implementam 3 papéis (Pesquisador → Redator → Revisor) executados **internamente pelo mesmo modelo em sequência** — desenho deliberado, já que a Base44 não suporta orquestração nativa agente→agente ("Agent2Agent Integration" está só no feedback board da plataforma, não implementado).
-- **Isolamento por tenant:** não há instância de agente por workspace — é um singleton de app. O isolamento vem de RLS (cada `tool_config` de entidade herda a RLS do usuário na conversa) + memória com escopo `"both"` (Global & Per User). `allow_anonymous_access: false`.
-- **Ferramentas:** leitura/escrita (nunca `delete`) nas entidades tenant-owned + leitura de `Workspace`/`AuditLog`/`CreditUsage`/`PricingConfig`. Cadastro de ativos usa a function tool `createAsset` (não `Asset.create`, bloqueado por RLS — ver seção 3).
-- **Disponibilidade:** sem gate de plano — disponível para todos os planos (decisão consciente do usuário).
-- **Canais:** chat in-app (`src/pages/AssistantChat.jsx`, rota `/Assistant`) + WhatsApp (`base44.agents.getWhatsAppConnectURL`), número próprio atribuído pela Base44, sem webhook/API key a configurar.
-- **Base de conhecimento:** `context_files` (10 `.md`) + `selected_workspace_skill_ids` (10 skills).
-- **Custo de IA (observabilidade interna da AMZ, não é limite por cliente):** `CreditUsage`/`PricingConfig` + `logCreditConsumption`/`creditReport` + `src/pages/AdminCredits.jsx` (`/AdminCredits`, só platform-admin) fazem o rateio do custo do plano Base44 da própria AMZ e projetam margem por workspace.
-  - **Gap conhecido:** só o chat in-app chama `logCreditConsumption` — mensagens via WhatsApp não são contabilizadas (sem hook documentado de "mensagem recebida no canal"). Margem reportada subestima o custo real conforme o uso via WhatsApp cresce.
+- **1 agente único** (não uma pirâmide de 4): `base44/agents/assistente_patrimonial.jsonc`. As *instructions* implementam os 3 papéis (Pesquisador → Redator → Revisor) executados **internamente pelo mesmo modelo em sequência** — desenho deliberado, já que a Base44 não suporta orquestração nativa agente→agente (confirmado: "Agent2Agent Integration" está só no feedback board da plataforma, não implementado).
+- **Isolamento por tenant:** não há instância de agente por workspace — é um singleton de app. O isolamento vem de RLS (cada `tool_config` de entidade herda a RLS do usuário que está na conversa) + memória com escopo `"both"` (Global & Per User). `allow_anonymous_access: false`.
+- **Ferramentas do agente:** leitura/escrita (nunca `delete`) nas 13 entidades tenant-owned + leitura de `Workspace`/`AuditLog`/`CreditUsage`/`PricingConfig`. Cadastro de ativos usa a function tool `createAsset` (não a operação de entidade `Asset.create`, que é bloqueada por RLS para todo mundo — ver seção 3).
+- **Disponibilidade:** sem gate de plano — disponível para todos os planos (Starter/Professional/Enterprise), decisão consciente do usuário.
+- **Canais:** chat in-app (`src/pages/AssistantChat.jsx`, rota `/Assistant`) com histórico de conversas (`"excluir"` = ocultar via `user.hidden_conversation_ids`) + WhatsApp (`base44.agents.getWhatsAppConnectURL`), número próprio atribuído pela Base44, sem webhook/API key a configurar.
+- **Base de conhecimento:** `context_files` (10 `.md`) + `selected_workspace_skill_ids` (10 skills) — consultados para perguntas sobre regras do sistema (planos, limites, depreciação).
+- **Custo de IA (observabilidade interna, não é limite por cliente):** `CreditUsage`/`PricingConfig` + functions `logCreditConsumption`/`creditReport` + página `src/pages/AdminCredits.jsx` (`/AdminCredits`, só platform-admin) fazem o rateio do custo do plano Base44 da própria AMZ e projetam margem por workspace.
+  - **Gap conhecido:** `logCreditConsumption` só é chamado pelo chat in-app (`AssistantChat.jsx`); mensagens via WhatsApp não são contabilizadas em `CreditUsage` (não há webhook/evento documentado de "mensagem recebida no canal" para instrumentar). O relatório de margem subestima o custo real conforme o uso via WhatsApp cresce. Reavaliar se a Base44 documentar esse hook no futuro.
+
+### 6.1 Supervisores de IA — "Diário do Patrimônio" (2026-07-10)
+
+- **6 agentes consultivos** (`base44/agents/supervisor_*.jsonc`: ativos, operacao_campo, manutencao_contratos, fiscal_contabil, cadastros, governanca), um por domínio de negócio (espelham os grupos do menu). Persona = "orquestrador + jornalista investigativo": recebem KPIs prontos e escrevem `headline` (manchete) + `summary` (parágrafo investigativo). `allow_anonymous_access: false`, `memory_config.enabled: false`.
+- **Decisão de isolamento (crítica):** os 6 têm **`tool_configs: []`** — não leem nenhuma entidade. Diferente do `assistente_patrimonial` (que herda a RLS do usuário na conversa), a geração roda num **cron sem usuário logado**; se os agentes lessem entidades sob service-role, veriam TODOS os workspaces. Por isso quem lê e isola os dados é a function `generateDailyBriefings` (escopo explícito por `workspace_id` a cada query), e o agente/LLM só recebe o JSON já isolado. Ver seção 4.
+- **Fase 1 = só o card diário** (mosaico read-only). Sem chat por agente. **Fase futura:** botão "Perguntar ao supervisor" reaproveitando `AssistantChat.jsx` — aí sim os agentes podem ganhar `tool_configs` de leitura, porque a conversa seria criada pelo usuário logado (RLS da sessão aplica, sem o risco do cron).
+- **Nota de implementação:** o texto é gerado por `svc.integrations.Core.InvokeLLM` (integração já comprovada em service-role neste projeto), **não** por `base44.agents.createConversation` dentro da function — criar conversa de agente sem sessão de usuário é caminho não verificado neste projeto e arriscado num job em lote. Os `.jsonc` de agente existem como recurso real (persona/contrato, prontos para a Fase 2 de chat).
 
 ## 7. Frontend
 
-- **Rotas públicas** (`PUBLIC_PATHS` em `src/App.jsx`): `/scan`, `/landing`, `/privacidade`, `/termos`. `/` → `/Dashboard`.
-- **Guard de rota por papel:** `src/lib/routePermissions.js` + `AppLayout` → "Acesso restrito" se o papel não permite (defesa-em-profundidade; dado protegido no servidor).
-- **Onboarding:** sem workspace → convite → senão `WorkspaceSetup` → `createWorkspace`.
-- **Paywall:** `PaymentGate.jsx` (UI). Escrita bloqueada no servidor; leitura de tenant suspenso ainda possível (N1 pendente).
-- **Rodapé:** `src/components/AppFooter.jsx` (dados em `src/lib/company.js`); variantes `sidebar`/`band`/`onDark`.
-- **Legais:** `/termos` e `/privacidade` com CNPJ real. **Rascunho — revisar com advogado.**
-- **Permissões:** `src/lib/permissions.js`. Máscara de CPF: `src/lib/mask.js` (CPF completo só no termo/PDF).
+- **Roteamento:** `src/App.jsx`. Rotas **públicas** (sem login, `PUBLIC_PATHS`): `/scan`, `/landing`, `/privacidade`, `/termos`. Demais rotas exigem auth; `/` redireciona para `/Dashboard`.
+- **Guard de rota por papel:** `src/lib/routePermissions.js` (mapa rota→permissão) + verificação no `AppLayout` → mostra "Acesso restrito" se o papel não permite. Defesa-em-profundidade (a proteção real dos dados é server-side).
+- **Onboarding:** sem workspace → tenta convite → senão `WorkspaceSetup` (pessoal/empresa) → `createWorkspace`.
+- **Paywall:** `PaymentGate.jsx` bloqueia a UI para `plan_status` suspenso/cancelado/trial vencido. (Escrita já bloqueada no servidor; **leitura** de tenant suspenso ainda é possível via SDK — ver N1 pendente.)
+- **Rodapé institucional:** componente `src/components/AppFooter.jsx` (dados em `src/lib/company.js`), 3 variantes: `sidebar` (no menu lateral, theme-aware), `band` (banda escura — páginas legais), `onDark` (transparente — Landing/Plans/PublicScan).
+- **Páginas legais:** `/termos` e `/privacidade` (públicas), CNPJ real preenchido. **Rascunho — revisar com advogado.**
+- **Permissões:** `src/lib/permissions.js` (matriz de papéis). Máscara de CPF em `src/lib/mask.js` (CPF completo só no termo/PDF).
+- **Navegação agrupada (2026-07-10):** `src/lib/navigationConfig.js` é a **fonte única** do menu (sidebar desktop colapsável, `MobileTabBar` + `MoreSheet` + swipe entre abas via `MobileNavContext`/`SwipeableTabArea`/`useHorizontalSwipe`, `TabletRail`). Item novo = objeto em `NAV_GROUPS[].items` + rota em `ROUTE_PERMISSIONS` + permissão em `permissions.js` + `<Route>` em `App.jsx` (guard DEV `validateNavConfig` avisa se faltar).
+- **Diário do Patrimônio (2026-07-10):** página `/AiBriefings` (`src/pages/AiBriefings.jsx` + `src/components/briefings/BriefingCard.jsx`), no grupo "Visão Geral" ao lado de Dashboard/Assistente IA. Mosaico de 6 cards (um por supervisor de IA), manchete + análise + 3 mini-KPIs + timestamp por card; carimbo da edição no canto superior. Lê `AiBriefing` via `useWorkspaceEntity` (RLS tenant-scoped), mostra o mais recente por domínio. Estado vazio calmo ("edição ainda não gerada"), nunca erro. Permissão `view_ai_briefing` (admin/manager/viewer). Ver seções 3, 4 e 6.1.
 
-## 8. Segurança (auditoria)
+## 8. Postura de segurança (auditoria)
 
-Ver `AUDIT_REPORT.md`. **Zero CRÍTICO.** Fechados: N2, N4, N5, N7, N9, N10, N11, N12, N14, N15.
-Aceitos/adiados: **N1** (bloquear leitura de tenant suspenso — inviável limpo; escrita já bloqueada), **N6** (retenção IP/GPS — usuário optou manter; órfãos em `workspace_id="__orphan_quarantine__"`), **N13** (CORS `*` — baixo valor em endpoints por token).
+Relatório completo: `AUDIT_REPORT.md` (2026-07-06). **Zero CRÍTICO.** Achados fechados: N2, N4, N5, N7, N9, N10, N11, N12, N14, N15.
+
+**Aceitos/adiados conscientemente:**
+- **N1** — bloquear *leitura* de tenant suspenso: inviável limpo no Base44 (RLS de Asset não lê `plan_status` do Workspace pai sem desnormalizar). Escrita já bloqueada; resíduo = ler os próprios dados (questão de receita, não vazamento).
+- **N6** — retenção de IP/GPS de scans: usuário optou por manter os dados. (3 `LocationHistory` órfãos em `workspace_id="__orphan_quarantine__"`, RLS-invisíveis; 4 `MaintenanceRecord` órfãos mantidos.)
+- **N13** — CORS `*`: baixo valor em endpoints autenticados por token.
 
 ## 9. Pendências / gates de lançamento
 
-1. 🚦 **Pentest de 2 contas** (gate final; testa isolamento cross-tenant + `updateMe`).
-2. 📄 **Publish no builder** — frontend só chega aos usuários após Publish (functions fazem deploy sozinhas).
-3. ✍️ Revisar páginas legais com advogado.
-4. (Opcional) `Membership`/`Invitation`; limpar ações legadas de PaymentRequest no `adminApi`; raiz deslogado→Landing.
+1. 🚦 **Pentest de 2 contas** — gate final; verifica empiricamente isolamento cross-tenant e o risco de `updateMe` (usuário vinha pulando). Roteiro: de uma conta B tentar ler/escrever recursos da conta A via `window.base44` no console; `updateMe({workspace_id/role/is_platform_admin})` não pode persistir (FLS aplicada).
+2. 📄 **Publish no builder da Base44** — as functions fazem deploy sozinhas, mas o **frontend** só chega aos usuários após Publish. Sempre lembrar após mudanças de UI.
+3. ✍️ Revisar páginas legais (Termos/Privacidade) com advogado.
+4. ⏰ **Criar a automation agendada de `generateDailyBriefings`** no dashboard Base44 (Automações → Nova → Agendada → diária, ex. de madrugada → função `generateDailyBriefings`). Sem isso, o "Diário do Patrimônio" fica no estado vazio (nenhum card é gerado). Testar antes com `{dry_run:true, only_workspace_id:"<id>"}` e depois validar o isolamento rodando contra 2 workspaces distintos (cada `AiBriefing` só pode conter números do próprio workspace).
+5. (Opcional) `Membership`/`Invitation` para multi-empresa por usuário; limpar ações legadas de PaymentRequest no `adminApi`; roteamento na raiz (deslogado→Landing).
 
-## 10. Notas operacionais (sandbox)
+## 10. Notas operacionais (Base44 sandbox)
 
-- `run_command` inicia em `/` — usar `cd /app && ...`.
-- `npm run build` não faz stream; **exit 0 + `dist/` novo = ok**. Buildar após mudanças.
-- **create_checkpoint** antes/depois de mudanças estruturais.
-- Sandbox não faz curl externo — checar endpoints públicos pelo Bash local.
-- Não há ferramenta MCP para invocar conversa de agente (`agents.createConversation`/`addMessage`) nem para chamar functions diretamente — testar o assistente (chat/WhatsApp) exige o app real.
-- `Workspace.jsonc` tem escapes `\uXXXX` literais — ancorar edições em ASCII.
-- `update_entities` em massa exige **autorização explícita do usuário**.
-- Plataforma teve 503/429 em 2026-07-06 (indisponibilidade deles); esperar/reconectar resolve.
-- Editar `base44/agents/*.jsonc` parece propagar imediatamente (mesma mecânica de `edit_file`), mas isso **não foi confirmado empiricamente contra uma conversa real** — verificar no app após qualquer mudança de agente.
+- `run_command` inicia em `/` (não `/app`); use `cd /app && ...` ou o parâmetro `cwd` relativo a `/app`.
+- `npm run build` não faz stream no stdout, mas **exit 0 + `dist/` novo = sucesso**. Sempre buildar após mudanças.
+- **Criar checkpoint antes/depois** de mudanças estruturais (`create_checkpoint`).
+- Sandbox **não faz curl a URLs externas** (permissão de conector) — para checar endpoints públicos do app, usar o Bash local.
+- Não há ferramenta MCP para invocar uma conversa de agente (`agents.createConversation`/`addMessage`) nem para chamar functions diretamente — testar o assistente de IA (chat/WhatsApp) ou functions agendadas exige o app real (browser), o botão de teste do dashboard, ou o usuário.
+- **`svc.integrations.Core.InvokeLLM({prompt, response_json_schema})`** existe no SDK (`@base44/sdk`) e retorna `string | object` — usado no `generateDailyBriefings` para gerar texto sob service-role sem depender de conversa de agente. `GenerateImage` também disponível. (Antes deste uso, só `SendEmail`/`UploadFile` eram usados em service-role.)
+- `Workspace.jsonc` tem escapes `\uXXXX` literais em alguns títulos — ancorar edições em blocos ASCII.
+- Modificação de dados em massa (`update_entities`) exige **autorização explícita do usuário** (o classificador de auto-mode bloqueia sem isso).
+- A plataforma Base44 teve indisponibilidade (503/429) em 2026-07-06; nesses casos, esperar e reconectar o conector resolve (não é problema de código).
+- Editar `base44/agents/*.jsonc` (tool_configs/instructions) parece propagar imediatamente ao sandbox (mesma mecânica de `edit_file` usada em entidades/functions), mas isso **não foi confirmado empiricamente contra uma conversa real** — verificar no app após qualquer mudança de agente.
 
-## 11. Skills e memória
-Skills: `audit-base44`, `base44-backend`, `base44-frontend`, `base44-multitenant`. Memória: `project_patrimonios_amz_refactor.md`. Cópia deste doc também em `C:\Users\mateu\Desktop\glpi\PROJECT_CONTEXT.md`.
+## 11. Skills relacionadas
+`audit-base44`, `base44-backend`, `base44-frontend`, `base44-multitenant` (em `~/.claude/skills/`). Memória do projeto: `project_patrimonios_amz_refactor.md`.
