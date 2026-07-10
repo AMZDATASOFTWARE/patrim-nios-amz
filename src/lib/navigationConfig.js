@@ -12,7 +12,7 @@ import {
   Wrench, FileSignature, TrendingDown, Percent, FileDown, FileText,
   Landmark, Building2, Truck, Users, UserCog, ArrowUpDown, History, Settings,
   CreditCard, ShieldCheck, Coins, Home, Boxes, Hammer, Calculator, FolderOpen,
-  SlidersHorizontal, Server,
+  SlidersHorizontal, Server, Newspaper,
 } from 'lucide-react';
 import { can, canManageBilling } from '@/lib/permissions';
 import { ROUTE_PERMISSIONS } from '@/lib/routePermissions';
@@ -44,6 +44,7 @@ export const NAV_GROUPS = [
     id: 'visao_geral', label: null, icon: Home, collapsible: false,
     items: [
       { id: 'dashboard', name: 'Dashboard', href: '/Dashboard', icon: LayoutDashboard, permission: 'view_dashboard', tabLabel: 'Início' },
+      { id: 'briefings', name: 'Diário do Patrimônio', href: '/AiBriefings', icon: Newspaper, permission: 'view_ai_briefing', tabLabel: 'Diário' },
       { id: 'assistant', name: 'Assistente IA', href: '/Assistant', icon: Sparkles, permission: 'view_dashboard' },
     ],
   },
