@@ -15,12 +15,14 @@ import {
 } from '@/lib/depreciation';
 import AssetStatusBadge from '@/components/assets/AssetStatusBadge';
 import AttachmentsSection from '@/components/assets/AttachmentsSection';
+import TransferSection from '@/components/assets/TransferSection';
 import MaintenanceSection from '@/components/assets/MaintenanceSection';
 import AssignmentSection from '@/components/assets/AssignmentSection';
 import LocationHistoryMini from '@/components/assets/LocationHistoryMini';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { useWorkspace } from '@/lib/WorkspaceContext';
 import { useAuth } from '@/lib/AuthContext';
+import { usePermissions } from '@/lib/permissions';
 import { logAudit } from '@/lib/audit';
 import moment from 'moment';
 
@@ -38,6 +40,7 @@ export default function AssetDetail() {
   const AuditEntity = useWorkspaceEntity('AuditLog');
   const { workspaceId } = useWorkspace();
   const { user } = useAuth();
+  const { can } = usePermissions(user);
 
   useEffect(() => {
     const load = async () => {
@@ -328,6 +331,9 @@ export default function AssetDetail() {
 
       {/* Location History + Map */}
       <LocationHistoryMini assetId={asset.id} />
+
+      {/* Transferências com aceite do destinatário */}
+      <TransferSection assetId={asset.id} assetName={asset.name} canManage={can('manage_transfers')} />
 
       {/* Assignment / Responsibility Terms */}
       <AssignmentSection assetId={asset.id} assetName={asset.name} />
