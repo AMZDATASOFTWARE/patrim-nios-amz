@@ -44,6 +44,7 @@ const PERMISSIONS = {
     'view_transfers', 'manage_transfers',
     'view_maintenance', 'manage_maintenance',
     'view_contracts', 'manage_contracts',
+    'view_fiscal_credits', 'manage_fiscal_credits',
     'view_audit',
     'view_settings', 'manage_settings',
     'view_billing', 'manage_billing',
@@ -60,6 +61,7 @@ const PERMISSIONS = {
     'view_transfers', 'manage_transfers',
     'view_maintenance', 'manage_maintenance',
     'view_contracts', 'manage_contracts',
+    'view_fiscal_credits',
     'view_settings',
     'view_company',
   ],
@@ -73,6 +75,7 @@ const PERMISSIONS = {
     'view_transfers',
     'view_maintenance',
     'view_contracts',
+    'view_fiscal_credits',
   ],
   user: [
     'view_assets', 'view_assignments', 'view_map', 'view_transfers',
