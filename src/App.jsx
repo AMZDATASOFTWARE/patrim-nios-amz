@@ -42,6 +42,7 @@ import Transfers from '@/pages/Transfers';
 import AcceptTransfer from '@/pages/AcceptTransfer';
 import CiapCredits from '@/pages/CiapCredits';
 import AccountingExport from '@/pages/AccountingExport';
+import Branches from '@/pages/Branches';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -130,6 +131,7 @@ const WorkspaceRoutes = () => {
           <Route path="/UsersManagement" element={<UsersManagement />} />
           <Route path="/Settings" element={<Settings />} />
           <Route path="/CompanyProfile" element={<CompanyProfile />} />
+          <Route path="/Branches" element={<Branches />} />
           <Route path="/ImportExport" element={<ImportExport />} />
           <Route path="/Billing" element={<Billing />} />
           <Route path="/SuperAdmin" element={<SuperAdmin />} />
