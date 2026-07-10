@@ -40,6 +40,7 @@ import AssistantChat from '@/pages/AssistantChat';
 import AdminCredits from '@/pages/AdminCredits';
 import Transfers from '@/pages/Transfers';
 import AcceptTransfer from '@/pages/AcceptTransfer';
+import CiapCredits from '@/pages/CiapCredits';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -113,6 +114,7 @@ const WorkspaceRoutes = () => {
           <Route path="/Transfers" element={<Transfers />} />
           <Route path="/Maintenance" element={<Maintenance />} />
           <Route path="/Contracts" element={<Contracts />} />
+          <Route path="/CiapCredits" element={<CiapCredits />} />
           <Route path="/AssetForm" element={<AssetForm />} />
           <Route path="/AssetDetail" element={<AssetDetail />} />
           <Route path="/Depreciation" element={<Depreciation />} />
