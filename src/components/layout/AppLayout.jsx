@@ -4,6 +4,7 @@ import { Outlet, useLocation, Link } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
 import Sidebar from './Sidebar';
 import MobileTabBar from './MobileTabBar';
+import TabletRail from './TabletRail';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
 import FluidBackground from '@/components/landing/FluidBackground';
@@ -33,6 +34,7 @@ function AccessDenied() {
 function AppLayoutInner() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [scrollToGroupId, setScrollToGroupId] = useState(null);
   const { pathname } = useLocation();
   const { user } = useAuth();
   const { workspace } = useWorkspace();
@@ -75,10 +77,19 @@ function AppLayoutInner() {
         onToggle={() => setCollapsed(!collapsed)}
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
+        scrollToGroupId={scrollToGroupId}
+      />
+
+      {/* 768-1023 landscape only (plain CSS media query, see index.css) */}
+      <TabletRail
+        onGroupTap={(groupId) => {
+          setScrollToGroupId(groupId);
+          setMobileOpen(true);
+        }}
       />
 
       <main
-        className={`transition-all duration-300 min-h-screen relative ${
+        className={`tablet-rail-offset transition-all duration-300 min-h-screen relative ${
           collapsed ? 'lg:pl-16' : 'lg:pl-64'
         } ${isDark ? 'z-10' : ''}`}
       >
