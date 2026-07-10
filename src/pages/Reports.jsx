@@ -406,3 +406,31 @@ function ReportsView({
     </div>
   );
 }
+
+const AUDIT_COLORS = {
+  amber: 'bg-amber-50 text-amber-600',
+  slate: 'bg-slate-100 text-slate-600',
+  blue: 'bg-blue-50 text-blue-600',
+};
+
+function AuditReportCard({ icon: Icon, color, title, description, count, onExport }) {
+  return (
+    <div className="bg-card rounded-xl border border-border p-5 shadow-sm flex flex-col">
+      <div className="flex items-start gap-3">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-lg shrink-0 ${AUDIT_COLORS[color] || AUDIT_COLORS.slate}`}>
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0">
+          <h3 className="font-semibold text-card-foreground text-sm leading-tight">{title}</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">{description}</p>
+        </div>
+      </div>
+      <div className="flex items-end justify-between mt-4">
+        <p className="text-3xl font-bold text-card-foreground">{count}</p>
+        <Button variant="outline" size="sm" className="gap-2" disabled={count === 0} onClick={onExport}>
+          <Download className="h-4 w-4" /> CSV
+        </Button>
+      </div>
+    </div>
+  );
+}
