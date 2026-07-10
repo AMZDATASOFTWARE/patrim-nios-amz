@@ -1,0 +1,21 @@
+{
+  // Primeira automation agendada do projeto. A funcao varre garantias, revisoes,
+  // IPVA e contratos vencendo e dispara Notification + e-mail (dedup via
+  // AlertDispatchLog). Roda diariamente as 07:07 UTC.
+  //
+  // ATENCAO: este app nunca usou automations antes. Se o formato abaixo nao for
+  // aceito no deploy, confira a sintaxe exata no dashboard da Base44
+  // (Automations) ou via `npx base44 functions list` e ajuste. A funcao em si
+  // funciona quando invocada manualmente (platform-admin), independente do cron.
+  "name": "dispatchExpiryAlerts",
+  "automations": [
+    {
+      "type": "scheduled",
+      "name": "daily_expiry_alerts",
+      "schedule_mode": "recurring",
+      "schedule_type": "cron",
+      "cron_expression": "7 7 * * *",
+      "is_active": true
+    }
+  ]
+}
