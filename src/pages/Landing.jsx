@@ -5,13 +5,16 @@ import { SoundProvider, useSound } from '@/lib/SoundContext';
 import { PLANS } from '@/lib/plans';
 import {
   Building2, Check, ArrowRight, Package, TrendingDown, QrCode,
-  Map, FileText, Users, Shield, Clock, Zap, Smartphone, BarChart3, Star
+  Map, FileText, Users, Shield, Clock, Zap, Smartphone, Star
 } from 'lucide-react';
 import AppFooter from '@/components/AppFooter';
 import FluidBackground from '@/components/landing/FluidBackground';
 import SectionTag from '@/components/landing/SectionTag';
 import FeatureCard from '@/components/landing/FeatureCard';
 import PlanCard from '@/components/landing/PlanCard';
+import AssetScanSVG from '@/components/landing/svg/AssetScanSVG';
+import AiChatSVG from '@/components/landing/svg/AiChatSVG';
+import FinanceFlowSVG from '@/components/landing/svg/FinanceFlowSVG';
 
 const features = [
   { icon: Package, title: 'Cadastro Completo de Ativos', desc: 'Registre todos os bens da empresa com fotos, documentos, localização e histórico.' },
@@ -115,6 +118,7 @@ function LandingInner() {
           <p style={{ fontSize: 14, color: 'hsl(200 30% 96% / 0.4)', marginTop: 20 }}>
             ✓ Cartão opcional &nbsp; ✓ Cancele quando quiser &nbsp; ✓ Suporte incluso
           </p>
+          <AssetScanSVG />
         </div>
       </section>
 
@@ -171,7 +175,7 @@ function LandingInner() {
                 boxShadow: 'var(--landing-glow)',
               }}
             >
-              <BarChart3 style={{ width: 56, height: 56, margin: '0 auto 16px', color: 'var(--landing-cyan)', opacity: 0.8 }} />
+              <AiChatSVG />
               <p style={{ ...display, fontWeight: 700, fontSize: 20, margin: '0 0 8px', color: 'var(--landing-steam)' }}>Dashboard em tempo real</p>
               <p style={{ fontSize: 14, color: dim, margin: 0 }}>Visualize o valor contábil de todo o seu patrimônio atualizado automaticamente.</p>
             </div>
@@ -213,6 +217,8 @@ function LandingInner() {
             <h2 style={{ ...display, fontSize: 36, fontWeight: 700, margin: '0 0 12px', color: 'var(--landing-steam)' }}>Planos simples e transparentes</h2>
             <p style={{ fontSize: 18, color: dim, margin: 0 }}>Comece grátis por 14 dias. Sem surpresas na fatura.</p>
           </div>
+
+          <FinanceFlowSVG />
 
           {/* Annual toggle */}
           <div className="flex items-center justify-center gap-3 mb-14">
