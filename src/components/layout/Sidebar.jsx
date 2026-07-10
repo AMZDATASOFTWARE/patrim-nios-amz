@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   Sparkles,
   Coins,
+  FileDown,
 } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { usePermissions, canManageBilling } from '@/lib/permissions';
@@ -44,6 +45,7 @@ const navigation = [
   { name: 'Depreciação',    href: '/Depreciation',     icon: TrendingDown,    requiredPermission: 'view_depreciation' },
   { name: 'Créditos CIAP',   href: '/CiapCredits',      icon: Landmark,        requiredPermission: 'view_fiscal_credits' },
   { name: 'Relatórios',     href: '/Reports',          icon: FileText,        requiredPermission: 'view_reports' },
+  { name: 'Export. Contábil', href: '/AccountingExport', icon: FileDown,        requiredPermission: 'view_accounting_export' },
   { name: 'Fornecedores',   href: '/Suppliers',        icon: Truck,           requiredPermission: 'view_suppliers' },
   { name: 'Colaboradores',  href: '/Collaborators',    icon: Users,           requiredPermission: 'view_users' },
   { name: 'Empresa',        href: '/CompanyProfile',   icon: Landmark,        requiredPermission: 'view_company' },
