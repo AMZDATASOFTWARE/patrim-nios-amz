@@ -1,0 +1,65 @@
+{
+  "name": "CiapAppropriationLog",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "ciap_credit_id": {
+      "type": "string",
+      "title": "ID do credito CIAP"
+    },
+    "asset_id": {
+      "type": "string",
+      "title": "ID do Ativo"
+    },
+    "asset_name": {
+      "type": "string",
+      "title": "Ativo"
+    },
+    "competence_month": {
+      "type": "string",
+      "title": "Competencia (AAAA-MM)"
+    },
+    "credit_value": {
+      "type": "number",
+      "title": "Valor apropriado (R$)"
+    },
+    "installment_number": {
+      "type": "number",
+      "title": "Numero da parcela"
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Registrado em"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "ciap_credit_id",
+    "competence_month"
+  ],
+  "rls": {
+    "//": "Trilha mensal de apropriacao CIAP. Somente leitura por tenant; escrita exclusiva do service-role (appropriateCiapCredits) \u2014 mesmo padrao de AuditLog/AlertDispatchLog.",
+    "create": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    }
+  }
+}
