@@ -4,8 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { FileText, Download, Table, AlertTriangle, ImageOff, Clock } from 'lucide-react';
 import {
-  formatCurrency, calculateCurrentValue, calculateAccumulatedDepreciation,
-  calculateMonthlyDepreciation, calculateDepreciationPercentage, getUsefulLifeFromRate
+  formatCurrency, calculateDepreciationPercentage, getUsefulLifeFromRate, getAssetDepreciation
 } from '@/lib/depreciation';
 import moment from 'moment';
 import jsPDF from 'jspdf';
@@ -58,7 +57,7 @@ export default function Reports() {
 
   const getRows = () => {
     return filteredAssets.map((asset) => {
-      const usefulLife = asset.useful_life_years || getUsefulLifeFromRate(asset.depreciation_rate);
+      const dep = getAssetDepreciation(asset);
       return {
         name: asset.name,
         category: asset.category,
@@ -66,9 +65,9 @@ export default function Reports() {
         status: asset.status || 'Ativo',
         purchaseDate: moment(asset.purchase_date).format('DD/MM/YYYY'),
         acquisitionValue: asset.acquisition_value,
-        accumulated: calculateAccumulatedDepreciation(asset.purchase_date, asset.acquisition_value, asset.residual_value || 0, usefulLife),
-        currentValue: calculateCurrentValue(asset.purchase_date, asset.acquisition_value, asset.residual_value || 0, usefulLife),
-        monthly: calculateMonthlyDepreciation(asset.acquisition_value, asset.residual_value || 0, usefulLife),
+        accumulated: dep.accumulated,
+        currentValue: dep.currentValue,
+        monthly: dep.monthly,
         depRate: asset.depreciation_rate,
       };
     });
