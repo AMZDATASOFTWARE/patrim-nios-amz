@@ -257,9 +257,27 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
   const [search, setSearch] = useState('');
   const [scanCode, setScanCode] = useState('');
   const [filter, setFilter] = useState('todos');
+  const [cameraOpen, setCameraOpen] = useState(false);
+  const [pending, setPending] = useState(0);
+  const [syncing, setSyncing] = useState(false);
+  const [isOnline, setIsOnline] = useState(typeof navigator === 'undefined' ? true : navigator.onLine);
 
   useEffect(() => {
     load();
+    setPending(loadQueue(inventoryId).length);
+  }, [inventoryId]);
+
+  // Sincroniza a fila offline quando a conexão volta.
+  useEffect(() => {
+    const goOnline = () => { setIsOnline(true); flushQueue(); };
+    const goOffline = () => setIsOnline(false);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inventoryId]);
 
   const load = async () => {
@@ -285,17 +303,40 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
   const done = total - stats.pendente;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
 
-  const markItem = async (item, status, extra = {}) => {
+  const flushQueue = async () => {
+    const queue = loadQueue(inventoryId);
+    if (queue.length === 0) return;
+    setSyncing(true);
     try {
-      await ItemEntity.update(item.id, {
-        status,
-        counted_by: userEmail || '',
-        counted_at: new Date().toISOString(),
-        ...extra,
-      });
-      setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status, ...extra } : i)));
+      const res = await base44.functions.invoke('syncInventoryScans', { inventory_id: inventoryId, scans: queue });
+      if (res?.data?.ok) {
+        clearQueue(inventoryId);
+        setPending(0);
+        toast.success(`${res.data.applied} conferência(s) sincronizada(s).`);
+      }
+    } catch (_) {
+      // Mantém a fila para tentar de novo depois.
+    }
+    setSyncing(false);
+  };
+
+  const markItem = async (item, status, extra = {}) => {
+    const countedAt = new Date().toISOString();
+    // Atualiza a UI imediatamente (otimista).
+    setItems((prev) => prev.map((i) => (i.id === item.id ? { ...i, status, counted_at: countedAt, ...extra } : i)));
+    const payload = { status, counted_by: userEmail || '', counted_at: countedAt, ...extra };
+
+    if (!navigator.onLine) {
+      const n = enqueueScan(inventoryId, { item_id: item.id, ...payload });
+      setPending(n);
+      return;
+    }
+    try {
+      await ItemEntity.update(item.id, payload);
     } catch (e) {
-      toast.error(e?.message || 'Não foi possível atualizar o item.');
+      // Falhou online (conexão instável): enfileira para reenviar depois.
+      const n = enqueueScan(inventoryId, { item_id: item.id, ...payload });
+      setPending(n);
     }
   };
 
