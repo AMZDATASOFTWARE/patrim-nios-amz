@@ -81,7 +81,85 @@
     },
     "signed": {
       "type": "boolean",
-      "title": "Termo Assinado"
+      "title": "Termo Assinado",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "is_platform_admin": true
+          }
+        }
+      }
+    },
+    "signature_file_url": {
+      "type": "string",
+      "title": "Arquivo da assinatura",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "is_platform_admin": true
+          }
+        }
+      }
+    },
+    "signature_hash": {
+      "type": "string",
+      "title": "Hash de integridade",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "is_platform_admin": true
+          }
+        }
+      }
+    },
+    "signed_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Assinado em",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "is_platform_admin": true
+          }
+        }
+      }
+    },
+    "signed_by_ip": {
+      "type": "string",
+      "title": "IP da assinatura",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "is_platform_admin": true
+          }
+        }
+      }
+    },
+    "signed_by_name": {
+      "type": "string",
+      "title": "Assinado por (nome)",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "is_platform_admin": true
+          }
+        }
+      }
+    },
+    "signature_method": {
+      "type": "string",
+      "title": "Metodo de assinatura",
+      "enum": [
+        "desenho",
+        "link_email"
+      ],
+      "rls": {
+        "update": {
+          "user_condition": {
+            "is_platform_admin": true
+          }
+        }
+      }
     }
   },
   "required": [
@@ -97,30 +175,68 @@
     "//": "Tenant + papel: admin/manager gerenciam termos de responsabilidade; viewer/user somente leitura.",
     "create": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "$or": [
-          { "user_condition": { "role": "admin" } },
-          { "user_condition": { "role": "manager" } }
-        ] }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
       ]
     },
-    "read": { "data.workspace_id": "{{user.data.workspace_id}}" },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
     "update": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "$or": [
-          { "user_condition": { "role": "admin" } },
-          { "user_condition": { "role": "manager" } }
-        ] }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
       ]
     },
     "delete": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "$or": [
-          { "user_condition": { "role": "admin" } },
-          { "user_condition": { "role": "manager" } }
-        ] }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
       ]
     }
   }
