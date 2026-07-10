@@ -103,3 +103,32 @@ export function getUsefulLifeFromRate(rate) {
   if (!rate || rate <= 0) return 0;
   return 100 / rate;
 }
+
+/**
+ * Um bem em obra/imobilização em andamento (CIP) NÃO deprecia enquanto não
+ * concluído — seu valor contábil permanece igual ao valor de aquisição.
+ */
+export function isDepreciable(asset) {
+  return !asset?.is_construction_in_progress;
+}
+
+/**
+ * Ponto único de cálculo de depreciação por ativo, com o guard de obra em
+ * andamento (item 9). Centraliza o que antes era chamado campo a campo em várias
+ * telas. Retorna sempre o mesmo shape, com CIP => depreciação zero.
+ */
+export function getAssetDepreciation(asset) {
+  const acquisition = asset?.acquisition_value || 0;
+  const residual = asset?.residual_value || 0;
+  const usefulLife = asset?.useful_life_years || getUsefulLifeFromRate(asset?.depreciation_rate);
+
+  if (!isDepreciable(asset)) {
+    return { acquisition, accumulated: 0, currentValue: acquisition, monthly: 0, depPct: 0, cip: true };
+  }
+
+  const accumulated = calculateAccumulatedDepreciation(asset?.purchase_date, acquisition, residual, usefulLife);
+  const currentValue = acquisition - accumulated;
+  const monthly = calculateMonthlyDepreciation(acquisition, residual, usefulLife);
+  const depPct = calculateDepreciationPercentage(asset?.purchase_date, acquisition, residual, usefulLife);
+  return { acquisition, accumulated, currentValue, monthly, depPct, cip: false };
+}
