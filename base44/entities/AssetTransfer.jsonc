@@ -1,0 +1,172 @@
+{
+  "name": "AssetTransfer",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "asset_id": {
+      "type": "string",
+      "title": "ID do Ativo"
+    },
+    "asset_name": {
+      "type": "string",
+      "title": "Ativo"
+    },
+    "from_location": {
+      "type": "string",
+      "title": "Origem (localizacao)"
+    },
+    "to_location": {
+      "type": "string",
+      "title": "Destino (localizacao)"
+    },
+    "from_cost_center": {
+      "type": "string",
+      "title": "Origem (centro de custo)"
+    },
+    "to_cost_center": {
+      "type": "string",
+      "title": "Destino (centro de custo)"
+    },
+    "requested_by_email": {
+      "type": "string",
+      "title": "Solicitante (e-mail)"
+    },
+    "requested_by_name": {
+      "type": "string",
+      "title": "Solicitante (nome)"
+    },
+    "requested_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Solicitado em"
+    },
+    "recipient_email": {
+      "type": "string",
+      "title": "Destinatario (e-mail)"
+    },
+    "recipient_name": {
+      "type": "string",
+      "title": "Destinatario (nome)"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Motivo"
+    },
+    "status": {
+      "type": "string",
+      "title": "Situacao",
+      "enum": [
+        "pendente",
+        "aceito",
+        "recusado",
+        "cancelado"
+      ],
+      "default": "pendente",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "is_platform_admin": true
+          }
+        }
+      }
+    },
+    "decided_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Decidido em",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "is_platform_admin": true
+          }
+        }
+      }
+    },
+    "decision_notes": {
+      "type": "string",
+      "title": "Observacoes da decisao",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "is_platform_admin": true
+          }
+        }
+      }
+    },
+    "acceptance_token": {
+      "type": "string",
+      "title": "Token de aceite",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "is_platform_admin": true
+          }
+        }
+      }
+    },
+    "acceptance_token_expires_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Validade do token",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "is_platform_admin": true
+          }
+        }
+      }
+    }
+  },
+  "required": [
+    "workspace_id",
+    "asset_id",
+    "status"
+  ],
+  "rls": {
+    "//": "Tenant + papel: admin/manager criam/leem transferencias; viewer/user somente leitura. status/decided_at/decision_notes/acceptance_token* tem RLS de CAMPO restrita a is_platform_admin \u2014 so as functions (service-role) gravam a decisao, o solicitante nao pode marcar 'aceito' sozinho. create bloqueado no SDK (passa por requestAssetTransfer).",
+    "create": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "delete": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
