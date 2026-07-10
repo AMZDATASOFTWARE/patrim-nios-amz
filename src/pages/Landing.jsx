@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
-import { SoundProvider, useSound } from '@/lib/SoundContext';
+import { SoundProvider } from '@/lib/SoundContext';
 import { PLANS } from '@/lib/plans';
 import {
   Building2, Check, ArrowRight, Package, TrendingDown, QrCode,
@@ -51,11 +51,10 @@ export default function Landing() {
 
 function LandingInner() {
   const [annual, setAnnual] = useState(false);
-  const { playBubble } = useSound();
 
   return (
     <div style={{ position: 'relative', minHeight: '100vh', background: 'var(--landing-bg)', overflow: 'hidden' }}>
-      <FluidBackground density={60} onInteract={playBubble} style={{ position: 'fixed', inset: 0 }} />
+      <FluidBackground density={60} style={{ position: 'fixed', inset: 0 }} />
 
       {/* Nav */}
       <nav
@@ -290,7 +289,7 @@ function LandingInner() {
 
       {/* CTA */}
       <section style={{ position: 'relative', overflow: 'hidden', padding: '80px 0', borderTop: '1px solid var(--landing-line)', textAlign: 'center' }}>
-        <FluidBackground density={40} onInteract={playBubble} style={{ position: 'absolute', inset: 0 }} />
+        <FluidBackground density={40} style={{ position: 'absolute', inset: 0 }} />
         <div className="max-w-2xl mx-auto px-4" style={{ position: 'relative' }}>
           <h2 style={{ ...display, fontSize: 40, fontWeight: 700, margin: '0 0 16px', color: 'var(--landing-steam)' }}>Pronto para organizar o patrimônio da sua empresa?</h2>
           <p style={{ fontSize: 18, color: dim, margin: '0 0 32px' }}>Comece gratuitamente hoje. Configure em minutos, cartão de crédito opcional.</p>
