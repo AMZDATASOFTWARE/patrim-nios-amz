@@ -5,6 +5,8 @@ import { ShieldAlert } from 'lucide-react';
 import Sidebar from './Sidebar';
 import MobileTabBar from './MobileTabBar';
 import TabletRail from './TabletRail';
+import SwipeableTabArea from './SwipeableTabArea';
+import { MobileNavProvider } from '@/contexts/MobileNavContext';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
 import FluidBackground from '@/components/landing/FluidBackground';
@@ -56,6 +58,7 @@ function AppLayoutInner() {
       (requiresPlatformAdmin && !user?.is_platform_admin));
 
   return (
+    <MobileNavProvider>
     <div className="min-h-screen bg-background">
       {/* Background animado interativo (apenas no tema noturno) */}
       {isDark && (
@@ -117,12 +120,15 @@ function AppLayoutInner() {
         {/* Extra bottom padding on <768 clears the fixed MobileTabBar (56px + safe area);
             md+ reverts to the normal p-6/p-8 rhythm since the tab bar is hidden there. */}
         <div className="p-4 sm:p-6 lg:p-8 pb-[calc(1rem+56px+env(safe-area-inset-bottom))] md:pb-6 lg:pb-8">
-          {denied ? <AccessDenied /> : <Outlet />}
+          <SwipeableTabArea>
+            {denied ? <AccessDenied /> : <Outlet />}
+          </SwipeableTabArea>
         </div>
       </main>
 
       <MobileTabBar />
     </div>
+    </MobileNavProvider>
   );
 }
 
