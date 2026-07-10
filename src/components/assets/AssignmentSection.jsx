@@ -7,10 +7,30 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, UserCheck, FileText, ChevronDown, ChevronUp, CheckCircle, Search } from 'lucide-react';
+import { Plus, UserCheck, FileText, ChevronDown, ChevronUp, CheckCircle, Search, PenTool, BadgeCheck } from 'lucide-react';
 import moment from 'moment';
 import jsPDF from 'jspdf';
 import { maskCpf } from '@/lib/mask';
+import { base44 } from '@/api/base44Client';
+import SignaturePad from '@/components/assets/SignaturePad';
+import { toast } from 'sonner';
+
+// Carrega uma imagem remota como dataURL (via canvas) para embutir no PDF.
+// Retorna null se o carregamento falhar (ex.: CORS) — o PDF cai no fallback textual.
+async function urlToDataUrl(url) {
+  try {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    await new Promise((resolve, reject) => { img.onload = resolve; img.onerror = reject; img.src = url; });
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth || 500;
+    c.height = img.naturalHeight || 200;
+    c.getContext('2d').drawImage(img, 0, 0);
+    return c.toDataURL('image/png');
+  } catch {
+    return null;
+  }
+}
 
 const EMPTY = { collaborator_name: '', collaborator_email: '', collaborator_cpf: '', collaborator_department: '', collaborator_phone: '', assignment_date: new Date().toISOString().split('T')[0], expected_return_date: '', purpose: '', condition_on_assignment: 'Bom estado', supervisor_name: '', notes: '', status: 'Ativo', signed: false };
 
@@ -69,6 +89,27 @@ export default function AssignmentSection({ assetId, assetName }) {
     load();
   };
 
+  const [signingId, setSigningId] = useState(null);
+  const [savingSignature, setSavingSignature] = useState(false);
+
+  const handleSign = async (rec, dataUrl) => {
+    setSavingSignature(true);
+    try {
+      const res = await base44.functions.invoke('signAssignment', {
+        assignment_id: rec.id,
+        signature_png_base64: dataUrl,
+        signed_by_name: rec.collaborator_name,
+      });
+      if (!res?.data?.ok) throw new Error(res?.data?.error || 'Falha ao registrar assinatura.');
+      toast.success('Termo assinado.');
+      setSigningId(null);
+      load();
+    } catch (e) {
+      toast.error(e?.response?.data?.error || e?.message || 'Não foi possível registrar a assinatura.');
+    }
+    setSavingSignature(false);
+  };
+
   const generatePDF = (rec) => {
     const doc = new jsPDF();
     doc.setFontSize(18);
@@ -101,6 +142,13 @@ export default function AssignmentSection({ assetId, assetName }) {
     const lines = doc.splitTextToSize(termo, 182);
     doc.text(lines, 14, 154);
     let y = 154 + lines.length * 5 + 20;
+    // Se assinado digitalmente, embute a imagem da assinatura sobre a linha do responsável.
+    if (rec.signed && rec.signature_file_url) {
+      const dataUrl = await urlToDataUrl(rec.signature_file_url);
+      if (dataUrl) {
+        try { doc.addImage(dataUrl, 'PNG', 14, y - 18, 60, 20); } catch (_) { /* fallback textual abaixo */ }
+      }
+    }
     doc.line(14, y, 95, y);
     doc.line(110, y, 196, y);
     doc.setFontSize(8);
@@ -108,6 +156,13 @@ export default function AssignmentSection({ assetId, assetName }) {
     doc.text('Assinatura do Supervisor', 110, y + 5);
     doc.text(rec.collaborator_name, 14, y + 10);
     doc.text(rec.supervisor_name || '_______________', 110, y + 10);
+    if (rec.signed && rec.signed_at) {
+      doc.setFontSize(7);
+      doc.setTextColor(120);
+      doc.text(`Assinado digitalmente em ${moment(rec.signed_at).format('DD/MM/YYYY HH:mm')}${rec.signature_hash ? ` — hash: ${rec.signature_hash.substring(0, 32)}...` : ''}`, 14, y + 18);
+      doc.text('Assinatura eletronica simples (captura + hash de integridade) — nao substitui assinatura ICP-Brasil.', 14, y + 22);
+      doc.setTextColor(0);
+    }
     doc.save(`termo-${rec.collaborator_name.replace(/ /g, '_')}-${rec.asset_name.replace(/ /g, '_')}.pdf`);
   };
 
