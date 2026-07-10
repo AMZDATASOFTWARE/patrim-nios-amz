@@ -11,8 +11,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger
 } from '@/components/ui/alert-dialog';
 import {
-  formatCurrency, calculateCurrentValue, calculateAccumulatedDepreciation,
-  calculateMonthlyDepreciation, calculateDepreciationPercentage, getUsefulLifeFromRate
+  formatCurrency, getUsefulLifeFromRate, getAssetDepreciation
 } from '@/lib/depreciation';
 import AssetStatusBadge from '@/components/assets/AssetStatusBadge';
 import AttachmentsSection from '@/components/assets/AttachmentsSection';
@@ -97,10 +96,7 @@ export default function AssetDetail() {
   }
 
   const usefulLife = asset.useful_life_years || getUsefulLifeFromRate(asset.depreciation_rate);
-  const currentValue = calculateCurrentValue(asset.purchase_date, asset.acquisition_value, asset.residual_value || 0, usefulLife);
-  const accumulated = calculateAccumulatedDepreciation(asset.purchase_date, asset.acquisition_value, asset.residual_value || 0, usefulLife);
-  const monthly = calculateMonthlyDepreciation(asset.acquisition_value, asset.residual_value || 0, usefulLife);
-  const depPct = calculateDepreciationPercentage(asset.purchase_date, asset.acquisition_value, asset.residual_value || 0, usefulLife);
+  const { currentValue, accumulated, monthly, depPct, cip } = getAssetDepreciation(asset);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -214,6 +210,9 @@ export default function AssetDetail() {
                 <span>{depPct.toFixed(1)}%</span>
               </div>
               <Progress value={depPct} className="h-2" />
+              {cip && (
+                <p className="text-xs text-amber-600 mt-2">Obra em andamento — não deprecia até a conclusão.</p>
+              )}
             </div>
           </div>
 
