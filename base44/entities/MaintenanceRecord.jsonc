@@ -53,6 +53,18 @@
         "Corretiva",
         "Melhoria"
       ]
+    },
+    "technician_name": {
+      "type": "string",
+      "title": "Tecnico responsavel"
+    },
+    "parts_used": {
+      "type": "string",
+      "title": "Pecas utilizadas"
+    },
+    "checklist": {
+      "type": "string",
+      "title": "Checklist (um item por linha)"
     }
   },
   "required": [
@@ -60,33 +72,71 @@
     "asset_id"
   ],
   "rls": {
-    "//": "Tenant + papel: admin/manager lançam manutenção; viewer/user somente leitura.",
+    "//": "Tenant + papel: admin/manager lan\u00e7am manuten\u00e7\u00e3o; viewer/user somente leitura.",
     "create": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "$or": [
-          { "user_condition": { "role": "admin" } },
-          { "user_condition": { "role": "manager" } }
-        ] }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
       ]
     },
-    "read": { "data.workspace_id": "{{user.data.workspace_id}}" },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
     "update": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "$or": [
-          { "user_condition": { "role": "admin" } },
-          { "user_condition": { "role": "manager" } }
-        ] }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
       ]
     },
     "delete": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "$or": [
-          { "user_condition": { "role": "admin" } },
-          { "user_condition": { "role": "manager" } }
-        ] }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
       ]
     }
   }
