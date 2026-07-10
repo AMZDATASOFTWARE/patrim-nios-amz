@@ -1,0 +1,69 @@
+{
+  "name": "AlertDispatchLog",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "source_type": {
+      "type": "string",
+      "title": "Origem do alerta",
+      "enum": [
+        "warranty",
+        "review",
+        "contract",
+        "ipva"
+      ]
+    },
+    "source_id": {
+      "type": "string",
+      "title": "ID do registro de origem"
+    },
+    "alert_key": {
+      "type": "string",
+      "title": "Chave de deduplicacao"
+    },
+    "sent_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Enviado em"
+    },
+    "channel": {
+      "type": "string",
+      "title": "Canal",
+      "enum": [
+        "in_app",
+        "email",
+        "both"
+      ],
+      "default": "both"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "source_type",
+    "alert_key"
+  ],
+  "rls": {
+    "//": "Somente leitura por tenant. Escrita exclusiva do service-role (function dispatchExpiryAlerts) \u2014 nenhum cliente grava direto (mesmo padrao de AuditLog).",
+    "create": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "is_platform_admin": true
+      }
+    }
+  }
+}
