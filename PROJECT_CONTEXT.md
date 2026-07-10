@@ -30,11 +30,11 @@
 - Papel sempre **combinado com tenant via `$and`**.
 - Entidades sensíveis: create/write bloqueado no SDK (só `is_platform_admin`), escritas por functions service-role.
 
-## 3. Entidades (19)
+## 3. Entidades (20)
 
 Tenant-owned: **Asset, Collaborator, AssetAssignment, AssetAttachment, Supplier, MaintenanceRecord, LocationHistory, InventoryCount, InventoryItem, Contract, DepreciationConfig, Notification, AuditLog, AlertDispatchLog, PaymentRequest**. Raiz: **Workspace**. Built-in: **User** (FLS por campo em role/workspace_id/is_platform_admin). Plataforma (não-tenant, só platform-admin): **CreditUsage** (log de consumo de IA por workspace), **PricingConfig** (singleton de rateio/precificação).
 
-**Roadmap paridade AfixCode (plano local `~/.claude/plans/c-users-mateu-...twinkly-eagle.md`) — Onda 1 entregue 2026-07-09:** `Asset` +campos por categoria (`property_*` imóveis, `vehicle_*` veículos, opcionais/aditivos, aceitos em createAsset/ImportExport); `InventoryItem` +5º estado `novo_sobra`+`is_surplus`/`found_*`/`resolution` (sobras não entram no progresso/auto-flip); **AssetAttachment** (múltiplos anexos, dual-write em `Asset.photo_url`); **AlertDispatchLog** (dedup de alertas, write só service-role). Ondas 2-4 pendentes.
+**Roadmap paridade AfixCode (plano local `~/.claude/plans/c-users-mateu-...twinkly-eagle.md`):** Onda 1 (2026-07-09): `Asset` +campos por categoria (`property_*`/`vehicle_*`); `InventoryItem` +estado `novo_sobra`; **AssetAttachment** (múltiplos anexos, dual-write em photo_url); **AlertDispatchLog**. Onda 2 (2026-07-09): item 9 `Asset` +`ownership_type`/`real_owner_*`/`is_construction_in_progress` + helper `getAssetDepreciation` com guard CIP em depreciation.js; item 13 `MaintenanceRecord` +`technician_name`/`parts_used`/`checklist`; item 6 entidade **AssetTransfer** (RLS de campo em status/token, functions request/respond/getPublicTransferInfo, páginas /Transfers + pública /aceitar-transferencia); item 3 `AssetAssignment` +campos de assinatura (RLS de campo, function signAssignment, canvas SignaturePad, PDF com hash — assinatura eletrônica simples, NÃO ICP-Brasil; sub-fluxo remoto por e-mail adiado). Ondas 3-4 pendentes (depreciação dupla, CIAP, export contábil, multi-filial, PWA offline, RFID).
 
 - `Asset.create` → bloqueado no SDK; cadastro pela function `createAsset` (valida limite de plano + status pagamento; carimba workspace) — **inclusive para o agente de IA**, que usa `createAsset` como function tool (não a operação de entidade — ver seção 6).
 - `AuditLog.create` → bloqueado no SDK; escrita pela function `logAudit` (carimba actor+workspace da sessão).
