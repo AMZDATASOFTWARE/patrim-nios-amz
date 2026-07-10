@@ -3,6 +3,7 @@ import { useTheme } from 'next-themes';
 import { Outlet, useLocation, Link } from 'react-router-dom';
 import { ShieldAlert } from 'lucide-react';
 import Sidebar from './Sidebar';
+import MobileTabBar from './MobileTabBar';
 import NotificationBell from './NotificationBell';
 import ThemeToggle from './ThemeToggle';
 import FluidBackground from '@/components/landing/FluidBackground';
@@ -83,9 +84,12 @@ function AppLayoutInner() {
       >
         {/* Top bar */}
         <div className="flex items-center gap-3 h-14 px-4 border-b border-border bg-card sticky top-0 z-20">
+          {/* Hamburger drives the flat drawer, kept only for tablet (768-1023) until the
+              tablet rail (PR4) replaces it. Below 768 the bottom tab bar + "Mais" sheet
+              are the sole navigation surface (spec §5.7) — no duplicate entry point. */}
           <button
             onClick={() => setMobileOpen(true)}
-            className="p-2 rounded-lg hover:bg-muted transition-colors lg:hidden"
+            className="p-2 rounded-lg hover:bg-muted transition-colors hidden md:flex lg:hidden"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -99,10 +103,15 @@ function AppLayoutInner() {
           </div>
         </div>
 
-        <div className="p-4 sm:p-6 lg:p-8">
+        <div
+          className="p-4 sm:p-6 lg:p-8"
+          style={{ paddingBottom: 'calc(1rem + 56px + env(safe-area-inset-bottom))' }}
+        >
           {denied ? <AccessDenied /> : <Outlet />}
         </div>
       </main>
+
+      <MobileTabBar />
     </div>
   );
 }
