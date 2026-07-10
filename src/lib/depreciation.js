@@ -113,22 +113,40 @@ export function isDepreciable(asset) {
 }
 
 /**
- * Ponto único de cálculo de depreciação por ativo, com o guard de obra em
- * andamento (item 9). Centraliza o que antes era chamado campo a campo em várias
- * telas. Retorna sempre o mesmo shape, com CIP => depreciação zero.
+ * Um ativo tem base fiscal própria quando informou taxa OU vida útil fiscal;
+ * caso contrário, o livro fiscal espelha o societário (sem divergência).
  */
-export function getAssetDepreciation(asset) {
+export function hasFiscalBasis(asset) {
+  return !!(asset?.fiscal_depreciation_rate || asset?.fiscal_useful_life_years);
+}
+
+/**
+ * Ponto único de cálculo de depreciação por ativo, com o guard de obra em
+ * andamento (item 9) e suporte a base dupla fiscal × societária (item 4).
+ * `basis` = 'societaria' (default) ou 'fiscal'. Quando 'fiscal' e o ativo não
+ * tem base fiscal própria, espelha a societária (mesmo resultado).
+ */
+export function getAssetDepreciation(asset, basis = 'societaria') {
   const acquisition = asset?.acquisition_value || 0;
-  const residual = asset?.residual_value || 0;
-  const usefulLife = asset?.useful_life_years || getUsefulLifeFromRate(asset?.depreciation_rate);
 
   if (!isDepreciable(asset)) {
     return { acquisition, accumulated: 0, currentValue: acquisition, monthly: 0, depPct: 0, cip: true };
   }
 
-  const accumulated = calculateAccumulatedDepreciation(asset?.purchase_date, acquisition, residual, usefulLife);
+  let usefulLife, residual, start;
+  if (basis === 'fiscal' && hasFiscalBasis(asset)) {
+    usefulLife = asset.fiscal_useful_life_years || getUsefulLifeFromRate(asset.fiscal_depreciation_rate);
+    residual = asset.fiscal_residual_value || 0;
+    start = asset.fiscal_depreciation_start_date || asset.purchase_date;
+  } else {
+    usefulLife = asset?.useful_life_years || getUsefulLifeFromRate(asset?.depreciation_rate);
+    residual = asset?.residual_value || 0;
+    start = asset?.purchase_date;
+  }
+
+  const accumulated = calculateAccumulatedDepreciation(start, acquisition, residual, usefulLife);
   const currentValue = acquisition - accumulated;
   const monthly = calculateMonthlyDepreciation(acquisition, residual, usefulLife);
-  const depPct = calculateDepreciationPercentage(asset?.purchase_date, acquisition, residual, usefulLife);
+  const depPct = calculateDepreciationPercentage(start, acquisition, residual, usefulLife);
   return { acquisition, accumulated, currentValue, monthly, depPct, cip: false };
 }
