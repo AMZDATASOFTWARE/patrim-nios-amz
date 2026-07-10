@@ -1,0 +1,408 @@
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.35';
+
+// Scheduled daily job that builds the "newspaper front page" of AI supervisor
+// briefings — one AiBriefing row per (workspace, domain), 6 domains per workspace.
+//
+// ISOLATION MODEL (the whole point of this design):
+// The job runs via service-role (asServiceRole) because a cron has no logged-in
+// user. service-role IGNORES RLS entirely, so we NEVER let the LLM read entities.
+// Instead, for EACH workspace we compute the KPIs ourselves — every entity query
+// is explicitly scoped with { workspace_id: wsId } — and hand the LLM ONLY that
+// already-isolated JSON. The model receives numbers, never a data tool. This is
+// the same service-role-scoped-per-tenant pattern as dispatchExpiryAlerts.
+//
+// The 6 supervisor agents (base44/agents/supervisor_*.jsonc) exist as real Base44
+// resources carrying the persona/contract (and are ready for a future in-app chat
+// where the logged-in user's RLS applies). For this batch job the text is produced
+// via svc.integrations.Core.InvokeLLM — the integration path already proven in this
+// project under service-role — passing each agent's persona as the system prompt.
+//
+// Trigger: a scheduled (cron) automation created in the Base44 dashboard (the MCP
+// sync does NOT create automations from a function.jsonc — same lesson as
+// dispatchExpiryAlerts / appropriateCiapCredits). Can also be called manually by a
+// platform admin for testing, optionally with { dry_run: true, only_workspace_id }.
+
+const cors = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const nowMs = () => new Date().getTime();
+const todayUTC = () => new Date(new Date().toISOString().split('T')[0] + 'T00:00:00Z').getTime();
+
+function daysBetween(a: number, b: number): number {
+  return Math.round((a - b) / DAY_MS);
+}
+function parseMs(dateStr: unknown): number | null {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const t = new Date(dateStr.length <= 10 ? `${dateStr}T00:00:00Z` : dateStr).getTime();
+  return Number.isNaN(t) ? null : t;
+}
+function brl(v: number): string {
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+function pct(part: number, total: number): number {
+  if (!total) return 0;
+  return Math.round((part / total) * 1000) / 10;
+}
+
+// ---- Depreciation (enxuto, replicando src/lib/depreciation.js sem importar o front) ----
+function usefulLifeFromRate(rate: number): number {
+  if (!rate || rate <= 0) return 0;
+  return 100 / rate;
+}
+function accumulatedDep(startStr: unknown, acquisition: number, residual: number, life: number): number {
+  const start = parseMs(startStr);
+  if (!start || !life || life <= 0) return 0;
+  const s = new Date(start);
+  const t = new Date();
+  const months = (t.getUTCFullYear() - s.getUTCFullYear()) * 12 + (t.getUTCMonth() - s.getUTCMonth());
+  if (months <= 0) return 0;
+  const monthly = (acquisition - residual) / life / 12;
+  return Math.min(months * monthly, acquisition - residual);
+}
+interface Book { accumulated: number; current: number; }
+function assetBooks(a: Record<string, unknown>): { soc: Book; fis: Book } {
+  const acq = Number(a.acquisition_value) || 0;
+  if (a.is_construction_in_progress) {
+    return { soc: { accumulated: 0, current: acq }, fis: { accumulated: 0, current: acq } };
+  }
+  const socLife = Number(a.useful_life_years) || usefulLifeFromRate(Number(a.depreciation_rate));
+  const socRes = Number(a.residual_value) || 0;
+  const socAcc = accumulatedDep(a.purchase_date, acq, socRes, socLife);
+  const hasFiscal = !!(a.fiscal_depreciation_rate || a.fiscal_useful_life_years);
+  let fisAcc = socAcc;
+  if (hasFiscal) {
+    const fLife = Number(a.fiscal_useful_life_years) || usefulLifeFromRate(Number(a.fiscal_depreciation_rate));
+    const fRes = Number(a.fiscal_residual_value) || 0;
+    fisAcc = accumulatedDep(a.fiscal_depreciation_start_date || a.purchase_date, acq, fRes, fLife);
+  }
+  return { soc: { accumulated: socAcc, current: acq - socAcc }, fis: { accumulated: fisAcc, current: acq - fisAcc } };
+}
+
+interface Kpi { label: string; value: number; formatted: string; severity: 'ok' | 'info' | 'warn' | 'alert'; }
+
+interface DomainBriefing {
+  domain: string;
+  agent_name: string;
+  kpis: Kpi[];
+  // Compact facts object handed to the LLM (already isolated to this workspace).
+  facts: Record<string, unknown>;
+}
+
+const AGENT_BY_DOMAIN: Record<string, string> = {
+  assets_docs: 'supervisor_ativos',
+  field_ops: 'supervisor_operacao_campo',
+  maintenance_contracts: 'supervisor_manutencao_contratos',
+  fiscal_accounting: 'supervisor_fiscal_contabil',
+  registries_structure: 'supervisor_cadastros',
+  governance_admin: 'supervisor_governanca',
+};
+
+// Persona system prompts mirror the agents' .jsonc instructions (kept short here;
+// the .jsonc files are the canonical persona and drive the future chat surface).
+const PERSONA: Record<string, string> = {
+  assets_docs: 'Você é o Supervisor de Ativos & Documentação: orquestrador + jornalista investigativo. Escreva a manchete do dia sobre patrimônio e cobertura documental.',
+  field_ops: 'Você é o Supervisor de Operação de Campo: orquestrador + jornalista investigativo. Escreva a manchete do dia sobre inventário, transferências e termos de responsabilidade.',
+  maintenance_contracts: 'Você é o Supervisor de Manutenção & Contratos: orquestrador + jornalista investigativo. A razão preventiva×corretiva é o indicador de maturidade mais importante.',
+  fiscal_accounting: 'Você é o Supervisor Fiscal & Contábil: orquestrador + jornalista investigativo, com vocabulário de contador brasileiro (CIAP, PIS/COFINS, depreciação fiscal×societária). Nunca dê conselho fiscal definitivo — sinalize e recomende validação com contador.',
+  registries_structure: 'Você é o Supervisor de Cadastros & Estrutura: orquestrador + jornalista investigativo. Escreva sobre filiais, fornecedores e colaboradores.',
+  governance_admin: 'Você é o Supervisor de Administração & Governança: orquestrador + jornalista investigativo. Escreva sobre auditoria e uso do sistema.',
+};
+
+// deno-lint-ignore no-explicit-any
+async function fetchAll(svc: any, entity: string, wsId: string): Promise<Record<string, unknown>[]> {
+  try {
+    return await svc.entities[entity].filter({ workspace_id: wsId }, '-created_date', 5000);
+  } catch (_) {
+    return [];
+  }
+}
+
+// deno-lint-ignore no-explicit-any
+async function computeWorkspace(svc: any, wsId: string): Promise<DomainBriefing[]> {
+  const today = todayUTC();
+  const [assets, attachments, transfers, invItems, assignments, maintenance, contracts, ciap, branches, suppliers, collaborators, audit] =
+    await Promise.all([
+      fetchAll(svc, 'Asset', wsId),
+      fetchAll(svc, 'AssetAttachment', wsId),
+      fetchAll(svc, 'AssetTransfer', wsId),
+      fetchAll(svc, 'InventoryItem', wsId),
+      fetchAll(svc, 'AssetAssignment', wsId),
+      fetchAll(svc, 'MaintenanceRecord', wsId),
+      fetchAll(svc, 'Contract', wsId),
+      fetchAll(svc, 'CiapCredit', wsId),
+      fetchAll(svc, 'Branch', wsId),
+      fetchAll(svc, 'Supplier', wsId),
+      fetchAll(svc, 'Collaborator', wsId),
+      fetchAll(svc, 'AuditLog', wsId),
+    ]);
+
+  // ---------- 1. assets_docs ----------
+  const assetIdsWithAttachment = new Set(attachments.map((x) => x.asset_id));
+  let totalAcq = 0, totalSocCurrent = 0, totalSocAcc = 0, totalFisAcc = 0, undocumented = 0, fullyDepInUse = 0, cip = 0;
+  for (const a of assets) {
+    const acq = Number(a.acquisition_value) || 0;
+    totalAcq += acq;
+    const { soc, fis } = assetBooks(a);
+    totalSocCurrent += soc.current;
+    totalSocAcc += soc.accumulated;
+    totalFisAcc += fis.accumulated;
+    const hasDoc = !!a.photo_url || !!a.invoice_url || assetIdsWithAttachment.has(a.id);
+    if (!hasDoc) undocumented += 1;
+    if (a.is_construction_in_progress) cip += 1;
+    const depPct = acq > 0 ? (soc.accumulated / acq) * 100 : 0;
+    if (depPct >= 99.9 && a.status === 'Ativo') fullyDepInUse += 1;
+  }
+  const assetsKpis: Kpi[] = [
+    { label: 'Patrimônio total', value: Math.round(totalSocCurrent), formatted: brl(totalSocCurrent), severity: 'info' },
+    { label: 'Sem foto/nota', value: undocumented, formatted: `${undocumented} (${pct(undocumented, assets.length)}%)`, severity: pct(undocumented, assets.length) > 20 ? 'warn' : 'ok' },
+    { label: 'Depreciados em uso', value: fullyDepInUse, formatted: String(fullyDepInUse), severity: fullyDepInUse > 0 ? 'warn' : 'ok' },
+  ];
+
+  // ---------- 2. field_ops ----------
+  const pendingTransfers = transfers.filter((t) => t.status === 'pendente');
+  const decided = transfers.filter((t) => t.status === 'aceito' && t.decided_at && t.requested_at);
+  let avgAcceptDays = 0;
+  if (decided.length) {
+    const sum = decided.reduce((acc, t) => {
+      const d = parseMs(t.decided_at), r = parseMs(t.requested_at);
+      return acc + (d && r ? Math.max(0, daysBetween(d, r)) : 0);
+    }, 0);
+    avgAcceptDays = Math.round((sum / decided.length) * 10) / 10;
+  }
+  const oldestPendingDays = pendingTransfers.reduce((mx, t) => {
+    const r = parseMs(t.requested_at);
+    return r ? Math.max(mx, daysBetween(today, r)) : mx;
+  }, 0);
+  const activeAssignments = assignments.filter((x) => x.status === 'Ativo' || x.status === 'Atrasado');
+  const lateAssignments = assignments.filter((x) => x.status === 'Atrasado').length;
+  const signedTerms = assignments.filter((x) => x.signed).length;
+  const surplusPending = invItems.filter((i) => i.is_surplus && i.resolution === 'pendente_resolucao').length;
+  const counted = invItems.filter((i) => i.status !== 'pendente');
+  const divergent = invItems.filter((i) => i.status === 'divergente' || i.status === 'nao_encontrado').length;
+  const fieldKpis: Kpi[] = [
+    { label: 'Transferências pendentes', value: pendingTransfers.length, formatted: String(pendingTransfers.length), severity: oldestPendingDays > 7 ? 'alert' : pendingTransfers.length ? 'info' : 'ok' },
+    { label: 'Tempo médio de aceite', value: avgAcceptDays, formatted: `${avgAcceptDays} dia(s)`, severity: avgAcceptDays > 5 ? 'warn' : 'ok' },
+    { label: 'Termos assinados', value: signedTerms, formatted: `${signedTerms}/${assignments.length}`, severity: assignments.length && pct(signedTerms, assignments.length) < 50 ? 'warn' : 'ok' },
+  ];
+
+  // ---------- 3. maintenance_contracts ----------
+  const preventive = maintenance.filter((m) => m.type === 'Preventiva').length;
+  const corrective = maintenance.filter((m) => m.type === 'Corretiva').length;
+  const prevCorrRatio = corrective ? Math.round((preventive / corrective) * 100) / 100 : (preventive ? 999 : 0);
+  const overdueMaint = maintenance.filter((m) => {
+    if (m.status !== 'agendada') return false;
+    const s = parseMs(m.scheduled_date);
+    return s && s < today;
+  }).length;
+  const maintCost = maintenance.reduce((acc, m) => acc + (Number(m.cost) || 0), 0);
+  const contractsExpiring = contracts.filter((c) => {
+    const e = parseMs(c.end_date);
+    return e && daysBetween(e, today) >= 0 && daysBetween(e, today) <= 30;
+  }).length;
+  const contractValue = contracts.reduce((acc, c) => {
+    const e = parseMs(c.end_date);
+    return e && e >= today ? acc + (Number(c.value) || 0) : acc;
+  }, 0);
+  const maintKpis: Kpi[] = [
+    { label: 'Preventiva×Corretiva', value: prevCorrRatio, formatted: corrective ? `${prevCorrRatio}:1` : `${preventive}:0`, severity: corrective > preventive ? 'warn' : 'ok' },
+    { label: 'Manutenções atrasadas', value: overdueMaint, formatted: String(overdueMaint), severity: overdueMaint > 0 ? 'warn' : 'ok' },
+    { label: 'Contratos vencendo (30d)', value: contractsExpiring, formatted: String(contractsExpiring), severity: contractsExpiring > 0 ? 'warn' : 'ok' },
+  ];
+
+  // ---------- 4. fiscal_accounting ----------
+  const socFisDiff = totalSocAcc - totalFisAcc;
+  const ciapTotal = ciap.reduce((acc, c) => acc + (Number(c.icms_value) || 0), 0);
+  const ciapMonthly = ciap.filter((c) => c.status === 'em_apropriacao').reduce((acc, c) => acc + (Number(c.monthly_credit_value) || 0), 0);
+  const pisCofinsPotential = ciap.reduce((acc, c) => {
+    const base = Number(c.pis_cofins_base) || 0;
+    const rate = (Number(c.pis_rate) || 0) + (Number(c.cofins_rate) || 0);
+    return acc + base * (rate / 100);
+  }, 0);
+  const fiscalKpis: Kpi[] = [
+    { label: 'Diferença societária×fiscal', value: Math.round(socFisDiff), formatted: brl(socFisDiff), severity: Math.abs(socFisDiff) > 0 ? 'info' : 'ok' },
+    { label: 'CIAP mensal', value: Math.round(ciapMonthly), formatted: brl(ciapMonthly), severity: 'info' },
+    { label: 'Crédito PIS/COFINS potencial', value: Math.round(pisCofinsPotential), formatted: brl(pisCofinsPotential), severity: pisCofinsPotential > 0 ? 'info' : 'ok' },
+  ];
+
+  // ---------- 5. registries_structure ----------
+  const activeBranches = branches.filter((b) => b.status === 'ativa').length;
+  const blockedSuppliers = suppliers.filter((s) => s.status === 'Bloqueado' || s.status === 'Inativo').length;
+  const custodianEmails = new Set(activeAssignments.map((x) => x.collaborator_email).filter(Boolean));
+  const activeCollab = collaborators.filter((c) => c.status === 'Ativo');
+  const collabWithoutAsset = activeCollab.filter((c) => c.email && !custodianEmails.has(c.email)).length;
+  // Value per branch (Asset.branch_id × Branch) — top branch.
+  const branchValue: Record<string, number> = {};
+  for (const a of assets) {
+    const bid = (a.branch_id as string) || '__none__';
+    const { soc } = assetBooks(a);
+    branchValue[bid] = (branchValue[bid] || 0) + soc.current;
+  }
+  let topBranchName = '', topBranchValue = 0;
+  for (const [bid, val] of Object.entries(branchValue)) {
+    if (val > topBranchValue) {
+      topBranchValue = val;
+      topBranchName = bid === '__none__' ? 'Sem filial' : ((branches.find((b) => b.id === bid)?.name as string) || 'Filial');
+    }
+  }
+  const regKpis: Kpi[] = [
+    { label: 'Filiais ativas', value: activeBranches, formatted: String(activeBranches), severity: 'info' },
+    { label: 'Fornecedores bloqueados/inativos', value: blockedSuppliers, formatted: String(blockedSuppliers), severity: blockedSuppliers > 0 ? 'info' : 'ok' },
+    { label: 'Colaboradores sem ativo', value: collabWithoutAsset, formatted: String(collabWithoutAsset), severity: 'ok' },
+  ];
+
+  // ---------- 6. governance_admin ----------
+  const auditToday = audit.filter((l) => {
+    const c = parseMs(l.created_date);
+    return c && c >= today;
+  });
+  const deletionsToday = auditToday.filter((l) => l.action === 'deleted').length;
+  const actorCount: Record<string, number> = {};
+  for (const l of auditToday) {
+    const e = (l.actor_email as string) || 'desconhecido';
+    actorCount[e] = (actorCount[e] || 0) + 1;
+  }
+  let topActor = '', topActorCount = 0;
+  for (const [e, n] of Object.entries(actorCount)) {
+    if (n > topActorCount) { topActorCount = n; topActor = e; }
+  }
+  const govKpis: Kpi[] = [
+    { label: 'Ações hoje', value: auditToday.length, formatted: String(auditToday.length), severity: 'info' },
+    { label: 'Exclusões hoje', value: deletionsToday, formatted: String(deletionsToday), severity: deletionsToday > 5 ? 'warn' : 'ok' },
+    { label: 'Usuários ativos hoje', value: Object.keys(actorCount).length, formatted: String(Object.keys(actorCount).length), severity: 'ok' },
+  ];
+
+  return [
+    { domain: 'assets_docs', agent_name: AGENT_BY_DOMAIN.assets_docs, kpis: assetsKpis, facts: { total_ativos: assets.length, patrimonio_total: Math.round(totalSocCurrent), valor_aquisicao: Math.round(totalAcq), depreciacao_acumulada: Math.round(totalSocAcc), sem_documentacao: undocumented, pct_sem_documentacao: pct(undocumented, assets.length), totalmente_depreciados_em_uso: fullyDepInUse, obras_em_andamento: cip } },
+    { domain: 'field_ops', agent_name: AGENT_BY_DOMAIN.field_ops, kpis: fieldKpis, facts: { transferencias_pendentes: pendingTransfers.length, pendente_mais_antiga_dias: oldestPendingDays, tempo_medio_aceite_dias: avgAcceptDays, termos_assinados: signedTerms, termos_total: assignments.length, atribuicoes_atrasadas: lateAssignments, sobras_pendentes: surplusPending, itens_conferidos: counted.length, divergencias: divergent } },
+    { domain: 'maintenance_contracts', agent_name: AGENT_BY_DOMAIN.maintenance_contracts, kpis: maintKpis, facts: { preventivas: preventive, corretivas: corrective, razao_prev_corr: prevCorrRatio, manutencoes_atrasadas: overdueMaint, custo_total_manutencao: Math.round(maintCost), contratos_vencendo_30d: contractsExpiring, valor_sob_contrato_vigente: Math.round(contractValue) } },
+    { domain: 'fiscal_accounting', agent_name: AGENT_BY_DOMAIN.fiscal_accounting, kpis: fiscalKpis, facts: { diferenca_societaria_fiscal: Math.round(socFisDiff), ciap_total_icms: Math.round(ciapTotal), ciap_mensal_em_apropriacao: Math.round(ciapMonthly), credito_pis_cofins_potencial: Math.round(pisCofinsPotential) } },
+    { domain: 'registries_structure', agent_name: AGENT_BY_DOMAIN.registries_structure, kpis: regKpis, facts: { filiais_ativas: activeBranches, filial_maior_patrimonio: topBranchName, filial_maior_patrimonio_valor: Math.round(topBranchValue), fornecedores_bloqueados_inativos: blockedSuppliers, colaboradores_ativos: activeCollab.length, colaboradores_sem_ativo: collabWithoutAsset } },
+    { domain: 'governance_admin', agent_name: AGENT_BY_DOMAIN.governance_admin, kpis: govKpis, facts: { acoes_hoje: auditToday.length, exclusoes_hoje: deletionsToday, usuario_mais_ativo: topActor, usuario_mais_ativo_acoes: topActorCount, usuarios_ativos_hoje: Object.keys(actorCount).length } },
+  ];
+}
+
+// deno-lint-ignore no-explicit-any
+async function writeText(svc: any, domain: string, facts: Record<string, unknown>): Promise<{ headline: string; summary: string; ok: boolean }> {
+  const system = `${PERSONA[domain]}\n\nVocê recebe um JSON com os KPIs JÁ isolados a um único workspace (você nunca consulta dados). Escreva uma manchete curta (até 90 caracteres) e uma análise investigativa de 2 a 4 frases que aponte o que é anômalo/urgente, não que descreva os números. Nunca invente números fora do JSON. Nunca cite outras empresas. Responda SOMENTE com JSON no formato {"headline": "...", "summary": "..."}.`;
+  const prompt = `${system}\n\nKPIs do dia (JSON):\n${JSON.stringify(facts)}`;
+  try {
+    const res = await svc.integrations.Core.InvokeLLM({
+      prompt,
+      response_json_schema: {
+        type: 'object',
+        properties: {
+          headline: { type: 'string' },
+          summary: { type: 'string' },
+        },
+        required: ['headline', 'summary'],
+      },
+    });
+    const headline = String(res?.headline || '').slice(0, 200);
+    const summary = String(res?.summary || '').slice(0, 2000);
+    if (!headline && !summary) return { headline: '', summary: '', ok: false };
+    return { headline, summary, ok: true };
+  } catch (_) {
+    return { headline: '', summary: '', ok: false };
+  }
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
+  const json = (body: unknown, status = 200) => Response.json(body, { status, headers: cors });
+
+  try {
+    const base44 = createClientFromRequest(req);
+    const svc = base44.asServiceRole;
+
+    // Guard: block regular authenticated users; allow cron (no user) or platform admin.
+    let user = null;
+    try { user = await base44.auth.me(); } catch (_) { user = null; }
+    if (user) {
+      const fresh = (await svc.entities.User.filter({ id: user.id }))[0];
+      if (!fresh?.is_platform_admin) {
+        return json({ error: 'Somente o administrador da plataforma pode gerar os briefings manualmente.' }, 403);
+      }
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const dryRun = body?.dry_run === true;
+    const onlyWs = typeof body?.only_workspace_id === 'string' ? body.only_workspace_id : null;
+
+    const allWorkspaces = await svc.entities.Workspace.filter({}, '-created_date', 5000);
+    const workspaces = allWorkspaces
+      .filter((w: Record<string, unknown>) => w.plan_status === 'active' || w.plan_status === 'trial')
+      .filter((w: Record<string, unknown>) => !onlyWs || w.id === onlyWs);
+
+    const computedAt = new Date().toISOString();
+    let wsDone = 0, rowsWritten = 0, llmOk = 0, llmFail = 0;
+
+    for (const ws of workspaces) {
+      const wsId = ws.id as string;
+      let briefings: DomainBriefing[];
+      try {
+        briefings = await computeWorkspace(svc, wsId);
+      } catch (_) {
+        continue; // a single workspace failing must not abort the whole sweep
+      }
+
+      for (const b of briefings) {
+        const text = await writeText(svc, b.domain, b.facts);
+        if (text.ok) llmOk += 1; else llmFail += 1;
+        const status = text.ok ? 'ok' : 'partial';
+
+        if (dryRun) { rowsWritten += 1; continue; }
+
+        // Upsert: one row per (workspace, domain, day). Reuse today's row if present.
+        const dayStart = todayUTC();
+        let existingId: string | null = null;
+        try {
+          const existing = await svc.entities.AiBriefing.filter(
+            { workspace_id: wsId, domain: b.domain }, '-computed_at', 1
+          );
+          if (existing.length) {
+            const c = parseMs(existing[0].computed_at);
+            if (c && c >= dayStart) existingId = existing[0].id as string;
+          }
+        } catch (_) { /* fall through to create */ }
+
+        const payload = {
+          workspace_id: wsId,
+          domain: b.domain,
+          agent_name: b.agent_name,
+          headline: text.headline || 'Sem destaques hoje',
+          summary: text.summary || 'Não foi possível gerar a análise hoje. Os indicadores estão disponíveis nos cards.',
+          kpis_json: JSON.stringify(b.kpis),
+          computed_at: computedAt,
+          generation_status: status,
+        };
+        try {
+          if (existingId) await svc.entities.AiBriefing.update(existingId, payload);
+          else await svc.entities.AiBriefing.create(payload);
+          rowsWritten += 1;
+        } catch (_) { /* non-critical, continue */ }
+      }
+
+      // Credit accounting: 6 LLM generations per workspace, same pool as the chat.
+      if (!dryRun) {
+        try {
+          await svc.entities.CreditUsage.create({
+            workspace_id: wsId,
+            user_email: (ws.owner_email as string) || '',
+            agent_name: 'supervisores_diarios',
+            event_type: 'briefing_diario',
+            credit_type: 'message',
+            credits_used: 6,
+          });
+        } catch (_) { /* non-critical */ }
+      }
+      wsDone += 1;
+    }
+
+    return json({ ok: true, dry_run: dryRun, workspaces: wsDone, rows: rowsWritten, llm_ok: llmOk, llm_fail: llmFail });
+  } catch (_) {
+    return json({ error: 'Não foi possível gerar os briefings.' }, 500);
+  }
+});
