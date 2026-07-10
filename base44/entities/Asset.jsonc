@@ -37,6 +37,10 @@
       "type": "string",
       "title": "Centro de Custo / Departamento"
     },
+    "branch_id": {
+      "type": "string",
+      "title": "Filial"
+    },
     "acquisition_value": {
       "type": "number",
       "title": "Valor de Aquisi\u00e7\u00e3o (R$)"
