@@ -175,6 +175,35 @@
       "type": "string",
       "title": "Ano/Modelo (Veiculo)"
     },
+    "ownership_type": {
+      "type": "string",
+      "title": "Titularidade",
+      "enum": [
+        "proprio",
+        "terceiros",
+        "locado",
+        "comodato"
+      ],
+      "default": "proprio"
+    },
+    "real_owner_name": {
+      "type": "string",
+      "title": "Proprietario real (bem de terceiros)"
+    },
+    "real_owner_document": {
+      "type": "string",
+      "title": "CNPJ/CPF do proprietario real"
+    },
+    "is_construction_in_progress": {
+      "type": "boolean",
+      "title": "Obra em andamento (nao deprecia)",
+      "default": false
+    },
+    "construction_completion_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Previsao de conclusao da obra"
+    },
     "notes": {
       "type": "string",
       "title": "Observa\u00e7\u00f5es"
