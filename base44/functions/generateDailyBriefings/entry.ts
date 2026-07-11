@@ -317,7 +317,16 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const svc = base44.asServiceRole;
 
+    const body = await req.json().catch(() => ({}));
+    const dryRun = body?.dry_run === true;
+    const onlyWs = typeof body?.only_workspace_id === 'string' ? body.only_workspace_id : null;
+
     // Guard: block regular authenticated users; allow cron (no user) or platform admin.
+    // Optional shared-secret layer (security audit A2/M5): if CRON_SHARED_SECRET is set,
+    // an unauthenticated caller must present it via x-cron-secret — closes the endpoint
+    // to the open internet once the dashboard automation is configured to send it.
+    // No-op (falls through to "anonymous cron" behavior) while the secret isn't configured,
+    // so this never breaks an already-working scheduled automation.
     let user = null;
     try { user = await base44.auth.me(); } catch (_) { user = null; }
     if (user) {
@@ -325,11 +334,15 @@ Deno.serve(async (req) => {
       if (!fresh?.is_platform_admin) {
         return json({ error: 'Somente o administrador da plataforma pode gerar os briefings manualmente.' }, 403);
       }
+    } else {
+      const cronSecret = Deno.env.get('CRON_SHARED_SECRET');
+      if (cronSecret && req.headers.get('x-cron-secret') !== cronSecret) {
+        return json({ error: 'Não autorizado.' }, 401);
+      }
     }
-
-    const body = await req.json().catch(() => ({}));
-    const dryRun = body?.dry_run === true;
-    const onlyWs = typeof body?.only_workspace_id === 'string' ? body.only_workspace_id : null;
+    // force only ever honored for a validated platform-admin session — never for an
+    // anonymous/cron caller, or the body could be used to bypass the cost guard below.
+    const force = body?.force === true && !!user;
 
     const allWorkspaces = await svc.entities.Workspace.filter({}, '-created_date', 5000);
     const workspaces = allWorkspaces
@@ -337,7 +350,7 @@ Deno.serve(async (req) => {
       .filter((w: Record<string, unknown>) => !onlyWs || w.id === onlyWs);
 
     const computedAt = new Date().toISOString();
-    let wsDone = 0, rowsWritten = 0, llmOk = 0, llmFail = 0;
+    let wsDone = 0, rowsWritten = 0, llmOk = 0, llmFail = 0, skipped = 0;
 
     for (const ws of workspaces) {
       const wsId = ws.id as string;
@@ -349,13 +362,9 @@ Deno.serve(async (req) => {
       }
 
       for (const b of briefings) {
-        const text = await writeText(svc, b.domain, b.facts);
-        if (text.ok) llmOk += 1; else llmFail += 1;
-        const status = text.ok ? 'ok' : 'partial';
-
-        if (dryRun) { rowsWritten += 1; continue; }
-
-        // Upsert: one row per (workspace, domain, day). Reuse today's row if present.
+        // Cheap early-exit BEFORE any LLM call (security audit A2): if today's row
+        // already exists for this workspace+domain, skip — this is what actually
+        // bounds the cost of repeated/unauthenticated calls, not just the dedup write.
         const dayStart = todayUTC();
         let existingId: string | null = null;
         try {
@@ -367,6 +376,21 @@ Deno.serve(async (req) => {
             if (c && c >= dayStart) existingId = existing[0].id as string;
           }
         } catch (_) { /* fall through to create */ }
+
+        if (existingId && !force) {
+          skipped += 1;
+          continue;
+        }
+
+        if (dryRun) {
+          // Preview only — never spend a real LLM call just to report what would happen.
+          rowsWritten += 1;
+          continue;
+        }
+
+        const text = await writeText(svc, b.domain, b.facts);
+        if (text.ok) llmOk += 1; else llmFail += 1;
+        const status = text.ok ? 'ok' : 'partial';
 
         const payload = {
           workspace_id: wsId,
@@ -401,7 +425,7 @@ Deno.serve(async (req) => {
       wsDone += 1;
     }
 
-    return json({ ok: true, dry_run: dryRun, workspaces: wsDone, rows: rowsWritten, llm_ok: llmOk, llm_fail: llmFail });
+    return json({ ok: true, dry_run: dryRun, workspaces: wsDone, rows: rowsWritten, llm_ok: llmOk, llm_fail: llmFail, skipped });
   } catch (_) {
     return json({ error: 'Não foi possível gerar os briefings.' }, 500);
   }
