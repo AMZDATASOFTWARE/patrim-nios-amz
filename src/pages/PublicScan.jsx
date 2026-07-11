@@ -5,7 +5,9 @@ import AppFooter from '@/components/AppFooter';
 
 export default function PublicScan() {
   const urlParams = new URLSearchParams(window.location.search);
-  const assetId = urlParams.get('id');
+  // Opaque public_scan_token (security audit A3) — the old ?id= (internal asset id,
+  // enumerable) is no longer accepted; every asset now carries its own random token.
+  const token = urlParams.get('token');
 
   const [asset, setAsset] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -18,29 +20,29 @@ export default function PublicScan() {
 
   // Carrega o ativo — via função pública (não exige login, não expõe o registro completo)
   useEffect(() => {
-    if (!assetId) { setLoading(false); return; }
+    if (!token) { setLoading(false); return; }
 
-    base44.functions.invoke('getPublicAssetInfo', { assetId })
+    base44.functions.invoke('getPublicAssetInfo', { token })
       .then(res => {
         if (res?.data?.ok) setAsset(res.data.asset);
         setLoading(false);
       })
       .catch(() => setLoading(false));
-  }, [assetId]);
+  }, [token]);
 
   // Registra localização assim que o ativo carregar (apenas uma vez)
   useEffect(() => {
-    if (!loading && assetId && !registeredRef.current) {
+    if (!loading && token && !registeredRef.current) {
       registeredRef.current = true;
       registerLocation();
     }
-  }, [loading, assetId]);
+  }, [loading, token]);
 
   const sendScan = async ({ latitude, longitude, address: addr } = {}) => {
     const deviceInfo = navigator.userAgent.substring(0, 200);
     try {
       await base44.functions.invoke('registerPublicScan', {
-        assetId,
+        token,
         ...(latitude !== undefined && longitude !== undefined ? { latitude, longitude } : {}),
         address: addr || '',
         deviceInfo,
@@ -97,7 +99,7 @@ export default function PublicScan() {
   );
 
   // Ativo não encontrado
-  if (!assetId || !asset) return (
+  if (!token || !asset) return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 to-blue-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl p-8 text-center max-w-sm w-full shadow-2xl">
         <AlertCircle className="h-12 w-12 text-red-500 mx-auto mb-4" />
