@@ -30,37 +30,37 @@ export default function CreditUsageCard() {
   const monthValue = monthUsage.reduce((s, u) => s + (u.price_to_client || 0), 0);
   const totalCredits = usage.reduce((s, u) => s + (u.credits_used || 0), 0);
 
-  return (
-    <div className="bg-card rounded-xl border border-border p-6 shadow-sm hidden">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold text-card-foreground">Consumo de IA</h2>
-        </div>
-        <Link to="/Assistant" className="text-sm text-primary hover:underline">Abrir assistente</Link>
-      </div>
-      {loading ?
-      <p className="text-sm text-muted-foreground">Carregando...</p> :
+  return null;
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div>
-            <p className="text-2xl font-bold text-card-foreground">{monthMessages}</p>
-            <p className="text-xs text-muted-foreground mt-1">Mensagens no mês</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-card-foreground">{monthIntegrations}</p>
-            <p className="text-xs text-muted-foreground mt-1">Integrações no mês</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-card-foreground">{formatCurrency(monthValue)}</p>
-            <p className="text-xs text-muted-foreground mt-1">Valor no mês</p>
-          </div>
-          <div>
-            <p className="text-2xl font-bold text-card-foreground">{totalCredits}</p>
-            <p className="text-xs text-muted-foreground mt-1">Créditos totais</p>
-          </div>
-        </div>
-      }
-    </div>);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 }
