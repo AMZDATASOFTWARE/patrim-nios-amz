@@ -149,6 +149,24 @@
       "allowed_operations": [
         "read"
       ]
+    },
+    {
+      "entity_name": "CiapAppropriationLog",
+      "allowed_operations": [
+        "read"
+      ]
+    },
+    {
+      "entity_name": "AiBriefing",
+      "allowed_operations": [
+        "read"
+      ]
+    },
+    {
+      "entity_name": "AlertDispatchLog",
+      "allowed_operations": [
+        "read"
+      ]
     }
   ],
   "context_files": [
