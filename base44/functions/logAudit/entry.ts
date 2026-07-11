@@ -51,6 +51,13 @@ Deno.serve(async (req) => {
     const svc = base44.asServiceRole;
     const me = (await svc.entities.User.filter({ id: user.id }))[0];
     if (!me?.workspace_id) return json({ error: 'Você não pertence a um workspace.' }, 400);
+    // Security audit M4: só quem pode de fato criar/editar/excluir (admin/manager) pode
+    // registrar uma entrada de auditoria — sem isso, qualquer membro autenticado podia
+    // gravar um log arbitrário atribuído a si mesmo. Todos os chamadores legítimos hoje
+    // (AssetForm/AssetDetail/Inventory) já são ações admin/manager-only por RLS.
+    if (!['admin', 'manager'].includes(me.role)) {
+      return json({ error: 'Você não tem permissão para registrar auditoria.' }, 403);
+    }
 
     const body = await req.json().catch(() => ({}));
     const action = ACTIONS.includes(body.action) ? body.action : null;
