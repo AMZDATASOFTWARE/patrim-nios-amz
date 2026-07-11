@@ -1,23 +1,34 @@
 import { useEffect, useMemo, useState } from 'react';
 import moment from 'moment';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
+import { useAuth } from '@/lib/AuthContext';
+import { usePermissions } from '@/lib/permissions';
 import BriefingCard from '@/components/briefings/BriefingCard';
 import { Newspaper, Package, ClipboardList, Wrench, Calculator, FolderOpen, ShieldCheck } from 'lucide-react';
 
 // Domain catalog: the 6 supervisors, in reading order. Mirrors the enum in
 // AiBriefing.jsonc and AGENT_BY_DOMAIN in generateDailyBriefings.
+// `permission` gates each card to the same role that could open the underlying
+// screen — so the governance card (audit-derived: most-active user, deletions)
+// is admin-only via `view_audit`, matching the Auditoria screen, instead of
+// leaking to managers/viewers who only hold `view_ai_briefing`.
+// NOTE: this is UI-level defense-in-depth (like routePermissions). The AiBriefing
+// row itself is still tenant-read by RLS; a stronger server-side gate would need
+// role-conditional read RLS on AiBriefing.jsonc (offered as a follow-up).
 const DOMAINS = [
-  { key: 'assets_docs', label: 'Ativos & Documentação', icon: Package },
-  { key: 'field_ops', label: 'Operação de Campo', icon: ClipboardList },
-  { key: 'maintenance_contracts', label: 'Manutenção & Contratos', icon: Wrench },
-  { key: 'fiscal_accounting', label: 'Fiscal & Contábil', icon: Calculator },
-  { key: 'registries_structure', label: 'Cadastros & Estrutura', icon: FolderOpen },
-  { key: 'governance_admin', label: 'Administração & Governança', icon: ShieldCheck },
+  { key: 'assets_docs', label: 'Ativos & Documentação', icon: Package, permission: 'view_assets' },
+  { key: 'field_ops', label: 'Operação de Campo', icon: ClipboardList, permission: 'view_inventory' },
+  { key: 'maintenance_contracts', label: 'Manutenção & Contratos', icon: Wrench, permission: 'view_maintenance' },
+  { key: 'fiscal_accounting', label: 'Fiscal & Contábil', icon: Calculator, permission: 'view_depreciation' },
+  { key: 'registries_structure', label: 'Cadastros & Estrutura', icon: FolderOpen, permission: 'view_suppliers' },
+  { key: 'governance_admin', label: 'Administração & Governança', icon: ShieldCheck, permission: 'view_audit' },
 ];
 
 export default function AiBriefings() {
   const BriefingEntity = useWorkspaceEntity('AiBriefing');
   const { workspaceId } = BriefingEntity;
+  const { user } = useAuth();
+  const { can } = usePermissions(user);
   const [briefings, setBriefings] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -51,7 +62,9 @@ export default function AiBriefings() {
     return max;
   }, [briefings]);
 
-  const cards = DOMAINS.map((d) => ({ ...d, briefing: latestByDomain[d.key] || null }));
+  // Only show a card if the reader holds the permission of its underlying domain.
+  const visibleDomains = DOMAINS.filter((d) => !d.permission || can(d.permission));
+  const cards = visibleDomains.map((d) => ({ ...d, briefing: latestByDomain[d.key] || null }));
 
   if (loading) {
     return (
