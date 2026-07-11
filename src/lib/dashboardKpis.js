@@ -186,6 +186,53 @@ export function computeActivity(auditLogs = []) {
   ];
 }
 
+// Depreciação acumulada de um ativo COMO SE fosse numa data passada (asOf, em ms).
+// Replica a matemática de src/lib/depreciation.js sem importar `new Date()` fixo,
+// para permitir a série histórica do sparkline (mesma abordagem inline que
+// generateDailyBriefings/entry.ts usa no backend). Guard de obra em andamento.
+function bookValueAsOf(asset, asOfMs) {
+  const acq = Number(asset.acquisition_value) || 0;
+  if (asset.is_construction_in_progress) return acq;
+  const life = Number(asset.useful_life_years) || (Number(asset.depreciation_rate) > 0 ? 100 / Number(asset.depreciation_rate) : 0);
+  const residual = Number(asset.residual_value) || 0;
+  const start = parseMs(asset.depreciation_start_date || asset.purchase_date);
+  if (!start || !life || life <= 0) return acq;
+  const s = new Date(start);
+  const t = new Date(asOfMs);
+  const months = (t.getUTCFullYear() - s.getUTCFullYear()) * 12 + (t.getUTCMonth() - s.getUTCMonth());
+  if (months <= 0) return acq;
+  const monthly = (acq - residual) / life / 12;
+  const accumulated = Math.min(months * monthly, acq - residual);
+  return acq - accumulated;
+}
+
+/**
+ * Série honesta do valor contábil líquido do patrimônio nos últimos `months`
+ * meses, para o sparkline do card-herói. Em cada mês soma só os ativos que já
+ * existiam (`purchase_date <= fim do mês`), com a depreciação recalculada
+ * naquela data. Sobe por aquisições, cai por depreciação. Retorna a série e a
+ * variação % do último ponto vs. o anterior.
+ */
+export function computePatrimonioTrend(assets = [], months = 12) {
+  const now = new Date();
+  const series = [];
+  for (let i = months - 1; i >= 0; i--) {
+    // Último dia do mês, i meses atrás (UTC), como âncora de cada ponto.
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i + 1, 0, 0, 0, 0));
+    const asOfMs = d.getTime();
+    let total = 0;
+    for (const a of assets) {
+      const purchase = parseMs(a.purchase_date);
+      if (purchase && purchase <= asOfMs) total += bookValueAsOf(a, asOfMs);
+    }
+    series.push(Math.round(total));
+  }
+  const last = series[series.length - 1];
+  const prev = series[series.length - 2];
+  const deltaPct = prev ? Math.round(((last - prev) / prev) * 1000) / 10 : 0;
+  return { series, deltaPct };
+}
+
 const EXPIRATION_LABEL = { warranty: 'Garantia', review: 'Revisão', ipva: 'IPVA', contract: 'Contrato' };
 
 /**
