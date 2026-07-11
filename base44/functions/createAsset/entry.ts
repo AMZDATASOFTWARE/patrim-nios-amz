@@ -140,7 +140,9 @@ Deno.serve(async (req) => {
       const { data, error } = sanitizeAsset(raw || {});
       if (error || !data) { failed++; continue; }
       try {
-        const row = await svc.entities.Asset.create({ ...data, workspace_id: ws.id });
+        // public_scan_token: opaque, unguessable identifier for the /scan QR code —
+        // never the row's own id (security audit A3: an internal id is enumerable).
+        const row = await svc.entities.Asset.create({ ...data, workspace_id: ws.id, public_scan_token: crypto.randomUUID() });
         ids.push(row.id);
         created++;
       } catch (_) {
