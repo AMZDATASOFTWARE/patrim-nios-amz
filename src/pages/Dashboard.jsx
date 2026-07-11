@@ -9,9 +9,12 @@ import {
   computeRegistries,
   computeActivity,
   computeUpcomingExpirations,
+  computePatrimonioTrend,
+  computeAttention,
 } from '@/lib/dashboardKpis';
 import StatCard from '@/components/dashboard/StatCard';
 import KpiSectionCard from '@/components/dashboard/KpiSectionCard';
+import AttentionStrip from '@/components/dashboard/AttentionStrip';
 import ExpiringItemsWidget from '@/components/dashboard/ExpiringItemsWidget';
 import CategoryChart from '@/components/dashboard/CategoryChart';
 import DepreciationChart from '@/components/dashboard/DepreciationChart';
@@ -19,7 +22,10 @@ import RecentAssets from '@/components/dashboard/RecentAssets';
 import ExternalLinks from '@/components/dashboard/ExternalLinks';
 import MaintenanceAlerts from '@/components/dashboard/MaintenanceAlerts';
 import moment from 'moment';
-import { Building2, TrendingDown, Package, DollarSign, Truck, Wrench, Landmark, Building, Activity } from 'lucide-react';
+import {
+  Building2, TrendingDown, Package, DollarSign, Truck, Wrench, Landmark, Building, Activity,
+  ArrowLeftRight, CalendarClock, ClipboardCheck, ClipboardList,
+} from 'lucide-react';
 
 // Todas as entidades abaixo têm leitura escopada por workspace_id via RLS
 // (algumas — Collaborator/AssetAssignment — também por papel: admin/manager/
@@ -29,6 +35,15 @@ import { Building2, TrendingDown, Package, DollarSign, Truck, Wrench, Landmark, 
 // nenhuma checagem nova aqui. CreditUsage/PricingConfig (dados de dono de
 // plataforma) nunca são buscados nesta tela.
 const ENTITY_LIMIT = 1000;
+
+// Mapeia cada chave da AttentionStrip para ícone/label/rota (camada de UI).
+const ATTENTION_META = {
+  transfers: { icon: ArrowLeftRight, label: 'transferências pendentes', to: '/Transfers' },
+  maintenance: { icon: Wrench, label: 'manutenções atrasadas', to: '/Maintenance' },
+  assignments: { icon: ClipboardCheck, label: 'atribuições atrasadas', to: '/Assets' },
+  expirations: { icon: CalendarClock, label: 'vencimentos em 30 dias', to: '/Contracts' },
+  inventory: { icon: ClipboardList, label: 'itens de inventário divergentes', to: '/Inventory' },
+};
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
@@ -103,9 +118,13 @@ export default function Dashboard() {
   const registriesKpis = computeRegistries({ branches, suppliers, collaborators, assignments });
   const activityKpis = computeActivity(auditLogs);
   const expiringItems = computeUpcomingExpirations(assets, contracts);
+  const trend = computePatrimonioTrend(assets, 12);
 
-  // Distribuição por categoria — agora via getAssetDepreciation (trata obra
-  // em andamento e base fiscal, o que os helpers antigos ignoravam).
+  const attentionItems = computeAttention({ transfers, maintenanceRecords, assignments, inventoryItems, expiringItems })
+    .map((it) => ({ ...it, ...ATTENTION_META[it.key] }));
+
+  // Distribuição por categoria — via getAssetDepreciation (trata obra em
+  // andamento e base fiscal, o que os helpers antigos ignoravam).
   const categories = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
   const categoryData = categories.map((cat) => {
     const catAssets = assets.filter(a => a.category === cat);
@@ -120,8 +139,12 @@ export default function Dashboard() {
     return { name: cat, currentValue, depreciation };
   }).filter(c => c.currentValue > 0 || c.depreciation > 0);
 
+  const SectionLabel = ({ children }) => (
+    <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{children}</h2>
+  );
+
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
         <div>
@@ -135,13 +158,19 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Visão geral patrimonial */}
+      {/* Faixa de atenção (urgente no topo — padrão F) */}
+      <AttentionStrip items={attentionItems} />
+
+      {/* Linha-herói: 4 KPIs principais, com sparkline + delta no patrimônio */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           title="Patrimônio Total"
           value={formatCurrency(overview.totals.totalCurrentValue)}
           subtitle="Valor contábil atual"
           icon={Building2}
+          accent
+          delta={{ value: trend.deltaPct, up: trend.deltaPct >= 0 }}
+          sparklineData={trend.series}
         />
         <StatCard
           title="Valor de Aquisição"
@@ -162,36 +191,45 @@ export default function Dashboard() {
           icon={Package}
         />
       </div>
-      <KpiSectionCard title="Documentação e Conservação" icon={Package} kpis={overview.kpis} />
 
-      {/* Distribuição */}
+      {/* Bento de destaque: par de gráficos como hero visual */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <CategoryChart data={categoryData} />
         <DepreciationChart data={depreciationData} />
       </div>
 
+      {/* Documentação & Conservação */}
+      <KpiSectionCard
+        title="Documentação e Conservação"
+        subtitle="Qualidade do cadastro patrimonial"
+        icon={Package}
+        kpis={overview.kpis}
+      />
+
       {/* Alertas & Vencimentos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ExpiringItemsWidget items={expiringItems} />
-        <MaintenanceAlerts assets={assets} />
+      <div className="space-y-3">
+        <SectionLabel>Alertas &amp; Vencimentos</SectionLabel>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <ExpiringItemsWidget items={expiringItems} />
+          <MaintenanceAlerts assets={assets} />
+        </div>
       </div>
 
-      {/* Operação de Campo / Manutenção & Contratos */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <KpiSectionCard title="Operação de Campo" icon={Truck} kpis={fieldOpsKpis} />
-        <KpiSectionCard title="Manutenção & Contratos" icon={Wrench} kpis={maintenanceKpis} />
-      </div>
-
-      {/* Fiscal & Contábil / Cadastros & Estrutura */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <KpiSectionCard title="Fiscal & Contábil" icon={Landmark} kpis={fiscalKpis} />
-        <KpiSectionCard title="Cadastros & Estrutura" icon={Building} kpis={registriesKpis} />
+      {/* Indicadores por domínio */}
+      <div className="space-y-3">
+        <SectionLabel>Indicadores por área</SectionLabel>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <KpiSectionCard title="Operação de Campo" subtitle="Transferências, termos e inventário" icon={Truck} kpis={fieldOpsKpis} />
+          <KpiSectionCard title="Manutenção & Contratos" subtitle="Preventiva, custos e vigências" icon={Wrench} kpis={maintenanceKpis} />
+          <KpiSectionCard title="Fiscal & Contábil" subtitle="CIAP, PIS/COFINS e base fiscal" icon={Landmark} kpis={fiscalKpis} />
+          <KpiSectionCard title="Cadastros & Estrutura" subtitle="Filiais, fornecedores e colaboradores" icon={Building} kpis={registriesKpis} />
+        </div>
       </div>
 
       {/* Atividade do sistema */}
-      <KpiSectionCard title="Atividade do Sistema (hoje)" icon={Activity} kpis={activityKpis} />
+      <KpiSectionCard title="Atividade do Sistema" subtitle="Movimentações registradas hoje" icon={Activity} kpis={activityKpis} />
 
-      {/* Bottom Section */}
+      {/* Rodapé: recentes + consulta */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <RecentAssets assets={assets} />
         <ExternalLinks />
