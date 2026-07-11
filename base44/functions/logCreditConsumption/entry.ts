@@ -51,7 +51,8 @@ Deno.serve(async (req) => {
     });
 
     return Response.json({ ok: true, id: record.id });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+  } catch (_error) {
+    // Mensagem genérica (security audit M1) — nunca vazar detalhes internos ao cliente.
+    return Response.json({ error: 'Não foi possível registrar o consumo de créditos.' }, { status: 500 });
   }
 });
