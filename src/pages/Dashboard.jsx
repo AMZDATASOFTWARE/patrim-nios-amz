@@ -21,10 +21,11 @@ import DepreciationChart from '@/components/dashboard/DepreciationChart';
 import RecentAssets from '@/components/dashboard/RecentAssets';
 import ExternalLinks from '@/components/dashboard/ExternalLinks';
 import MaintenanceAlerts from '@/components/dashboard/MaintenanceAlerts';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import moment from 'moment';
 import {
   Building2, TrendingDown, Package, DollarSign, Truck, Wrench, Landmark, Building, Activity,
-  ArrowLeftRight, CalendarClock, ClipboardCheck, ClipboardList,
+  ArrowLeftRight, CalendarClock, ClipboardCheck, ClipboardList, LayoutDashboard,
 } from 'lucide-react';
 
 // Todas as entidades abaixo têm leitura escopada por workspace_id via RLS
@@ -139,17 +140,13 @@ export default function Dashboard() {
     return { name: cat, currentValue, depreciation };
   }).filter(c => c.currentValue > 0 || c.depreciation > 0);
 
-  const SectionLabel = ({ children }) => (
-    <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">{children}</h2>
-  );
-
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">Visão geral completa do patrimônio da sua empresa</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Visão geral do patrimônio da sua empresa</p>
         </div>
         {updatedAt && (
           <p className="text-xs text-muted-foreground">
@@ -158,82 +155,107 @@ export default function Dashboard() {
         )}
       </div>
 
-      {/* Faixa de atenção (urgente no topo — padrão F) */}
+      {/* Faixa de atenção (urgente no topo, sempre visível — independe da aba) */}
       <AttentionStrip items={attentionItems} />
 
-      {/* Linha-herói: 4 KPIs principais, com sparkline + delta no patrimônio */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Patrimônio Total"
-          value={formatCurrency(overview.totals.totalCurrentValue)}
-          subtitle="Valor contábil atual"
-          icon={Building2}
-          accent
-          delta={{ value: trend.deltaPct, up: trend.deltaPct >= 0 }}
-          sparklineData={trend.series}
-        />
-        <StatCard
-          title="Valor de Aquisição"
-          value={formatCurrency(overview.totals.totalAcquisition)}
-          subtitle="Investimento total"
-          icon={DollarSign}
-        />
-        <StatCard
-          title="Depreciação Acumulada"
-          value={formatCurrency(overview.totals.totalAccumulated)}
-          subtitle="Total depreciado"
-          icon={TrendingDown}
-        />
-        <StatCard
-          title="Total de Ativos"
-          value={overview.totals.totalAssets}
-          subtitle={`${overview.totals.activeCount} ativos em uso`}
-          icon={Package}
-        />
-      </div>
-
-      {/* Bento de destaque: par de gráficos como hero visual */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <CategoryChart data={categoryData} />
-        <DepreciationChart data={depreciationData} />
-      </div>
-
-      {/* Documentação & Conservação */}
-      <KpiSectionCard
-        title="Documentação e Conservação"
-        subtitle="Qualidade do cadastro patrimonial"
-        icon={Package}
-        kpis={overview.kpis}
-      />
-
-      {/* Alertas & Vencimentos */}
-      <div className="space-y-3">
-        <SectionLabel>Alertas &amp; Vencimentos</SectionLabel>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <ExpiringItemsWidget items={expiringItems} />
-          <MaintenanceAlerts assets={assets} />
+      <Tabs defaultValue="geral" className="space-y-4">
+        <div className="w-full overflow-x-auto">
+          <TabsList className="inline-flex w-max">
+            <TabsTrigger value="geral" className="gap-1.5"><LayoutDashboard className="h-4 w-4" />Visão Geral</TabsTrigger>
+            <TabsTrigger value="operacao" className="gap-1.5"><Truck className="h-4 w-4" />Operação</TabsTrigger>
+            <TabsTrigger value="fiscal" className="gap-1.5"><Landmark className="h-4 w-4" />Fiscal &amp; Contábil</TabsTrigger>
+            <TabsTrigger value="cadastros" className="gap-1.5"><Building className="h-4 w-4" />Cadastros</TabsTrigger>
+            <TabsTrigger value="ativos" className="gap-1.5"><Package className="h-4 w-4" />Ativos Recentes</TabsTrigger>
+          </TabsList>
         </div>
-      </div>
 
-      {/* Indicadores por domínio */}
-      <div className="space-y-3">
-        <SectionLabel>Indicadores por área</SectionLabel>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <KpiSectionCard title="Operação de Campo" subtitle="Transferências, termos e inventário" icon={Truck} kpis={fieldOpsKpis} />
-          <KpiSectionCard title="Manutenção & Contratos" subtitle="Preventiva, custos e vigências" icon={Wrench} kpis={maintenanceKpis} />
-          <KpiSectionCard title="Fiscal & Contábil" subtitle="CIAP, PIS/COFINS e base fiscal" icon={Landmark} kpis={fiscalKpis} />
-          <KpiSectionCard title="Cadastros & Estrutura" subtitle="Filiais, fornecedores e colaboradores" icon={Building} kpis={registriesKpis} />
-        </div>
-      </div>
+        {/* Visão Geral: os KPIs mais importantes, pensado pra caber sem rolar */}
+        <TabsContent value="geral" className="space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+            <StatCard
+              title="Patrimônio Total"
+              value={formatCurrency(overview.totals.totalCurrentValue)}
+              subtitle="Valor contábil atual"
+              icon={Building2}
+              size="lg"
+              accent
+              delta={{ value: trend.deltaPct, up: trend.deltaPct >= 0 }}
+              sparklineData={trend.series}
+              className="col-span-2"
+            />
+            <StatCard
+              title="Valor de Aquisição"
+              value={formatCurrency(overview.totals.totalAcquisition)}
+              subtitle="Investimento total"
+              icon={DollarSign}
+            />
+            <StatCard
+              title="Depreciação Acumulada"
+              value={formatCurrency(overview.totals.totalAccumulated)}
+              subtitle="Total depreciado"
+              icon={TrendingDown}
+            />
+            <StatCard
+              title="Total de Ativos"
+              value={overview.totals.totalAssets}
+              subtitle={`${overview.totals.activeCount} em uso`}
+              icon={Package}
+            />
+          </div>
 
-      {/* Atividade do sistema */}
-      <KpiSectionCard title="Atividade do Sistema" subtitle="Movimentações registradas hoje" icon={Activity} kpis={activityKpis} />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <CategoryChart data={categoryData} />
+            <DepreciationChart data={depreciationData} />
+          </div>
 
-      {/* Rodapé: recentes + consulta */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <RecentAssets assets={assets} />
-        <ExternalLinks />
-      </div>
+          <KpiSectionCard
+            title="Documentação e Conservação"
+            subtitle="Qualidade do cadastro patrimonial"
+            icon={Package}
+            kpis={overview.kpis}
+            size="sm"
+          />
+        </TabsContent>
+
+        {/* Operação: atividade do dia a dia */}
+        <TabsContent value="operacao" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <KpiSectionCard title="Operação de Campo" subtitle="Transferências, termos e inventário" icon={Truck} kpis={fieldOpsKpis} />
+            <KpiSectionCard title="Manutenção & Contratos" subtitle="Preventiva, custos e vigências" icon={Wrench} kpis={maintenanceKpis} />
+          </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <ExpiringItemsWidget items={expiringItems} compact />
+            <MaintenanceAlerts assets={assets} compact />
+          </div>
+        </TabsContent>
+
+        {/* Fiscal & Contábil: consultado com menos frequência, sozinho na aba */}
+        <TabsContent value="fiscal">
+          <KpiSectionCard
+            title="Fiscal & Contábil"
+            subtitle="CIAP, PIS/COFINS e base fiscal"
+            icon={Landmark}
+            kpis={fiscalKpis}
+            size="lg"
+          />
+        </TabsContent>
+
+        {/* Cadastros: estrutural, consultado ocasionalmente */}
+        <TabsContent value="cadastros" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <KpiSectionCard title="Cadastros & Estrutura" subtitle="Filiais, fornecedores e colaboradores" icon={Building} kpis={registriesKpis} />
+            <KpiSectionCard title="Atividade do Sistema" subtitle="Movimentações registradas hoje" icon={Activity} kpis={activityKpis} />
+          </div>
+        </TabsContent>
+
+        {/* Ativos Recentes: referência */}
+        <TabsContent value="ativos" className="space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <RecentAssets assets={assets} />
+            <ExternalLinks />
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
