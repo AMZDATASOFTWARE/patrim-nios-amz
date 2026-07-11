@@ -1,4 +1,4 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip, Label } from 'recharts';
 import { formatCurrency } from '@/lib/depreciation';
 
 // Cores via tokens de tema (--chart-1..5) — funcionam no claro e no "Futurista".
@@ -9,6 +9,13 @@ const COLORS = [
   'hsl(var(--chart-4))',
   'hsl(var(--chart-5))',
 ];
+
+// Compacta o total no miolo do anel (ex.: R$ 1,2 mi) para não estourar o furo.
+function compactBRL(v) {
+  if (v >= 1e6) return `R$ ${(v / 1e6).toFixed(1).replace('.', ',')} mi`;
+  if (v >= 1e3) return `R$ ${(v / 1e3).toFixed(0)} mil`;
+  return formatCurrency(v);
+}
 
 export default function CategoryChart({ data }) {
   const total = data.reduce((sum, d) => sum + (d.value || 0), 0);
@@ -28,10 +35,25 @@ export default function CategoryChart({ data }) {
     return null;
   };
 
+  // Rótulo central ancorado no centro real da pizza (cx/cy do viewBox).
+  const CenterLabel = ({ viewBox }) => {
+    const { cx, cy } = viewBox;
+    return (
+      <g>
+        <text x={cx} y={cy - 8} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 12 }}>
+          Total
+        </text>
+        <text x={cx} y={cy + 12} textAnchor="middle" className="fill-card-foreground" style={{ fontSize: 18, fontWeight: 700 }}>
+          {compactBRL(total)}
+        </text>
+      </g>
+    );
+  };
+
   return (
     <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
       <h3 className="text-lg font-semibold text-card-foreground mb-4">Patrimônio por Categoria</h3>
-      <div className="relative h-[300px]">
+      <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -49,16 +71,12 @@ export default function CategoryChart({ data }) {
               {data.map((entry, index) => (
                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
               ))}
+              <Label content={<CenterLabel />} position="center" />
             </Pie>
             <Tooltip content={<CustomTooltip />} />
             <Legend formatter={(value) => <span className="text-sm text-muted-foreground">{value}</span>} />
           </PieChart>
         </ResponsiveContainer>
-        {/* Rótulo central: total do patrimônio (posicionado sobre o furo do anel). */}
-        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center" style={{ top: '-2rem' }}>
-          <span className="text-xs text-muted-foreground">Total</span>
-          <span className="text-xl font-bold tracking-tight text-card-foreground">{formatCurrency(total)}</span>
-        </div>
       </div>
     </div>
   );
