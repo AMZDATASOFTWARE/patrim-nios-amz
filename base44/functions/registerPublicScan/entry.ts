@@ -4,6 +4,10 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.35';
 // Anyone who scans the physical label can trigger this — no login required —
 // so every scan of an asset gets recorded with as much metadata as we can capture,
 // not just scans performed by the asset's own workspace members.
+//
+// Looked up by `public_scan_token` (opaque, random per asset) — NOT by the asset's
+// own id, which would let anyone script through every asset of every tenant and
+// pollute their LocationHistory (security audit A3).
 Deno.serve(async (req) => {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -17,12 +21,12 @@ Deno.serve(async (req) => {
     const body = await req.json();
     // latitude/longitude are optional: a scan is recorded even when the visitor
     // denies the browser geolocation prompt (IP is still captured server-side).
-    const { assetId, latitude, longitude, address, deviceInfo } = body;
-    if (!assetId) {
-      return Response.json({ error: 'assetId é obrigatório.' }, { status: 400, headers: corsHeaders });
+    const { token, latitude, longitude, address, deviceInfo } = body;
+    if (!token) {
+      return Response.json({ error: 'token é obrigatório.' }, { status: 400, headers: corsHeaders });
     }
 
-    const assets = await base44.asServiceRole.entities.Asset.filter({ id: assetId });
+    const assets = await base44.asServiceRole.entities.Asset.filter({ public_scan_token: token });
     const asset = assets[0];
     if (!asset) {
       return Response.json({ error: 'Ativo não encontrado.' }, { status: 404, headers: corsHeaders });
@@ -41,7 +45,7 @@ Deno.serve(async (req) => {
     const THROTTLE_MS = 30_000;
     if (ipAddress) {
       const recent = await base44.asServiceRole.entities.LocationHistory.filter(
-        { asset_id: assetId, ip_address: ipAddress }, '-scanned_at', 1
+        { asset_id: asset.id, ip_address: ipAddress }, '-scanned_at', 1
       );
       const last = recent[0];
       if (last?.scanned_at && Date.now() - new Date(last.scanned_at).getTime() < THROTTLE_MS) {
@@ -70,7 +74,7 @@ Deno.serve(async (req) => {
 
     const record = await base44.asServiceRole.entities.LocationHistory.create({
       workspace_id: asset.workspace_id,
-      asset_id: assetId,
+      asset_id: asset.id,
       asset_name: asset.name || '',
       ...(hasCoords ? { latitude: lat, longitude: lng } : {}),
       address: String(address || '').substring(0, 300),
