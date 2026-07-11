@@ -82,7 +82,7 @@ const PERMISSIONS = {
     'view_fiscal_credits',
   ],
   user: [
-    'view_assets', 'view_assignments', 'view_map', 'view_transfers',
+    'view_dashboard', 'view_assets', 'view_assignments', 'view_map', 'view_transfers',
   ],
 };
 
