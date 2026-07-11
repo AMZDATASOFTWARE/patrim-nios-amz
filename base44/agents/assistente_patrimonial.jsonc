@@ -139,12 +139,6 @@
       ]
     },
     {
-      "entity_name": "CreditUsage",
-      "allowed_operations": [
-        "read"
-      ]
-    },
-    {
       "entity_name": "PricingConfig",
       "allowed_operations": [
         "read"
