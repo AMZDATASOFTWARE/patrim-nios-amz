@@ -1,37 +1,13 @@
 import { Link } from 'react-router-dom';
-import { Wrench, AlertTriangle, ShieldAlert, CalendarClock, ArrowRight } from 'lucide-react';
-import moment from 'moment';
+import { Wrench, ArrowRight } from 'lucide-react';
 
+// Lembretes de garantia/revisão/IPVA/contrato saíram para
+// src/components/dashboard/ExpiringItemsWidget.jsx (agora cobrindo também
+// IPVA e contratos). Este componente ficou só com a lista "Em Manutenção".
 export default function MaintenanceAlerts({ assets }) {
-  const today = moment();
-
   const inMaintenance = assets.filter(a => a.status === 'Em Manutenção');
 
-  const reminders = assets
-    .flatMap(a => {
-      const items = [];
-      if (a.warranty_expiry_date) {
-        const days = moment(a.warranty_expiry_date).diff(today, 'days');
-        if (days >= 0 && days <= 60) {
-          items.push({ asset: a, type: 'warranty', days, label: 'Garantia vence', date: a.warranty_expiry_date });
-        } else if (days < 0 && days >= -30) {
-          items.push({ asset: a, type: 'warranty_expired', days, label: 'Garantia vencida', date: a.warranty_expiry_date });
-        }
-      }
-      if (a.next_review_date) {
-        const days = moment(a.next_review_date).diff(today, 'days');
-        if (days >= 0 && days <= 30) {
-          items.push({ asset: a, type: 'review', days, label: 'Revisão agendada', date: a.next_review_date });
-        } else if (days < 0 && days >= -14) {
-          items.push({ asset: a, type: 'review_overdue', days, label: 'Revisão atrasada', date: a.next_review_date });
-        }
-      }
-      return items;
-    })
-    .sort((a, b) => a.days - b.days)
-    .slice(0, 5);
-
-  if (inMaintenance.length === 0 && reminders.length === 0) return null;
+  if (inMaintenance.length === 0) return null;
 
   return (
     <div className="space-y-4">
