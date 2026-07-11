@@ -19,9 +19,9 @@ export default function DepreciationChart({ data }) {
   };
 
   return (
-    <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
-      <h3 className="text-lg font-semibold text-card-foreground mb-4">Depreciação por Categoria</h3>
-      <div className="h-[300px]">
+    <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+      <h3 className="text-base font-semibold text-card-foreground mb-3">Depreciação por Categoria</h3>
+      <div className="h-[220px]">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data} layout="vertical" margin={{ left: 20 }} barCategoryGap="22%">
             <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -39,7 +39,7 @@ export default function DepreciationChart({ data }) {
               tick={{ fontSize: 12 }}
             />
             <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }} />
-            <Legend formatter={(value) => <span className="text-sm text-muted-foreground">{value}</span>} />
+            <Legend wrapperStyle={{ fontSize: 11 }} formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>} />
             <Bar 
               dataKey="currentValue" 
               name="Valor Atual" 
