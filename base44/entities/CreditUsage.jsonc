@@ -51,7 +51,9 @@
       }
     },
     "read": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "user_condition": {
+        "is_platform_admin": true
+      }
     },
     "update": {
       "user_condition": {
