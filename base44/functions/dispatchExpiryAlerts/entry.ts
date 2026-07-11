@@ -60,12 +60,20 @@ Deno.serve(async (req) => {
     const svc = base44.asServiceRole;
 
     // Guard: block regular authenticated users; allow cron (no user) or platform admin.
+    // Optional shared-secret layer (security audit M5): if CRON_SHARED_SECRET is set, an
+    // unauthenticated caller must present it via x-cron-secret. No-op while unset, so this
+    // never breaks the already-configured daily automation.
     let user = null;
     try { user = await base44.auth.me(); } catch (_) { user = null; }
     if (user) {
       const fresh = (await svc.entities.User.filter({ id: user.id }))[0];
       if (!fresh?.is_platform_admin) {
         return json({ error: 'Somente o administrador da plataforma pode disparar os alertas manualmente.' }, 403);
+      }
+    } else {
+      const cronSecret = Deno.env.get('CRON_SHARED_SECRET');
+      if (cronSecret && req.headers.get('x-cron-secret') !== cronSecret) {
+        return json({ error: 'Não autorizado.' }, 401);
       }
     }
 
