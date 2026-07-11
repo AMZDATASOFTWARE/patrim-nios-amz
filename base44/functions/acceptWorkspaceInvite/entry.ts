@@ -38,7 +38,12 @@ Deno.serve(async (req) => {
       role: freshUser?.role || 'user',
     });
 
-    return Response.json({ ok: true, workspace: found }, { headers: corsHeaders });
+    // Projeção mínima (security audit M3) — o objeto completo do Workspace inclui
+    // stripe_customer_id/subscription_id e member_emails (e-mails de outros membros),
+    // que a pessoa aceitando o convite ainda não precisa ver. O frontend rebusca o
+    // workspace completo via SDK autenticado assim que workspace_id estiver gravado
+    // (RLS de leitura já cobre esse caso legitimamente).
+    return Response.json({ ok: true, workspace: { id: found.id, name: found.name } }, { headers: corsHeaders });
   } catch (_) {
     return Response.json(
       { error: 'Não foi possível processar o convite.' },
