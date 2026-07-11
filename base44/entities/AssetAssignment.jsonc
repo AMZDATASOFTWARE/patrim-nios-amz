@@ -195,7 +195,33 @@
       ]
     },
     "read": {
-      "data.workspace_id": "{{user.data.workspace_id}}"
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "viewer"
+              }
+            },
+            {
+              "data.collaborator_email": "{{user.email}}"
+            }
+          ]
+        }
+      ]
     },
     "update": {
       "$and": [
