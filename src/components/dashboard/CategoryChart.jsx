@@ -40,10 +40,10 @@ export default function CategoryChart({ data }) {
     const { cx, cy } = viewBox;
     return (
       <g>
-        <text x={cx} y={cy - 8} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 12 }}>
+        <text x={cx} y={cy - 6} textAnchor="middle" className="fill-muted-foreground" style={{ fontSize: 10 }}>
           Total
         </text>
-        <text x={cx} y={cy + 12} textAnchor="middle" className="fill-card-foreground" style={{ fontSize: 18, fontWeight: 700 }}>
+        <text x={cx} y={cy + 11} textAnchor="middle" className="fill-card-foreground" style={{ fontSize: 15, fontWeight: 700 }}>
           {compactBRL(total)}
         </text>
       </g>
@@ -51,17 +51,17 @@ export default function CategoryChart({ data }) {
   };
 
   return (
-    <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
-      <h3 className="text-lg font-semibold text-card-foreground mb-4">Patrimônio por Categoria</h3>
-      <div className="h-[300px]">
+    <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+      <h3 className="text-base font-semibold text-card-foreground mb-3">Patrimônio por Categoria</h3>
+      <div className="h-[220px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={data}
               cx="50%"
               cy="50%"
-              innerRadius={70}
-              outerRadius={105}
+              innerRadius={52}
+              outerRadius={80}
               paddingAngle={2}
               dataKey="value"
               nameKey="name"
@@ -74,7 +74,7 @@ export default function CategoryChart({ data }) {
               <Label content={<CenterLabel />} position="center" />
             </Pie>
             <Tooltip content={<CustomTooltip />} />
-            <Legend formatter={(value) => <span className="text-sm text-muted-foreground">{value}</span>} />
+            <Legend wrapperStyle={{ fontSize: 11 }} formatter={(value) => <span className="text-xs text-muted-foreground">{value}</span>} />
           </PieChart>
         </ResponsiveContainer>
       </div>
