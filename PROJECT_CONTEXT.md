@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT — Patrimônios AMZ
 
-> Documento de contexto para futuras sessões. Última atualização: **2026-07-10**.
+> Documento de contexto para futuras sessões. Última atualização: **2026-07-11**.
 > Mantenha este arquivo atualizado ao final de mudanças estruturais.
 
 ---
@@ -35,7 +35,7 @@
 
 Tenant-owned (têm `workspace_id`, RLS escopada + papel): **Asset, Collaborator, AssetAssignment, AssetAttachment, AssetTransfer, Branch, Supplier, MaintenanceRecord, LocationHistory, InventoryCount, InventoryItem, Contract, DepreciationConfig, Notification, AuditLog, AlertDispatchLog, CiapCredit, CiapAppropriationLog, AccountMappingRule, PaymentRequest, AiBriefing**. Raiz do tenant: **Workspace**. Built-in: **User** (com FLS por campo em `role`/`workspace_id`/`is_platform_admin`). Plataforma (não-tenant, só platform-admin): **CreditUsage** (log de consumo de IA por workspace, read escopado ao próprio workspace), **PricingConfig** (singleton de rateio/precificação, só platform-admin lê/escreve).
 
-**AiBriefing (2026-07-10)** — snapshot diário do "Diário do Patrimônio" (mosaico de 6 supervisores de IA). Uma linha por `(workspace_id, domain)` por dia (`domain` enum dos 6: assets_docs/field_ops/maintenance_contracts/fiscal_accounting/registries_structure/governance_admin). Campos: `agent_name`, `headline`, `summary`, `kpis_json` (string JSON — array de `{label,value,formatted,severity}`, evita array-de-objetos nativo), `computed_at`, `generation_status` (ok/partial/error). RLS: **read tenant-scoped; create/update/delete só service-role/platform-admin** (mesmo padrão de AlertDispatchLog — nenhum usuário escreve direto). Ver seção 6.1.
+**AiBriefing (2026-07-10)** — snapshot diário do "Diário do Patrimônio" (mosaico de 6 supervisores de IA). Uma linha por `(workspace_id, domain)` por dia (`domain` enum dos 6: assets_docs/field_ops/maintenance_contracts/fiscal_accounting/registries_structure/governance_admin). Campos: `agent_name`, `headline`, `summary`, `kpis_json` (string JSON — array de `{label,value,formatted,severity}`, evita array-de-objetos nativo), `computed_at`, `generation_status` (ok/partial/error). RLS: **read tenant-scoped; create/update/delete só service-role/platform-admin** (mesmo padrão de AlertDispatchLog — nenhum usuário escreve direto). Ver seção 6.
 
 **Roadmap de paridade AfixCode/AfixInv (plano em `~/.claude/plans/c-users-mateu-desktop-cms-files-53553-1-twinkly-eagle.md`):**
 
@@ -68,7 +68,15 @@ Notas de RLS específicas:
 - `Workspace`/`PaymentRequest`/`User` → create/update/delete só service-role/platform-admin.
 - `Workspace` tem `stripe_customer_id` e `stripe_subscription_id` (gravados só por stripeCheckout/stripeWebhook).
 - `CreditUsage.create` → só service-role (via `logCreditConsumption`); `PricingConfig` → só platform-admin (via `creditReport`).
-- `AiBriefing.create/update/delete` → só service-role (via `generateDailyBriefings`); read tenant-scoped.
+- `Collaborator.read`/`AssetAssignment.read` (correção 2026-07-11, ver 3.1) → `$and(workspace, $or(role=admin, role=manager, role=viewer, email do próprio registro == usuário))`. Papel `viewer` mantém leitura ampla (é read-only geral por design); só o papel `user` passou a enxergar apenas o próprio registro (CPF incluso).
+
+### 3.1 Auditoria de segurança 2026-07-11 — achados ALTOS corrigidos na mesma sessão
+Relatório completo: `AUDIT_REPORT.md`. 3 achados ALTO + 1 MÉDIO corrigidos de imediato (build verde, RLS verificada ao vivo, checkpoints salvos):
+- **CPF sem restrição de papel** (`Collaborator`/`AssetAssignment`) — RLS `read` agora exige role admin/manager/viewer OU que o e-mail do registro seja o do próprio usuário logado (ver nota acima). Papel `user` deixou de conseguir ler CPF de todos os colaboradores via SDK direto.
+- **`generateDailyBriefings` gastava crédito de IA antes de checar se já rodou hoje** — reordenado: a checagem de "já existe `AiBriefing` de hoje" agora roda **antes** de qualquer `InvokeLLM`; chamadas repetidas no mesmo dia custam zero. `dry_run` também parou de queimar LLM de verdade. Novo parâmetro `force` (só honrado com sessão de platform-admin validada) permite regenerar deliberadamente.
+- **3 functions tipo-cron sem nenhuma proteção contra chamada externa** (`generateDailyBriefings`, `dispatchExpiryAlerts`, `appropriateCiapCredits`) — ganharam guard opcional via header `x-cron-secret` + env var `CRON_SHARED_SECRET`. **Inativo até o usuário configurar o secret no dashboard** (Secrets) — não quebra a automação já existente, mas fecha de vez a exposição quando configurado.
+- **`/scan?id=` usava o ID interno do `Asset`** (previsível, permitia enumerar ativos de qualquer empresa) — **migração completa** (decisão do usuário, sem manter compatibilidade): novo campo `Asset.public_scan_token` (UUID aleatório); `createAsset` gera o token no cadastro; `registerPublicScan`/`getPublicAssetInfo` resolvem por `token`, não mais por `assetId`; `AssetLabel.jsx`/`PublicScan.jsx` usam `?token=`. Backfill dos 6 ativos existentes feito via `update_entities` (token único confirmado por registro). **⚠️ O `?id=` antigo parou de funcionar — todas as etiquetas físicas já impressas precisam ser reimpressas em `/AssetLabel`.**
+- Pendentes (não corrigidos ainda, baixo esforço): M1 (`error.message` cru em `logCreditConsumption`/`creditReport`), M2 (RLS de campo faltando em `CreditUsage.cost_to_me`/`price_to_client`), M3 (`acceptWorkspaceInvite` retorna `Workspace` completo demais), M4 (`logAudit` sem checagem de papel).
 
 ## 4. Backend functions (`base44/functions/*/entry.ts`)
 
@@ -82,8 +90,8 @@ Notas de RLS específicas:
 | `createAsset` | **Cadastro de ativos** (lote ≤200): valida plano (limite de ativos + `plan_status`) e carimba workspace. RLS bloqueia `Asset.create` no SDK para todo mundo (só platform-admin) — esta function é o **único** caminho de cadastro, inclusive para o agente de IA (ver seção 6). |
 | `logAudit` | Escreve `AuditLog` com actor/workspace da sessão. |
 | `notifyBilling` | E-mails de lembrete (trial/atraso); `days` calculado **server-side**; só envia se realmente aplicável. |
-| `registerPublicScan` | Endpoint público `/scan`: registra scan (IP server-side, GPS por consentimento); **rate-limit** 30s por IP+ativo. |
-| `getPublicAssetInfo` | Endpoint público: projeção mínima do ativo (id/nome/categoria/status/foto/plaqueta). |
+| `registerPublicScan` | Endpoint público `/scan`: registra scan (IP server-side, GPS por consentimento); **rate-limit** 30s por IP+ativo. Resolve o ativo por `public_scan_token` (correção 2026-07-11, ver 3.1) — não mais por `assetId`. |
+| `getPublicAssetInfo` | Endpoint público: projeção mínima do ativo (id/nome/categoria/status/foto/plaqueta). Resolve por `public_scan_token` (correção 2026-07-11) — não mais por `assetId`. |
 | `stripeCheckout` | Cria sessão de checkout (admin; plano/intervalo em whitelist; **preço vem de mapa server-side**). |
 | `stripeWebhook` | Público, **assinatura verificada**; ativa/renova/suspende/cancela plano; dunning (payment_failed/action_required → e-mail). Idempotente. |
 | `stripePortal` | Abre o portal do cliente Stripe (admin). |
@@ -95,8 +103,8 @@ Notas de RLS específicas:
 | `appropriateCiapCredits` | Apropriação mensal do crédito CIAP (item 5, 1/48). Idempotente por competência; roda por platform-admin/cron; dry_run. **Cron mensal criar no dashboard.** |
 | `createBranch` | Cria filial (item 11): exige plano **enterprise** + admin. RLS bloqueia `Branch.create` no SDK. |
 | `syncInventoryScans` | Flush em lote da fila offline de conferências de inventário (item 1): admin/manager, workspace-scoped, até 500 scans. |
-| `generateDailyBriefings` | **Gera o mosaico diário de 6 supervisores de IA** (2026-07-10). Service-role, itera workspaces ativos/trial; para CADA workspace calcula os KPIs dos 6 domínios **na própria function** (toda query escopada `{workspace_id}`) e passa só o JSON já isolado ao LLM via `svc.integrations.Core.InvokeLLM` (persona de cada agente como system prompt) → grava/upsert `AiBriefing` por (workspace, domínio, dia). **Isolamento vem da function, não do agente** (por isso os 6 agentes têm `tool_configs: []` — não leem entidade). Lança 6 créditos/workspace em `CreditUsage` (mesmo pool, sem gate de plano). Guard: cron (sem user) roda tudo; usuário logado precisa ser platform-admin; aceita `{dry_run, only_workspace_id}`. **Cron diário precisa ser criado manualmente no dashboard** (MCP não processa function.jsonc — mesma lição do dispatchExpiryAlerts). |
-| `dispatchExpiryAlerts` | **1ª automation agendada do projeto.** Varre garantia/revisão/IPVA/contrato vencendo (marcos T-30/15/7/1), cria `Notification` + e-mail, dedup via `AlertDispatchLog`. Roda com service-role; cron não tem user, platform-admin pode chamar manual com `{dry_run:true}`. **LIÇÃO IMPORTANTE:** o sync do sandbox via MCP **NÃO processa automações de `function.jsonc`** (isso só acontece via `base44 functions deploy` pela CLI). A automação agendada (diária 7h07) foi **criada manualmente no dashboard** (Automações → Nova automação → Agendada → função `dispatchExpiryAlerts`) — essa é a fonte de verdade. Não recriar via `function.jsonc` (risco de duplicar). Endpoint é publicamente invocável sem auth (dedup bounded); blindar com segredo se necessário. |
+| `generateDailyBriefings` | **Gera o mosaico diário de 6 supervisores de IA** (2026-07-10). Service-role, itera workspaces ativos/trial; para CADA workspace calcula os KPIs dos 6 domínios **na própria function** (toda query escopada `{workspace_id}`) e passa só o JSON já isolado ao LLM via `svc.integrations.Core.InvokeLLM` (persona de cada agente como system prompt) → grava/upsert `AiBriefing` por (workspace, domínio, dia). **Isolamento vem da function, não do agente** (por isso os 6 agentes têm `tool_configs: []` — não leem entidade). Lança 6 créditos/workspace em `CreditUsage` (mesmo pool, sem gate de plano). Guard: cron (sem user) roda tudo; usuário logado precisa ser platform-admin; aceita `{dry_run, only_workspace_id, force}`. **Cron diário precisa ser criado manualmente no dashboard** (MCP não processa function.jsonc — mesma lição do dispatchExpiryAlerts). Correção 2026-07-11: checagem de "já gerado hoje" agora roda antes de qualquer chamada LLM (custo zero em chamadas repetidas); guard opcional `x-cron-secret`/`CRON_SHARED_SECRET`. |
+| `dispatchExpiryAlerts` | **1ª automation agendada do projeto.** Varre garantia/revisão/IPVA/contrato vencendo (marcos T-30/15/7/1), cria `Notification` + e-mail, dedup via `AlertDispatchLog`. Roda com service-role; cron não tem user, platform-admin pode chamar manual com `{dry_run:true}`. **LIÇÃO IMPORTANTE:** o sync do sandbox via MCP **NÃO processa automações de `function.jsonc`** (isso só acontece via `base44 functions deploy` pela CLI). A automação agendada (diária 7h07) foi **criada manualmente no dashboard** (Automações → Nova automação → Agendada → função `dispatchExpiryAlerts`) — essa é a fonte de verdade. Não recriar via `function.jsonc` (risco de duplicar). Guard opcional `x-cron-secret`/`CRON_SHARED_SECRET` (2026-07-11). |
 
 ## 5. Stripe (billing — LIVE, conta `acct_1TieigL04LdxLhj9` "AMZ Data Software Facilities")
 
@@ -140,10 +148,11 @@ Notas de RLS específicas:
 - **Permissões:** `src/lib/permissions.js` (matriz de papéis). Máscara de CPF em `src/lib/mask.js` (CPF completo só no termo/PDF).
 - **Navegação agrupada (2026-07-10):** `src/lib/navigationConfig.js` é a **fonte única** do menu (sidebar desktop colapsável, `MobileTabBar` + `MoreSheet` + swipe entre abas via `MobileNavContext`/`SwipeableTabArea`/`useHorizontalSwipe`, `TabletRail`). Item novo = objeto em `NAV_GROUPS[].items` + rota em `ROUTE_PERMISSIONS` + permissão em `permissions.js` + `<Route>` em `App.jsx` (guard DEV `validateNavConfig` avisa se faltar).
 - **Diário do Patrimônio (2026-07-10):** página `/AiBriefings` (`src/pages/AiBriefings.jsx` + `src/components/briefings/BriefingCard.jsx`), no grupo "Visão Geral" ao lado de Dashboard/Assistente IA. Mosaico de 6 cards (um por supervisor de IA), manchete + análise + 3 mini-KPIs + timestamp por card; carimbo da edição no canto superior. Lê `AiBriefing` via `useWorkspaceEntity` (RLS tenant-scoped), mostra o mais recente por domínio. Estado vazio calmo ("edição ainda não gerada"), nunca erro. Permissão `view_ai_briefing` (admin/manager/viewer). Ver seções 3, 4 e 6.1.
+- **QR de scan (`AssetLabel.jsx`/`PublicScan.jsx`, correção 2026-07-11):** URL do QR usa `Asset.public_scan_token` (`?scan/token=`), não mais o `id` interno do ativo — ver 3.1.
 
 ## 8. Postura de segurança (auditoria)
 
-Relatório completo: `AUDIT_REPORT.md` (2026-07-06). **Zero CRÍTICO.** Achados fechados: N2, N4, N5, N7, N9, N10, N11, N12, N14, N15.
+Relatório completo: `AUDIT_REPORT.md` (última rodada: 2026-07-11, ver 3.1). **Zero CRÍTICO em todas as rodadas.** Achados fechados: N2, N4, N5, N7, N9, N10, N11, N12, N14, N15 (2026-07-06); A1, A2, A3, M5 (2026-07-11).
 
 **Aceitos/adiados conscientemente:**
 - **N1** — bloquear *leitura* de tenant suspenso: inviável limpo no Base44 (RLS de Asset não lê `plan_status` do Workspace pai sem desnormalizar). Escrita já bloqueada; resíduo = ler os próprios dados (questão de receita, não vazamento).
@@ -156,7 +165,9 @@ Relatório completo: `AUDIT_REPORT.md` (2026-07-06). **Zero CRÍTICO.** Achados 
 2. 📄 **Publish no builder da Base44** — as functions fazem deploy sozinhas, mas o **frontend** só chega aos usuários após Publish. Sempre lembrar após mudanças de UI.
 3. ✍️ Revisar páginas legais (Termos/Privacidade) com advogado.
 4. ⏰ **Criar a automation agendada de `generateDailyBriefings`** no dashboard Base44 (Automações → Nova → Agendada → diária, ex. de madrugada → função `generateDailyBriefings`). Sem isso, o "Diário do Patrimônio" fica no estado vazio (nenhum card é gerado). Testar antes com `{dry_run:true, only_workspace_id:"<id>"}` e depois validar o isolamento rodando contra 2 workspaces distintos (cada `AiBriefing` só pode conter números do próprio workspace).
-5. (Opcional) `Membership`/`Invitation` para multi-empresa por usuário; limpar ações legadas de PaymentRequest no `adminApi`; roteamento na raiz (deslogado→Landing).
+5. 🖨️ **Reimprimir todas as etiquetas físicas** em `/AssetLabel` (correção 2026-07-11, ver 3.1) — o QR antigo (`?id=`) parou de funcionar; migração completa para `?token=` sem manter compatibilidade.
+6. 🔐 (Opcional, reforça A2/M5) **Configurar `CRON_SHARED_SECRET`** no dashboard Base44 (Secrets) para ativar o guard `x-cron-secret` nas 3 functions tipo-cron (`generateDailyBriefings`/`dispatchExpiryAlerts`/`appropriateCiapCredits`) — hoje o custo já está limitado pelo early-exit, mas o secret fecha a exposição por completo.
+7. (Opcional) `Membership`/`Invitation` para multi-empresa por usuário; limpar ações legadas de PaymentRequest no `adminApi`; roteamento na raiz (deslogado→Landing); M1-M4 da auditoria 2026-07-11 (esforço baixo, ver `AUDIT_REPORT.md`).
 
 ## 10. Notas operacionais (Base44 sandbox)
 
@@ -164,12 +175,13 @@ Relatório completo: `AUDIT_REPORT.md` (2026-07-06). **Zero CRÍTICO.** Achados 
 - `npm run build` não faz stream no stdout, mas **exit 0 + `dist/` novo = sucesso**. Sempre buildar após mudanças.
 - **Criar checkpoint antes/depois** de mudanças estruturais (`create_checkpoint`).
 - Sandbox **não faz curl a URLs externas** (permissão de conector) — para checar endpoints públicos do app, usar o Bash local.
-- Não há ferramenta MCP para invocar uma conversa de agente (`agents.createConversation`/`addMessage`) nem para chamar functions diretamente — testar o assistente de IA (chat/WhatsApp) ou functions agendadas exige o app real (browser), o botão de teste do dashboard, ou o usuário.
-- **`svc.integrations.Core.InvokeLLM({prompt, response_json_schema})`** existe no SDK (`@base44/sdk`) e retorna `string | object` — usado no `generateDailyBriefings` para gerar texto sob service-role sem depender de conversa de agente. `GenerateImage` também disponível. (Antes deste uso, só `SendEmail`/`UploadFile` eram usados em service-role.)
+- Não há ferramenta MCP para invocar uma conversa de agente (`agents.createConversation`/`addMessage`) nem para chamar functions diretamente — testar o assistente de IA (chat/WhatsApp) exige o app real (browser) ou o usuário.
 - `Workspace.jsonc` tem escapes `\uXXXX` literais em alguns títulos — ancorar edições em blocos ASCII.
 - Modificação de dados em massa (`update_entities`) exige **autorização explícita do usuário** (o classificador de auto-mode bloqueia sem isso).
 - A plataforma Base44 teve indisponibilidade (503/429) em 2026-07-06; nesses casos, esperar e reconectar o conector resolve (não é problema de código).
 - Editar `base44/agents/*.jsonc` (tool_configs/instructions) parece propagar imediatamente ao sandbox (mesma mecânica de `edit_file` usada em entidades/functions), mas isso **não foi confirmado empiricamente contra uma conversa real** — verificar no app após qualquer mudança de agente.
+- **Adicionar campo a uma entidade via `edit_file`:** ancorar o `old_text` no fechamento de `"properties"` (ex.: `"  },\n  \"required\": [...`) e colocar a **vírgula separadora no início do `new_text`** (`",\n    \"novo_campo\": {...}"`) — a última propriedade existente não tem vírgula própria; esquecer isso quebra o JSON ("Invalid JSON/JSONC content", sem indicar onde).
+- **`update_entities`** aplica o MESMO `data` a todos os registros que casam o `query` — não dá para gravar um valor único por linha em uma chamada só. Para backfill de valor único por registro (ex.: token aleatório), uma chamada por `id`. Viável à mão até dezenas de registros (confirmado com 6 `Asset` em 2026-07-11); acima disso, escrever uma function de migração e pedir para o usuário disparar (não há MCP tool para invocar function diretamente).
 
 ## 11. Skills relacionadas
 `audit-base44`, `base44-backend`, `base44-frontend`, `base44-multitenant` (em `~/.claude/skills/`). Memória do projeto: `project_patrimonios_amz_refactor.md`.
