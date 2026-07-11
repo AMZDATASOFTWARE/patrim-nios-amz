@@ -15,7 +15,7 @@ export default function KpiSectionCard({ title, subtitle, icon: Icon, kpis = [],
       <div className="mb-5 flex items-center gap-3">
         {Icon && (
           <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Icon className="h-4.5 w-4.5" />
+            <Icon className="h-5 w-5" />
           </div>
         )}
         <div className="min-w-0">
