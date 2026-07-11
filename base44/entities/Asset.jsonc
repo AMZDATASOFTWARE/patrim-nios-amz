@@ -232,6 +232,10 @@
     "notes": {
       "type": "string",
       "title": "Observa\u00e7\u00f5es"
+    },
+    "public_scan_token": {
+      "type": "string",
+      "title": "Token publico do QR (scan)"
     }
   },
   "required": [
