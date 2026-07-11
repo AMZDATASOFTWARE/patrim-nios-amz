@@ -70,13 +70,22 @@ Notas de RLS específicas:
 - `CreditUsage.create` → só service-role (via `logCreditConsumption`); `PricingConfig` → só platform-admin (via `creditReport`).
 - `Collaborator.read`/`AssetAssignment.read` (correção 2026-07-11, ver 3.1) → `$and(workspace, $or(role=admin, role=manager, role=viewer, email do próprio registro == usuário))`. Papel `viewer` mantém leitura ampla (é read-only geral por design); só o papel `user` passou a enxergar apenas o próprio registro (CPF incluso).
 
-### 3.1 Auditoria de segurança 2026-07-11 — achados ALTOS corrigidos na mesma sessão
-Relatório completo: `AUDIT_REPORT.md`. 3 achados ALTO + 1 MÉDIO corrigidos de imediato (build verde, RLS verificada ao vivo, checkpoints salvos):
+### 3.1 Auditoria de segurança 2026-07-11 — todos os ALTO e MÉDIO corrigidos na mesma sessão
+Relatório completo: `AUDIT_REPORT.md`. 3 ALTO + 6 MÉDIO corrigidos de imediato, em 2 lotes (build verde, RLS verificada ao vivo, checkpoints salvos):
+
+**Lote 1 (ALTO + M5):**
 - **CPF sem restrição de papel** (`Collaborator`/`AssetAssignment`) — RLS `read` agora exige role admin/manager/viewer OU que o e-mail do registro seja o do próprio usuário logado (ver nota acima). Papel `user` deixou de conseguir ler CPF de todos os colaboradores via SDK direto.
 - **`generateDailyBriefings` gastava crédito de IA antes de checar se já rodou hoje** — reordenado: a checagem de "já existe `AiBriefing` de hoje" agora roda **antes** de qualquer `InvokeLLM`; chamadas repetidas no mesmo dia custam zero. `dry_run` também parou de queimar LLM de verdade. Novo parâmetro `force` (só honrado com sessão de platform-admin validada) permite regenerar deliberadamente.
 - **3 functions tipo-cron sem nenhuma proteção contra chamada externa** (`generateDailyBriefings`, `dispatchExpiryAlerts`, `appropriateCiapCredits`) — ganharam guard opcional via header `x-cron-secret` + env var `CRON_SHARED_SECRET`. **Inativo até o usuário configurar o secret no dashboard** (Secrets) — não quebra a automação já existente, mas fecha de vez a exposição quando configurado.
 - **`/scan?id=` usava o ID interno do `Asset`** (previsível, permitia enumerar ativos de qualquer empresa) — **migração completa** (decisão do usuário, sem manter compatibilidade): novo campo `Asset.public_scan_token` (UUID aleatório); `createAsset` gera o token no cadastro; `registerPublicScan`/`getPublicAssetInfo` resolvem por `token`, não mais por `assetId`; `AssetLabel.jsx`/`PublicScan.jsx` usam `?token=`. Backfill dos 6 ativos existentes feito via `update_entities` (token único confirmado por registro). **⚠️ O `?id=` antigo parou de funcionar — todas as etiquetas físicas já impressas precisam ser reimpressas em `/AssetLabel`.**
-- Pendentes (não corrigidos ainda, baixo esforço): M1 (`error.message` cru em `logCreditConsumption`/`creditReport`), M2 (RLS de campo faltando em `CreditUsage.cost_to_me`/`price_to_client`), M3 (`acceptWorkspaceInvite` retorna `Workspace` completo demais), M4 (`logAudit` sem checagem de papel).
+
+**Lote 2 (M1-M4, + B4 de brinde):**
+- **M1** — `error.message` cru em `logCreditConsumption`/`creditReport` trocado por mensagem genérica pt-BR.
+- **M2** — `CreditUsage.read` (custo interno da AMZ, `cost_to_me`/`price_to_client`) passou de "qualquer membro do workspace" para `is_platform_admin`-only (igual create/update/delete) — mais forte que RLS de campo, que nunca foi comprovada neste projeto para `read` (só `update` é padrão estabelecido). Único consumidor era `CreditUsageCard.jsx` — código morto (`return null` sem nunca renderizar, achado **B4**) — removido junto (arquivo deletado + import/uso tirado de `Dashboard.jsx`). **Consequência direta detectada e corrigida:** `assistente_patrimonial.jsonc` listava `CreditUsage` em `tool_configs` — como o agente principal lê sob a RLS do usuário real da conversa (não service-role), essa ferramenta ficaria sempre vazia para qualquer usuário que não seja platform-admin (praticamente todo mundo que usa o chat). Removida do `tool_configs` do agente.
+- **M3** — `acceptWorkspaceInvite` agora retorna só `{id, name}` (não mais `stripe_customer_id`/`stripe_subscription_id`/`member_emails`/`cnpj`/etc). Como `WorkspaceContext.jsx` usava o objeto completo pra popular o estado global (logo/CNPJ na sidebar), o frontend foi ajustado para rebuscar o workspace via `Workspace.filter({id})` (SDK autenticado, RLS-scoped, seguro) logo após o aceite do convite.
+- **M4** — `logAudit` agora exige role admin/manager (confirmado que os 3 chamadores reais — AssetForm/AssetDetail/Inventory — já só disparam em ações admin/manager-only).
+
+Únicos itens do relatório ainda pendentes: M6 (geo do visitante direto pro Nominatim, sem proxy) e B1-B3 (todos baixo esforço/risco, ver `AUDIT_REPORT.md`).
 
 ## 4. Backend functions (`base44/functions/*/entry.ts`)
 
@@ -88,7 +97,7 @@ Relatório completo: `AUDIT_REPORT.md`. 3 achados ALTO + 1 MÉDIO corrigidos de 
 | `workspaceMembers` | list/setRole/remove membros (service-role; projeção segura, sem is_platform_admin). |
 | `updateWorkspaceProfile` | Edita só perfil da empresa (whitelist de campos; admin). |
 | `createAsset` | **Cadastro de ativos** (lote ≤200): valida plano (limite de ativos + `plan_status`) e carimba workspace. RLS bloqueia `Asset.create` no SDK para todo mundo (só platform-admin) — esta function é o **único** caminho de cadastro, inclusive para o agente de IA (ver seção 6). |
-| `logAudit` | Escreve `AuditLog` com actor/workspace da sessão. |
+| `logAudit` | Escreve `AuditLog` com actor/workspace da sessão. Exige role admin/manager desde 2026-07-11 (ver 3.1 M4). |
 | `notifyBilling` | E-mails de lembrete (trial/atraso); `days` calculado **server-side**; só envia se realmente aplicável. |
 | `registerPublicScan` | Endpoint público `/scan`: registra scan (IP server-side, GPS por consentimento); **rate-limit** 30s por IP+ativo. Resolve o ativo por `public_scan_token` (correção 2026-07-11, ver 3.1) — não mais por `assetId`. |
 | `getPublicAssetInfo` | Endpoint público: projeção mínima do ativo (id/nome/categoria/status/foto/plaqueta). Resolve por `public_scan_token` (correção 2026-07-11) — não mais por `assetId`. |
@@ -96,11 +105,11 @@ Relatório completo: `AUDIT_REPORT.md`. 3 achados ALTO + 1 MÉDIO corrigidos de 
 | `stripeWebhook` | Público, **assinatura verificada**; ativa/renova/suspende/cancela plano; dunning (payment_failed/action_required → e-mail). Idempotente. |
 | `stripePortal` | Abre o portal do cliente Stripe (admin). |
 | `adminApi` | Platform-admin: listWorkspaces / updateWorkspacePlan (+ ações legadas de PaymentRequest, hoje sem uso). |
-| `logCreditConsumption` | Registra consumo de créditos de IA (mensagem/integração) do workspace da sessão; custo calculado por rateio do `PricingConfig`. Chamado fire-and-forget pelo `AssistantChat.jsx` a cada mensagem enviada **no chat in-app**. |
-| `creditReport` | Platform-admin: agrega `CreditUsage` por workspace (custo real × valor faturável × margem) e permite editar o rateio (`PricingConfig`). |
+| `logCreditConsumption` | Registra consumo de créditos de IA (mensagem/integração) do workspace da sessão; custo calculado por rateio do `PricingConfig`. Chamado fire-and-forget pelo `AssistantChat.jsx` a cada mensagem enviada **no chat in-app**. Erro genérico desde 2026-07-11 (ver 3.1 M1). |
+| `creditReport` | Platform-admin: agrega `CreditUsage` por workspace (custo real × valor faturável × margem) e permite editar o rateio (`PricingConfig`). Erro genérico desde 2026-07-11 (ver 3.1 M1). |
 | `requestAssetTransfer` / `respondAssetTransfer` / `getPublicTransferInfo` | Fluxo de transferência com aceite (item 6). Request cria a `AssetTransfer` (service-role) + token + e-mail; respond aceita por sessão do destinatário OU token público, aplica `Asset.location`/`cost_center` + `LocationHistory` + `AuditLog`; getPublicTransferInfo = projeção mínima por token para a página `/aceitar-transferencia`. |
 | `signAssignment` | Assinatura presencial do termo (item 3): recebe PNG base64, faz upload, SHA-256, carimba campos protegidos por RLS de campo. |
-| `appropriateCiapCredits` | Apropriação mensal do crédito CIAP (item 5, 1/48). Idempotente por competência; roda por platform-admin/cron; dry_run. **Cron mensal criar no dashboard.** |
+| `appropriateCiapCredits` | Apropriação mensal do crédito CIAP (item 5, 1/48). Idempotente por competência; roda por platform-admin/cron; dry_run. **Cron mensal criar no dashboard.** Guard opcional `x-cron-secret`/`CRON_SHARED_SECRET` (2026-07-11). |
 | `createBranch` | Cria filial (item 11): exige plano **enterprise** + admin. RLS bloqueia `Branch.create` no SDK. |
 | `syncInventoryScans` | Flush em lote da fila offline de conferências de inventário (item 1): admin/manager, workspace-scoped, até 500 scans. |
 | `generateDailyBriefings` | **Gera o mosaico diário de 6 supervisores de IA** (2026-07-10). Service-role, itera workspaces ativos/trial; para CADA workspace calcula os KPIs dos 6 domínios **na própria function** (toda query escopada `{workspace_id}`) e passa só o JSON já isolado ao LLM via `svc.integrations.Core.InvokeLLM` (persona de cada agente como system prompt) → grava/upsert `AiBriefing` por (workspace, domínio, dia). **Isolamento vem da function, não do agente** (por isso os 6 agentes têm `tool_configs: []` — não leem entidade). Lança 6 créditos/workspace em `CreditUsage` (mesmo pool, sem gate de plano). Guard: cron (sem user) roda tudo; usuário logado precisa ser platform-admin; aceita `{dry_run, only_workspace_id, force}`. **Cron diário precisa ser criado manualmente no dashboard** (MCP não processa function.jsonc — mesma lição do dispatchExpiryAlerts). Correção 2026-07-11: checagem de "já gerado hoje" agora roda antes de qualquer chamada LLM (custo zero em chamadas repetidas); guard opcional `x-cron-secret`/`CRON_SHARED_SECRET`. |
@@ -123,7 +132,7 @@ Relatório completo: `AUDIT_REPORT.md`. 3 achados ALTO + 1 MÉDIO corrigidos de 
 
 - **1 agente único** (não uma pirâmide de 4): `base44/agents/assistente_patrimonial.jsonc`. As *instructions* implementam os 3 papéis (Pesquisador → Redator → Revisor) executados **internamente pelo mesmo modelo em sequência** — desenho deliberado, já que a Base44 não suporta orquestração nativa agente→agente (confirmado: "Agent2Agent Integration" está só no feedback board da plataforma, não implementado).
 - **Isolamento por tenant:** não há instância de agente por workspace — é um singleton de app. O isolamento vem de RLS (cada `tool_config` de entidade herda a RLS do usuário que está na conversa) + memória com escopo `"both"` (Global & Per User). `allow_anonymous_access: false`.
-- **Ferramentas do agente:** leitura/escrita (nunca `delete`) nas 13 entidades tenant-owned + leitura de `Workspace`/`AuditLog`/`CreditUsage`/`PricingConfig`. Cadastro de ativos usa a function tool `createAsset` (não a operação de entidade `Asset.create`, que é bloqueada por RLS para todo mundo — ver seção 3).
+- **Ferramentas do agente:** leitura/escrita (nunca `delete`) nas 13 entidades tenant-owned + leitura de `Workspace`/`AuditLog`/`PricingConfig`/`AiBriefing`. Cadastro de ativos usa a function tool `createAsset` (não a operação de entidade `Asset.create`, que é bloqueada por RLS para todo mundo — ver seção 3). `CreditUsage` removido do tool_configs em 2026-07-11 (ver 3.1 M2) — ficaria sempre vazio para não-platform-admin depois do RLS ser restrito.
 - **Disponibilidade:** sem gate de plano — disponível para todos os planos (Starter/Professional/Enterprise), decisão consciente do usuário.
 - **Canais:** chat in-app (`src/pages/AssistantChat.jsx`, rota `/Assistant`) com histórico de conversas (`"excluir"` = ocultar via `user.hidden_conversation_ids`) + WhatsApp (`base44.agents.getWhatsAppConnectURL`), número próprio atribuído pela Base44, sem webhook/API key a configurar.
 - **Base de conhecimento:** `context_files` (10 `.md`) + `selected_workspace_skill_ids` (10 skills) — consultados para perguntas sobre regras do sistema (planos, limites, depreciação).
@@ -141,18 +150,19 @@ Relatório completo: `AUDIT_REPORT.md`. 3 achados ALTO + 1 MÉDIO corrigidos de 
 
 - **Roteamento:** `src/App.jsx`. Rotas **públicas** (sem login, `PUBLIC_PATHS`): `/scan`, `/landing`, `/privacidade`, `/termos`. Demais rotas exigem auth; `/` redireciona para `/Dashboard`.
 - **Guard de rota por papel:** `src/lib/routePermissions.js` (mapa rota→permissão) + verificação no `AppLayout` → mostra "Acesso restrito" se o papel não permite. Defesa-em-profundidade (a proteção real dos dados é server-side).
-- **Onboarding:** sem workspace → tenta convite → senão `WorkspaceSetup` (pessoal/empresa) → `createWorkspace`.
+- **Onboarding:** sem workspace → tenta convite → senão `WorkspaceSetup` (pessoal/empresa) → `createWorkspace`. `WorkspaceContext.jsx` rebusca o workspace completo via SDK autenticado após aceitar convite (correção 2026-07-11, ver 3.1 M3).
 - **Paywall:** `PaymentGate.jsx` bloqueia a UI para `plan_status` suspenso/cancelado/trial vencido. (Escrita já bloqueada no servidor; **leitura** de tenant suspenso ainda é possível via SDK — ver N1 pendente.)
 - **Rodapé institucional:** componente `src/components/AppFooter.jsx` (dados em `src/lib/company.js`), 3 variantes: `sidebar` (no menu lateral, theme-aware), `band` (banda escura — páginas legais), `onDark` (transparente — Landing/Plans/PublicScan).
 - **Páginas legais:** `/termos` e `/privacidade` (públicas), CNPJ real preenchido. **Rascunho — revisar com advogado.**
 - **Permissões:** `src/lib/permissions.js` (matriz de papéis). Máscara de CPF em `src/lib/mask.js` (CPF completo só no termo/PDF).
 - **Navegação agrupada (2026-07-10):** `src/lib/navigationConfig.js` é a **fonte única** do menu (sidebar desktop colapsável, `MobileTabBar` + `MoreSheet` + swipe entre abas via `MobileNavContext`/`SwipeableTabArea`/`useHorizontalSwipe`, `TabletRail`). Item novo = objeto em `NAV_GROUPS[].items` + rota em `ROUTE_PERMISSIONS` + permissão em `permissions.js` + `<Route>` em `App.jsx` (guard DEV `validateNavConfig` avisa se faltar).
 - **Diário do Patrimônio (2026-07-10):** página `/AiBriefings` (`src/pages/AiBriefings.jsx` + `src/components/briefings/BriefingCard.jsx`), no grupo "Visão Geral" ao lado de Dashboard/Assistente IA. Mosaico de 6 cards (um por supervisor de IA), manchete + análise + 3 mini-KPIs + timestamp por card; carimbo da edição no canto superior. Lê `AiBriefing` via `useWorkspaceEntity` (RLS tenant-scoped), mostra o mais recente por domínio. Estado vazio calmo ("edição ainda não gerada"), nunca erro. Permissão `view_ai_briefing` (admin/manager/viewer). Ver seções 3, 4 e 6.1.
-- **QR de scan (`AssetLabel.jsx`/`PublicScan.jsx`, correção 2026-07-11):** URL do QR usa `Asset.public_scan_token` (`?scan/token=`), não mais o `id` interno do ativo — ver 3.1.
+- **QR de scan (`AssetLabel.jsx`/`PublicScan.jsx`, correção 2026-07-11):** URL do QR usa `Asset.public_scan_token` (`?token=`), não mais o `id` interno do ativo — ver 3.1.
+- **`CreditUsageCard.jsx` removido** (2026-07-11) — era código morto (`return null` sem nunca renderizar); ver 3.1 M2/B4.
 
 ## 8. Postura de segurança (auditoria)
 
-Relatório completo: `AUDIT_REPORT.md` (última rodada: 2026-07-11, ver 3.1). **Zero CRÍTICO em todas as rodadas.** Achados fechados: N2, N4, N5, N7, N9, N10, N11, N12, N14, N15 (2026-07-06); A1, A2, A3, M5 (2026-07-11).
+Relatório completo: `AUDIT_REPORT.md` (última rodada: 2026-07-11, ver 3.1). **Zero CRÍTICO em todas as rodadas.** Achados fechados: N2, N4, N5, N7, N9, N10, N11, N12, N14, N15 (2026-07-06); A1, A2, A3, M1, M2, M3, M4, M5, B4 (2026-07-11). Pendentes: M6, B1-B3 (baixo esforço/risco).
 
 **Aceitos/adiados conscientemente:**
 - **N1** — bloquear *leitura* de tenant suspenso: inviável limpo no Base44 (RLS de Asset não lê `plan_status` do Workspace pai sem desnormalizar). Escrita já bloqueada; resíduo = ler os próprios dados (questão de receita, não vazamento).
@@ -167,7 +177,7 @@ Relatório completo: `AUDIT_REPORT.md` (última rodada: 2026-07-11, ver 3.1). **
 4. ⏰ **Criar a automation agendada de `generateDailyBriefings`** no dashboard Base44 (Automações → Nova → Agendada → diária, ex. de madrugada → função `generateDailyBriefings`). Sem isso, o "Diário do Patrimônio" fica no estado vazio (nenhum card é gerado). Testar antes com `{dry_run:true, only_workspace_id:"<id>"}` e depois validar o isolamento rodando contra 2 workspaces distintos (cada `AiBriefing` só pode conter números do próprio workspace).
 5. 🖨️ **Reimprimir todas as etiquetas físicas** em `/AssetLabel` (correção 2026-07-11, ver 3.1) — o QR antigo (`?id=`) parou de funcionar; migração completa para `?token=` sem manter compatibilidade.
 6. 🔐 (Opcional, reforça A2/M5) **Configurar `CRON_SHARED_SECRET`** no dashboard Base44 (Secrets) para ativar o guard `x-cron-secret` nas 3 functions tipo-cron (`generateDailyBriefings`/`dispatchExpiryAlerts`/`appropriateCiapCredits`) — hoje o custo já está limitado pelo early-exit, mas o secret fecha a exposição por completo.
-7. (Opcional) `Membership`/`Invitation` para multi-empresa por usuário; limpar ações legadas de PaymentRequest no `adminApi`; roteamento na raiz (deslogado→Landing); M1-M4 da auditoria 2026-07-11 (esforço baixo, ver `AUDIT_REPORT.md`).
+7. (Opcional) `Membership`/`Invitation` para multi-empresa por usuário; limpar ações legadas de PaymentRequest no `adminApi`; roteamento na raiz (deslogado→Landing); M6/B1-B3 da auditoria 2026-07-11, esforço baixo (M1-M4 já corrigidos, ver `AUDIT_REPORT.md`).
 
 ## 10. Notas operacionais (Base44 sandbox)
 
@@ -182,6 +192,7 @@ Relatório completo: `AUDIT_REPORT.md` (última rodada: 2026-07-11, ver 3.1). **
 - Editar `base44/agents/*.jsonc` (tool_configs/instructions) parece propagar imediatamente ao sandbox (mesma mecânica de `edit_file` usada em entidades/functions), mas isso **não foi confirmado empiricamente contra uma conversa real** — verificar no app após qualquer mudança de agente.
 - **Adicionar campo a uma entidade via `edit_file`:** ancorar o `old_text` no fechamento de `"properties"` (ex.: `"  },\n  \"required\": [...`) e colocar a **vírgula separadora no início do `new_text`** (`",\n    \"novo_campo\": {...}"`) — a última propriedade existente não tem vírgula própria; esquecer isso quebra o JSON ("Invalid JSON/JSONC content", sem indicar onde).
 - **`update_entities`** aplica o MESMO `data` a todos os registros que casam o `query` — não dá para gravar um valor único por linha em uma chamada só. Para backfill de valor único por registro (ex.: token aleatório), uma chamada por `id`. Viável à mão até dezenas de registros (confirmado com 6 `Asset` em 2026-07-11); acima disso, escrever uma function de migração e pedir para o usuário disparar (não há MCP tool para invocar function diretamente).
+- Ao remover uma entidade do `tool_configs` de um agente `.jsonc` (ex.: `CreditUsage`), verificar se algo mais no bloco vizinho não quebrou — o diff do `edit_file` pode ficar visualmente confuso mesmo quando o resultado está correto; sempre reler o trecho final via `read_file` para confirmar.
 
 ## 11. Skills relacionadas
 `audit-base44`, `base44-backend`, `base44-frontend`, `base44-multitenant` (em `~/.claude/skills/`). Memória do projeto: `project_patrimonios_amz_refactor.md`.
