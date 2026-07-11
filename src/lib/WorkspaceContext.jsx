@@ -33,8 +33,13 @@ export function WorkspaceProvider({ children }) {
       // present in some workspace's member_emails). This never creates a new workspace.
       const inviteResult = await base44.functions.invoke('acceptWorkspaceInvite', {});
       if (inviteResult?.data?.ok && inviteResult.data.workspace) {
-        setWorkspace(inviteResult.data.workspace);
-        setWorkspaceId(inviteResult.data.workspace.id);
+        // The function returns only {id, name} (security audit M3) — workspace_id is
+        // already stamped on the User at this point, so a normal authenticated read
+        // (RLS-scoped, safe) fetches the full record for branding/sidebar/etc.
+        const wsId = inviteResult.data.workspace.id;
+        const wsList = await base44.entities.Workspace.filter({ id: wsId });
+        setWorkspace(wsList[0] || inviteResult.data.workspace);
+        setWorkspaceId(wsId);
         const freshMe = await base44.auth.me();
         setUser(freshMe);
       } else {
