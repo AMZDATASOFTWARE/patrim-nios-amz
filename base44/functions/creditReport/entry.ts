@@ -111,7 +111,8 @@ Deno.serve(async (req) => {
     );
 
     return Response.json({ ok: true, rows, totals, pricing: pricingList[0] || null, derived });
-  } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+  } catch (_error) {
+    // Mensagem genérica (security audit M1) — nunca vazar detalhes internos ao cliente.
+    return Response.json({ error: 'Não foi possível gerar o relatório de créditos.' }, { status: 500 });
   }
 });
