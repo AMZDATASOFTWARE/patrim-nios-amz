@@ -233,6 +233,36 @@ export function computePatrimonioTrend(assets = [], months = 12) {
   return { series, deltaPct };
 }
 
+/**
+ * Contadores de urgência para a AttentionStrip, derivados dos mesmos arrays já
+ * buscados (zero queries novas). Retorna `{key, count, tone}`; a camada de UI
+ * (Dashboard) mapeia cada `key` para ícone/label/rota.
+ */
+export function computeAttention({ transfers = [], maintenanceRecords = [], assignments = [], inventoryItems = [], expiringItems = [] }) {
+  const today = todayUTC();
+  const pendingTransfers = transfers.filter((t) => t.status === 'pendente');
+  const oldestPendingDays = pendingTransfers.reduce((mx, t) => {
+    const r = parseMs(t.requested_at);
+    return r ? Math.max(mx, daysBetween(today, r)) : mx;
+  }, 0);
+  const overdueMaint = maintenanceRecords.filter((m) => {
+    if (m.status !== 'agendada') return false;
+    const s = parseMs(m.scheduled_date);
+    return s && s < today;
+  }).length;
+  const lateAssignments = assignments.filter((x) => x.status === 'Atrasado').length;
+  const divergent = inventoryItems.filter((i) => i.status === 'divergente' || i.status === 'nao_encontrado').length;
+  const upcoming = expiringItems.filter((e) => e.days >= 0 && e.days <= 30).length;
+
+  return [
+    { key: 'transfers', count: pendingTransfers.length, tone: oldestPendingDays > 7 ? 'alert' : 'warn' },
+    { key: 'maintenance', count: overdueMaint, tone: 'alert' },
+    { key: 'assignments', count: lateAssignments, tone: 'alert' },
+    { key: 'expirations', count: upcoming, tone: 'warn' },
+    { key: 'inventory', count: divergent, tone: 'warn' },
+  ];
+}
+
 const EXPIRATION_LABEL = { warranty: 'Garantia', review: 'Revisão', ipva: 'IPVA', contract: 'Contrato' };
 
 /**
