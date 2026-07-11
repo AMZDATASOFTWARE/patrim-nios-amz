@@ -9,33 +9,43 @@ const SEVERITY = {
   alert: { dot: 'bg-destructive', bar: 'border-l-destructive/70', tint: 'bg-destructive/[0.05]' },
 };
 
-export default function KpiSectionCard({ title, subtitle, icon: Icon, kpis = [], className }) {
+// 3 tamanhos por importância. 'lg' é usado por seções sozinhas numa aba (mais
+// espaço pra respirar); 'sm' é reservado para casos bem enxutos.
+const SIZE = {
+  lg: { pad: 'p-6', headerIcon: 'h-9 w-9', headerIconSvg: 'h-5 w-5', title: 'text-base', value: 'text-2xl', grid: 'grid-cols-2 sm:grid-cols-4', tile: 'px-3 py-3' },
+  md: { pad: 'p-6', headerIcon: 'h-9 w-9', headerIconSvg: 'h-5 w-5', title: 'text-base', value: 'text-xl', grid: 'grid-cols-2 sm:grid-cols-3', tile: 'px-3 py-2.5' },
+  sm: { pad: 'p-4', headerIcon: 'h-7 w-7', headerIconSvg: 'h-4 w-4', title: 'text-sm', value: 'text-base', grid: 'grid-cols-2 sm:grid-cols-3', tile: 'px-2.5 py-2' },
+};
+
+export default function KpiSectionCard({ title, subtitle, icon: Icon, kpis = [], className, size = 'md' }) {
+  const s = SIZE[size] || SIZE.md;
+
   return (
-    <div className={cn('rounded-xl border border-border bg-card p-6 shadow-sm', className)}>
-      <div className="mb-5 flex items-center gap-3">
+    <div className={cn('rounded-xl border border-border bg-card shadow-sm', s.pad, className)}>
+      <div className="mb-4 flex items-center gap-3">
         {Icon && (
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-            <Icon className="h-5 w-5" />
+          <div className={cn('flex flex-shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary', s.headerIcon)}>
+            <Icon className={s.headerIconSvg} />
           </div>
         )}
         <div className="min-w-0">
-          <h3 className="text-base font-semibold text-card-foreground">{title}</h3>
+          <h3 className={cn('font-semibold text-card-foreground', s.title)}>{title}</h3>
           {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+      <div className={cn('grid gap-3', s.grid)}>
         {kpis.map((kpi, i) => {
-          const s = SEVERITY[kpi.severity] || SEVERITY.info;
+          const sv = SEVERITY[kpi.severity] || SEVERITY.info;
           return (
             <div
               key={i}
-              className={cn('rounded-lg border-l-2 px-3 py-2.5 transition-colors hover:bg-muted/40', s.bar, s.tint)}
+              className={cn('rounded-lg border-l-2 transition-colors hover:bg-muted/40', s.tile, sv.bar, sv.tint)}
             >
               <div className="flex items-center gap-1.5">
-                <span className={cn('h-1.5 w-1.5 flex-shrink-0 rounded-full', s.dot)} aria-hidden="true" />
+                <span className={cn('h-1.5 w-1.5 flex-shrink-0 rounded-full', sv.dot)} aria-hidden="true" />
                 <p className="truncate text-xs text-muted-foreground" title={kpi.label}>{kpi.label}</p>
               </div>
-              <p className="mt-1 truncate text-xl font-bold tracking-tight text-card-foreground" title={kpi.formatted}>
+              <p className={cn('mt-1 truncate font-bold tracking-tight text-card-foreground', s.value)} title={kpi.formatted}>
                 {kpi.formatted}
               </p>
             </div>
