@@ -23,31 +23,33 @@ export default function DepreciationChart({ data }) {
       <h3 className="text-lg font-semibold text-card-foreground mb-4">Depreciação por Categoria</h3>
       <div className="h-[300px]">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ left: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+          <BarChart data={data} layout="vertical" margin={{ left: 20 }} barCategoryGap="22%">
+            <CartesianGrid horizontal={false} strokeDasharray="3 3" stroke="hsl(var(--border))" />
             <XAxis 
               type="number" 
               tickFormatter={(value) => `R$ ${(value / 1000).toFixed(0)}k`}
               stroke="hsl(var(--muted-foreground))"
+              tick={{ fontSize: 12 }}
             />
             <YAxis 
               dataKey="name" 
               type="category" 
               width={100}
               stroke="hsl(var(--muted-foreground))"
+              tick={{ fontSize: 12 }}
             />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend />
+            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'hsl(var(--muted))', opacity: 0.4 }} />
+            <Legend formatter={(value) => <span className="text-sm text-muted-foreground">{value}</span>} />
             <Bar 
               dataKey="currentValue" 
               name="Valor Atual" 
-              fill="hsl(226, 71%, 40%)" 
+              fill="hsl(var(--chart-1))" 
               radius={[0, 4, 4, 0]}
             />
             <Bar 
               dataKey="depreciation" 
               name="Depreciação" 
-              fill="hsl(43, 96%, 56%)" 
+              fill="hsl(var(--chart-2))" 
               radius={[0, 4, 4, 0]}
             />
           </BarChart>
