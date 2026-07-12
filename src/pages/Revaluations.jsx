@@ -120,7 +120,7 @@ export default function Revaluations() {
           {revaluations.map((r) => {
             const isGain = (r.gain_amount || 0) > 0;
             return (
-              <div key={r.id} className="flex items-center justify-between gap-3 p-4 flex-wrap">
+              <div key={r.id} className="flex items-center justify-between gap-3 p-3 sm:p-4 flex-wrap">
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-card-foreground truncate">{r.asset_name || '—'}</p>
                   <p className="text-xs text-muted-foreground">
