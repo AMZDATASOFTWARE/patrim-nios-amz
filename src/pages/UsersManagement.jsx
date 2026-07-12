@@ -113,13 +113,13 @@ export default function UsersManagement() {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Gerenciar Usuários</h1>
-        <p className="text-muted-foreground mt-1">Membros vinculados a {workspace?.name || 'sua empresa'}</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Gerenciar Usuários</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Membros vinculados a {workspace?.name || 'sua empresa'}</p>
       </div>
 
       {/* Invite section */}
       {canInvite && (
-        <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+        <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm">
           <h2 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
             <UserPlus className="h-5 w-5" /> Convidar Novo Membro
           </h2>
