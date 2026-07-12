@@ -12,13 +12,14 @@
       "enum": [
         "categoria",
         "centro_custo",
+        "setor",
         "todos"
       ],
       "default": "categoria"
     },
     "match_value": {
       "type": "string",
-      "title": "Valor (categoria ou centro de custo)"
+      "title": "Valor (categoria, ID do setor ou centro de custo legado)"
     },
     "debit_account": {
       "type": "string",
