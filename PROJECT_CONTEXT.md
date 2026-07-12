@@ -184,6 +184,9 @@ Relatório completo: `AUDIT_REPORT.md` (última rodada: 2026-07-11, ver 3.1). **
 5. 🖨️ **Reimprimir todas as etiquetas físicas** em `/AssetLabel` (correção 2026-07-11, ver 3.1) — o QR antigo (`?id=`) parou de funcionar; migração completa para `?token=` sem manter compatibilidade.
 6. 🔐 (Opcional, reforça A2/M5) **Configurar `CRON_SHARED_SECRET`** no dashboard Base44 (Secrets) para ativar o guard `x-cron-secret` nas 3 functions tipo-cron (`generateDailyBriefings`/`dispatchExpiryAlerts`/`appropriateCiapCredits`) — hoje o custo já está limitado pelo early-exit, mas o secret fecha a exposição por completo.
 7. (Opcional) `Membership`/`Invitation` para multi-empresa por usuário; limpar ações legadas de PaymentRequest no `adminApi`; roteamento na raiz (deslogado→Landing); M6/B1-B3 da auditoria 2026-07-11, esforço baixo (M1-M4 já corrigidos, ver `AUDIT_REPORT.md`).
+8. 🧪 **Testar `/Dashboard` reformulado (2026-07-11) com uma conta de papel `user`** — a permissão `view_dashboard` foi liberada para esse papel nesta sessão, mas não há como logar como `user` via MCP; validar visualmente no app real (mesmo gate do pentest de 2 contas).
+9. 🧪 **Testar o gate de acesso do Assistente no WhatsApp (2026-07-12, N16)** — em `/SuperAdmin`, suspender temporariamente um workspace de teste (via `adminApi`), mandar mensagem para o número do WhatsApp conectado e confirmar que a resposta é a de bloqueio (não uma resposta normal); reverter o `plan_status` depois. Não dá para simular conversa de agente via MCP — teste real do usuário.
+10. (Opcional, reforço futuro do N16) Gate rígido por function em cada uma das ~9 escritas diretas do agente (substituindo `tool_configs` de entidade por functions dedicadas, como já é `createAsset`) e/ou pesquisar se a plataforma Base44 permite desconectar o número do WhatsApp na suspensão — hoje o gate é só por instrução (soft), não RLS.
 
 ## 10. Notas operacionais (Base44 sandbox)
 
