@@ -108,7 +108,7 @@ function AppLayoutInner() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <span className="font-semibold text-foreground lg:hidden">Patrimônio</span>
+          <span className="font-semibold text-foreground lg:hidden">Patrimônios</span>
           <div className="ml-auto flex items-center gap-1">
             <SoundToggle />
             <ThemeToggle />
