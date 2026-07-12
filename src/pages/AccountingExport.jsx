@@ -153,8 +153,8 @@ export default function AccountingExport() {
                       <SelectContent>
                         <SelectItem value="categoria">Categoria</SelectItem>
                         <SelectItem value="setor">Setor</SelectItem>
-                        <SelectItem value="centro_custo">Centro de custo (legado)</SelectItem>
                         <SelectItem value="todos">Todos os ativos (padrão)</SelectItem>
+                        {form.match_type === 'centro_custo' && <SelectItem value="centro_custo">Centro de custo (legado)</SelectItem>}
                       </SelectContent>
                     </Select>
                   </div>
