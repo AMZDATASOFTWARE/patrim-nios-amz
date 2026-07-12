@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT — Patrimônios AMZ
 
-> Documento de contexto para futuras sessões. Última atualização: **2026-07-12**.
+> Documento de contexto para futuras sessões. Última atualização: **2026-07-12** (achado N16 + gate de acesso do Assistente no WhatsApp).
 > Mantenha este arquivo atualizado ao final de mudanças estruturais.
 
 ---
