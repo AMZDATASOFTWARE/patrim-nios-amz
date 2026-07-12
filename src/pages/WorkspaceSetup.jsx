@@ -30,7 +30,7 @@ export default function WorkspaceSetup() {
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden">
         <div className="bg-gradient-to-r from-blue-700 to-blue-500 p-8 text-white text-center">
           <Building2 className="h-12 w-12 mx-auto mb-3 opacity-90" />
-          <h1 className="text-2xl font-bold">Bem-vindo ao PatrimônioApp</h1>
+          <h1 className="text-2xl font-bold">Bem-vindo ao Patrimônios AMZ</h1>
           <p className="text-blue-200 mt-2 text-sm">Configure sua conta para começar</p>
         </div>
 
