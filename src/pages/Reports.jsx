@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
+import { useWorkspace } from '@/lib/WorkspaceContext';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { FileText, Download, Table, AlertTriangle, ImageOff, Clock } from 'lucide-react';
+import { FileText, Download, Table, AlertTriangle, ImageOff, Clock, LayoutGrid, RectangleHorizontal, RectangleVertical, ScrollText } from 'lucide-react';
 import { formatCurrency, getAssetDepreciation } from '@/lib/depreciation';
+import { REPORT_CATALOG, REPORT_GROUPS, generateTablePDF, generateAssetSheet } from '@/lib/reportCatalog';
 import moment from 'moment';
 import jsPDF from 'jspdf';
 
@@ -19,9 +21,21 @@ export default function Reports() {
   const AssetEntity = useWorkspaceEntity('Asset');
   const LocationEntity = useWorkspaceEntity('LocationHistory');
   const AttachmentEntity = useWorkspaceEntity('AssetAttachment');
+  const RevaluationEntity = useWorkspaceEntity('AssetRevaluation');
+  const DisposalEntity = useWorkspaceEntity('AssetDisposal');
+  const LoanEntity = useWorkspaceEntity('AssetLoan');
+  const AssignmentEntity = useWorkspaceEntity('AssetAssignment');
+  const BranchEntity = useWorkspaceEntity('Branch');
+  const InventoryItemEntity = useWorkspaceEntity('InventoryItem');
+  const { workspace } = useWorkspace();
   const { workspaceId } = AssetEntity;
   const [locationLatest, setLocationLatest] = useState({});
   const [attachmentAssetIds, setAttachmentAssetIds] = useState(new Set());
+
+  // Dataset do catálogo de relatórios — carregado uma vez, reaproveitado por todos os cards.
+  const [catalogData, setCatalogData] = useState({
+    revaluations: [], disposals: [], loans: [], assignments: [], branches: [], inventoryItems: [],
+  });
 
   useEffect(() => {
     if (!workspaceId) return;
@@ -43,6 +57,18 @@ export default function Reports() {
     AttachmentEntity.list('-uploaded_at', 5000).then((rows) => {
       setAttachmentAssetIds(new Set(rows.map((r) => r.asset_id)));
     }).catch(() => {});
+
+    // Dados do catálogo de relatórios (Onda 5) — mesmas fontes já usadas nas telas dedicadas.
+    Promise.all([
+      RevaluationEntity.list('-revaluation_date', 2000).catch(() => []),
+      DisposalEntity.list('-disposal_date', 2000).catch(() => []),
+      LoanEntity.list('-loan_date', 2000).catch(() => []),
+      AssignmentEntity.list('-assignment_date', 2000).catch(() => []),
+      BranchEntity.list('-created_date', 200).catch(() => []),
+      InventoryItemEntity.list('-counted_at', 5000).catch(() => []),
+    ]).then(([revaluations, disposals, loans, assignments, branches, inventoryItems]) => {
+      setCatalogData({ revaluations, disposals, loans, assignments, branches, inventoryItems });
+    });
   }, [workspaceId]);
 
   const costCenters = ['Todos', ...Array.from(new Set(assets.map(a => a.cost_center).filter(Boolean)))];
@@ -75,22 +101,21 @@ export default function Reports() {
     setGenerating(true);
     const rows = getRows();
     const doc = new jsPDF({ orientation: 'landscape' });
-    
-    doc.setFontSize(18);
+
     doc.text('Relatório de Patrimônio Contábil', 14, 20);
     doc.setFontSize(10);
     doc.text(`Gerado em: ${moment().format('DD/MM/YYYY HH:mm')}`, 14, 28);
     doc.text(`Categoria: ${categoryFilter}`, 14, 34);
-    
+
     const totalAcq = rows.reduce((s, r) => s + r.acquisitionValue, 0);
     const totalCur = rows.reduce((s, r) => s + r.currentValue, 0);
     const totalDep = rows.reduce((s, r) => s + r.accumulated, 0);
-    
+
     doc.setFontSize(11);
     doc.text(`Patrimônio Total: ${formatCurrency(totalCur)}`, 14, 42);
     doc.text(`Valor de Aquisição: ${formatCurrency(totalAcq)}`, 14, 48);
     doc.text(`Depreciação Acumulada: ${formatCurrency(totalDep)}`, 14, 54);
-    
+
     // Table header
     let y = 66;
     doc.setFontSize(8);
@@ -102,7 +127,7 @@ export default function Reports() {
       doc.text(h, x, y);
       x += colWidths[i];
     });
-    
+
     // Table rows
     doc.setFont(undefined, 'normal');
     y += 6;
@@ -129,7 +154,7 @@ export default function Reports() {
       });
       y += 5;
     });
-    
+
     doc.save(`patrimonio_${moment().format('YYYYMMDD')}.pdf`);
     setGenerating(false);
   };
@@ -152,8 +177,8 @@ export default function Reports() {
         r.depRate,
       ].join(';'))
     ];
-    
-    const blob = new Blob(['\ufeff' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+
+    const blob = new Blob(['﻿' + csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
@@ -181,6 +206,7 @@ export default function Reports() {
         assets, filteredAssets, categories, categoryFilter, setCategoryFilter,
         costCenters, costCenterFilter, setCostCenterFilter, exportPDF, exportCSV,
         generating, rows, totalAcq, totalCur, totalDep, locationLatest, attachmentAssetIds,
+        catalogData, workspace,
       }}
     />
   );
@@ -190,6 +216,7 @@ function ReportsView({
   assets, filteredAssets, categories, categoryFilter, setCategoryFilter,
   costCenters, costCenterFilter, setCostCenterFilter, exportPDF, exportCSV,
   generating, rows, totalAcq, totalCur, totalDep, locationLatest, attachmentAssetIds,
+  catalogData, workspace,
 }) {
   // Relatórios de auditoria (100% computados sobre o conjunto filtrado).
   const audit = useMemo(() => {
@@ -359,6 +386,9 @@ function ReportsView({
         />
       </div>
 
+      {/* Catálogo de relatórios — inspirado no menu do PatPro (Onda 5) */}
+      <ReportCatalogSection assets={assets} catalogData={catalogData} workspace={workspace} />
+
       {/* Preview table */}
       <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
         <div className="p-4 border-b border-border">
@@ -399,6 +429,92 @@ function ReportsView({
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ReportCatalogSection({ assets, catalogData, workspace }) {
+  const [orientation, setOrientation] = useState('landscape');
+  const [sheetAssetId, setSheetAssetId] = useState('');
+
+  const ctx = { assets, ...catalogData };
+
+  const handleGenerate = (entry) => {
+    const { columns, rows } = entry.build(ctx);
+    generateTablePDF({ title: entry.title, columns, rows, workspace, orientation });
+  };
+
+  const handleSheet = () => {
+    const asset = assets.find((a) => a.id === sheetAssetId);
+    if (!asset) return;
+    generateAssetSheet({ asset, workspace, orientation: orientation === 'landscape' ? 'portrait' : orientation });
+  };
+
+  return (
+    <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-5">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div className="flex items-center gap-2">
+          <LayoutGrid className="h-5 w-5 text-primary" />
+          <div>
+            <h2 className="text-lg font-semibold text-card-foreground">Catálogo de Relatórios</h2>
+            <p className="text-sm text-muted-foreground">Relatórios prontos, um clique — inclui reavaliações, baixas/alienações, empréstimos e conferência de inventário</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+          <button
+            onClick={() => setOrientation('landscape')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${orientation === 'landscape' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+          >
+            <RectangleHorizontal className="h-3.5 w-3.5" /> Paisagem
+          </button>
+          <button
+            onClick={() => setOrientation('portrait')}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${orientation === 'portrait' ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground'}`}
+          >
+            <RectangleVertical className="h-3.5 w-3.5" /> Retrato
+          </button>
+        </div>
+      </div>
+
+      {/* Ficha Individual — caso especial, precisa de um ativo selecionado */}
+      <div className="flex items-center gap-3 flex-wrap bg-muted/30 border border-border rounded-lg p-3">
+        <ScrollText className="h-5 w-5 text-muted-foreground shrink-0" />
+        <div className="flex-1 min-w-[200px]">
+          <p className="text-sm font-medium text-card-foreground">Ficha Individual</p>
+          <p className="text-xs text-muted-foreground">Folha detalhada de 1 ativo específico</p>
+        </div>
+        <Select value={sheetAssetId} onValueChange={setSheetAssetId}>
+          <SelectTrigger className="w-56"><SelectValue placeholder="Selecione o ativo" /></SelectTrigger>
+          <SelectContent>
+            {assets.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+          </SelectContent>
+        </Select>
+        <Button size="sm" variant="outline" className="gap-2" disabled={!sheetAssetId} onClick={handleSheet}>
+          <Download className="h-4 w-4" /> Gerar
+        </Button>
+      </div>
+
+      {REPORT_GROUPS.map((group) => {
+        const entries = REPORT_CATALOG.filter((r) => r.group === group);
+        if (entries.length === 0) return null;
+        return (
+          <div key={group}>
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">{group}</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {entries.map((entry) => (
+                <button
+                  key={entry.id}
+                  onClick={() => handleGenerate(entry)}
+                  className="text-left border border-border rounded-lg p-3 hover:border-primary hover:shadow-sm transition-all bg-background"
+                >
+                  <p className="text-sm font-medium text-card-foreground">{entry.title}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{entry.description}</p>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
