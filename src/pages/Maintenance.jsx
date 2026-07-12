@@ -22,22 +22,26 @@ export default function Maintenance() {
   const canManage = can('manage_maintenance');
   const MaintenanceEntity = useWorkspaceEntity('MaintenanceRecord');
   const AssetEntity = useWorkspaceEntity('Asset');
+  const SectorEntity = useWorkspaceEntity('Sector');
 
   const [records, setRecords] = useState([]);
   const [assets, setAssets] = useState([]);
+  const [sectors, setSectors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState({ asset_id: '', scheduled_date: '', type: 'Preventiva', description: '' });
+  const [form, setForm] = useState({ asset_id: '', scheduled_date: '', type: 'Preventiva', description: '', sector_id: '' });
 
   const load = async () => {
     setLoading(true);
-    const [recs, a] = await Promise.all([
+    const [recs, a, s] = await Promise.all([
       MaintenanceEntity.list('-scheduled_date', 2000),
       AssetEntity.list('name', 2000),
+      SectorEntity.list('name', 500),
     ]);
     setRecords(recs);
     setAssets(a);
+    setSectors(s.filter((row) => row.status !== 'inativo'));
     setLoading(false);
   };
   useEffect(() => { load(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
@@ -86,12 +90,13 @@ export default function Maintenance() {
         scheduled_date: form.scheduled_date,
         type: form.type,
         description: form.description,
+        sector_id: form.sector_id,
         status: 'agendada',
         cost: 0,
       });
       toast.success('Manutenção agendada.');
       setOpen(false);
-      setForm({ asset_id: '', scheduled_date: '', type: 'Preventiva', description: '' });
+      setForm({ asset_id: '', scheduled_date: '', type: 'Preventiva', description: '', sector_id: '' });
       await load();
     } catch (e) {
       toast.error(e?.message || 'Não foi possível agendar.');
@@ -177,6 +182,16 @@ export default function Maintenance() {
                       <SelectContent>{TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}</SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div>
+                  <Label>Setor</Label>
+                  <Select value={form.sector_id || 'none'} onValueChange={(v) => setForm({ ...form, sector_id: v === 'none' ? '' : v })}>
+                    <SelectTrigger><SelectValue placeholder="Nenhum setor cadastrado" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem setor</SelectItem>
+                      {sectors.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label>Descrição</Label>
