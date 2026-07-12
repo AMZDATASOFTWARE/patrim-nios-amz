@@ -63,11 +63,11 @@ export default function Settings() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Configurações</h1>
-        <p className="text-muted-foreground mt-1">Defina as taxas de depreciação padrão por categoria</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Configurações</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Defina as taxas de depreciação padrão por categoria</p>
       </div>
 
-      <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
         <div className="flex items-center gap-2 mb-4">
           <TrendingDown className="h-5 w-5 text-primary" />
           <h2 className="text-lg font-semibold text-card-foreground">Depreciação por Categoria</h2>
