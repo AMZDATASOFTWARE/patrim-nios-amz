@@ -4,7 +4,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.35';
 // (chain-of-custody). Only the function (service-role) writes the row and the
 // acceptance token — the entity RLS blocks direct SDK create and the field-level
 // RLS blocks anyone but a function from flipping `status`.
-// Input: { asset_id, to_location?, to_cost_center?, recipient_email, recipient_name?, reason? }
+// Input: { asset_id, to_location?, to_cost_center?, to_sector_id?, recipient_email, recipient_name?, reason? }
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -48,6 +48,8 @@ Deno.serve(async (req) => {
       to_location: String(body.to_location || '').substring(0, 300),
       from_cost_center: asset.cost_center || '',
       to_cost_center: String(body.to_cost_center || '').substring(0, 300),
+      from_sector_id: asset.sector_id || '',
+      to_sector_id: String(body.to_sector_id || ''),
       requested_by_email: user.email,
       requested_by_name: fresh.full_name || user.email,
       requested_at: new Date().toISOString(),
