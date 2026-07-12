@@ -78,6 +78,22 @@
     "address": {
       "type": "string",
       "title": "Endere\u00e7o"
+    },
+    "report_letterhead_text": {
+      "type": "string",
+      "title": "Cabecalho dos relatorios (orgao/unidade)"
+    },
+    "report_footer_text": {
+      "type": "string",
+      "title": "Rodape dos relatorios"
+    },
+    "report_responsible_name": {
+      "type": "string",
+      "title": "Responsavel pelos relatorios"
+    },
+    "report_signature_url": {
+      "type": "string",
+      "title": "Imagem de assinatura para relatorios"
     }
   },
   "required": [
