@@ -9,7 +9,10 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const PROFILE_FIELDS = ['name', 'cnpj', 'phone', 'address', 'logo_url'] as const;
+const PROFILE_FIELDS = [
+  'name', 'cnpj', 'phone', 'address', 'logo_url',
+  'report_letterhead_text', 'report_footer_text', 'report_responsible_name', 'report_signature_url',
+] as const;
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
