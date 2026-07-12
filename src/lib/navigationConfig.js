@@ -12,7 +12,7 @@ import {
   Wrench, FileSignature, TrendingDown, Percent, FileDown, FileText,
   Landmark, Building2, Truck, Users, UserCog, ArrowUpDown, History, Settings,
   CreditCard, ShieldCheck, Coins, Home, Boxes, Hammer, Calculator, FolderOpen,
-  SlidersHorizontal, Server, Newspaper, Handshake, PackageX, Scale,
+  SlidersHorizontal, Server, Newspaper, Handshake, PackageX, Scale, Layers,
 } from 'lucide-react';
 import { can, canManageBilling } from '@/lib/permissions';
 import { ROUTE_PERMISSIONS } from '@/lib/routePermissions';
@@ -88,6 +88,7 @@ export const NAV_GROUPS = [
     items: [
       { id: 'company', name: 'Empresa', href: '/CompanyProfile', icon: Landmark, permission: 'view_company' },
       { id: 'branches', name: 'Filiais', href: '/Branches', icon: Building2, permission: 'view_branches' },
+      { id: 'sectors', name: 'Setores', href: '/Sectors', icon: Layers, permission: 'view_sectors' },
       { id: 'suppliers', name: 'Fornecedores', href: '/Suppliers', icon: Truck, permission: 'view_suppliers' },
       { id: 'collaborators', name: 'Colaboradores', href: '/Collaborators', icon: Users, permission: 'view_users', sublabel: 'responsáveis por ativos' },
     ],
