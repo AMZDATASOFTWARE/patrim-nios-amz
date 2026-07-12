@@ -44,7 +44,7 @@ function matchedMilestone(dateStr: string): number | null {
 
 interface AlertSpec {
   workspace_id: string;
-  source_type: 'warranty' | 'review' | 'contract' | 'ipva';
+  source_type: 'warranty' | 'review' | 'contract' | 'ipva' | 'loan';
   source_id: string;
   milestone: number;
   title: string;
@@ -118,6 +118,21 @@ Deno.serve(async (req) => {
           specs.push({
             workspace_id: wsId, source_type: 'contract', source_id: c.id, milestone: cM,
             title: 'Contrato/apolice vencendo', body: `"${label}" vence em ${cM} dia(s).`,
+          });
+        }
+      }
+
+      // Emprestimos de ativos com devolucao prevista se aproximando (so os ainda em aberto).
+      const loans = await svc.entities.AssetLoan.filter({ workspace_id: wsId, status: 'emprestado' }, '-created_date', 5000);
+      for (const l of loans) {
+        const lM = matchedMilestone(l.expected_return_date as string);
+        if (lM !== null) {
+          const assetLabel = (l.asset_name as string) || 'Ativo';
+          const borrower = (l.borrower_name as string) || 'destinatario nao informado';
+          specs.push({
+            workspace_id: wsId, source_type: 'loan', source_id: l.id, milestone: lM,
+            title: 'Devolucao de emprestimo se aproximando',
+            body: `A devolucao do ativo "${assetLabel}" emprestado a ${borrower} esta prevista para daqui a ${lM} dia(s).`,
           });
         }
       }
