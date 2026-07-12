@@ -48,10 +48,10 @@ export default function Transfers() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Transferências</h1>
-        <p className="text-muted-foreground mt-1">Movimentações de patrimônio com aceite do destinatário</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Transferências</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Movimentações de patrimônio com aceite do destinatário</p>
       </div>
 
       {loading ? (
@@ -60,14 +60,14 @@ export default function Transfers() {
         <>
           {pendingForMe.length > 0 && (
             <div className="bg-card rounded-xl border border-amber-200 shadow-sm overflow-hidden">
-              <div className="p-4 border-b border-border bg-amber-50">
-                <h2 className="font-semibold text-amber-800">Aguardando seu aceite ({pendingForMe.length})</h2>
+              <div className="p-3 sm:p-4 border-b border-border bg-amber-50">
+                <h2 className="text-sm sm:text-base font-semibold text-amber-800">Aguardando seu aceite ({pendingForMe.length})</h2>
               </div>
               <div className="divide-y divide-border">
                 {pendingForMe.map((t) => (
-                  <div key={t.id} className="flex items-center justify-between gap-3 p-4 flex-wrap">
+                  <div key={t.id} className="flex items-center justify-between gap-3 p-3 sm:p-4 flex-wrap">
                     <div className="min-w-0">
-                      <p className="font-medium text-card-foreground">{t.asset_name}</p>
+                      <p className="text-sm sm:text-base font-medium text-card-foreground">{t.asset_name}</p>
                       <p className="text-xs text-muted-foreground">
                         De {t.requested_by_name || t.requested_by_email}
                         {t.to_location ? ` → ${t.to_location}` : ''}
@@ -89,8 +89,8 @@ export default function Transfers() {
           )}
 
           <div className="bg-card rounded-xl border border-border shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-border">
-              <h2 className="font-semibold text-card-foreground">Histórico</h2>
+            <div className="p-3 sm:p-4 border-b border-border">
+              <h2 className="text-sm sm:text-base font-semibold text-card-foreground">Histórico</h2>
             </div>
             {others.length === 0 ? (
               <div className="text-center py-12 text-muted-foreground">
@@ -102,9 +102,9 @@ export default function Transfers() {
                 {others.map((t) => {
                   const meta = STATUS_META[t.status] || STATUS_META.pendente;
                   return (
-                    <div key={t.id} className="flex items-center justify-between gap-3 p-4">
+                    <div key={t.id} className="flex items-center justify-between gap-3 p-3 sm:p-4">
                       <div className="min-w-0">
-                        <p className="font-medium text-card-foreground truncate">{t.asset_name}</p>
+                        <p className="text-sm sm:text-base font-medium text-card-foreground truncate">{t.asset_name}</p>
                         <p className="text-xs text-muted-foreground">
                           {t.requested_by_name || t.requested_by_email} → {t.recipient_name || t.recipient_email}
                           {t.requested_at ? ` • ${moment(t.requested_at).format('DD/MM/YYYY')}` : ''}
