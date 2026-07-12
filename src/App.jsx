@@ -44,6 +44,7 @@ import AcceptTransfer from '@/pages/AcceptTransfer';
 import CiapCredits from '@/pages/CiapCredits';
 import AccountingExport from '@/pages/AccountingExport';
 import Branches from '@/pages/Branches';
+import Sectors from '@/pages/Sectors';
 import Help from '@/pages/Help';
 import Revaluations from '@/pages/Revaluations';
 import Disposals from '@/pages/Disposals';
@@ -138,6 +139,7 @@ const WorkspaceRoutes = () => {
           <Route path="/Settings" element={<Settings />} />
           <Route path="/CompanyProfile" element={<CompanyProfile />} />
           <Route path="/Branches" element={<Branches />} />
+          <Route path="/Sectors" element={<Sectors />} />
           <Route path="/ImportExport" element={<ImportExport />} />
           <Route path="/Billing" element={<Billing />} />
           <Route path="/SuperAdmin" element={<SuperAdmin />} />
