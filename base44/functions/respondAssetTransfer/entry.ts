@@ -66,6 +66,7 @@ Deno.serve(async (req) => {
         const assetPatch: Record<string, unknown> = {};
         if (transfer.to_location) assetPatch.location = transfer.to_location;
         if (transfer.to_cost_center) assetPatch.cost_center = transfer.to_cost_center;
+        if (transfer.to_sector_id) assetPatch.sector_id = transfer.to_sector_id;
         if (Object.keys(assetPatch).length > 0) {
           await svc.entities.Asset.update(asset.id, assetPatch);
         }
