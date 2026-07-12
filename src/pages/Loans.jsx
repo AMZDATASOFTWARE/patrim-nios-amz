@@ -93,8 +93,8 @@ export default function Loans() {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Empréstimos de Ativos</h1>
-          <p className="text-muted-foreground mt-1">Empréstimo temporário, diferente de transferência permanente — com previsão de devolução</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Empréstimos de Ativos</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Empréstimo temporário, diferente de transferência permanente — com previsão de devolução</p>
         </div>
         {canManage && <Button className="gap-2" onClick={openNew}><Plus className="h-4 w-4" /> Novo empréstimo</Button>}
       </div>
