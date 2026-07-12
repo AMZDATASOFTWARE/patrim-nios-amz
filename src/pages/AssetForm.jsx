@@ -30,6 +30,8 @@ export default function AssetForm() {
   const AssetEntity = useWorkspaceEntity('Asset');
   const BranchEntity = useWorkspaceEntity('Branch');
   const [branches, setBranches] = useState([]);
+  const SectorEntity = useWorkspaceEntity('Sector');
+  const [sectors, setSectors] = useState([]);
   const ConfigEntity = useWorkspaceEntity('DepreciationConfig');
   const AuditEntity = useWorkspaceEntity('AuditLog');
   const { user } = useAuth();
@@ -43,6 +45,7 @@ export default function AssetForm() {
     account: '',
     cost_center: '',
     branch_id: '',
+    sector_id: '',
     acquisition_value: '',
     purchase_date: '',
     depreciation_start_date: '',
@@ -84,6 +87,7 @@ export default function AssetForm() {
 
   useEffect(() => {
     BranchEntity.list('-created_date', 200).then(setBranches).catch(() => {});
+    SectorEntity.list('name', 500).then((rows) => setSectors(rows.filter((s) => s.status !== 'inativo'))).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -102,6 +106,7 @@ export default function AssetForm() {
             account: asset.account || '',
             cost_center: asset.cost_center || '',
             branch_id: asset.branch_id || '',
+            sector_id: asset.sector_id || '',
             acquisition_value: asset.acquisition_value || '',
             purchase_date: asset.purchase_date || '',
             depreciation_start_date: asset.depreciation_start_date || '',
@@ -334,6 +339,23 @@ export default function AssetForm() {
                 </Select>
               </div>
             )}
+
+            <div>
+              <Label>Setor</Label>
+              {sectors.length > 0 ? (
+                <Select value={form.sector_id || 'none'} onValueChange={(v) => setForm({ ...form, sector_id: v === 'none' ? '' : v })}>
+                  <SelectTrigger><SelectValue placeholder="Nenhum setor cadastrado" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem setor</SelectItem>
+                    {sectors.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Nenhum setor cadastrado — <Link to="/Sectors" className="text-primary hover:underline">cadastre um</Link>
+                </p>
+              )}
+            </div>
 
             <div className="sm:col-span-2">
               <Label htmlFor="location">Localização Física</Label>
