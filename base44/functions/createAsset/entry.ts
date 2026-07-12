@@ -27,7 +27,8 @@ const CONSERVATION = ['Novo', 'Ótimo', 'Bom', 'Regular', 'Ruim'];
 const OWNERSHIP_TYPES = ['proprio', 'terceiros', 'locado', 'comodato'];
 
 const STRING_FIELDS = [
-  'plaqueta', 'description', 'account', 'cost_center', 'branch_id', 'sector_id', 'location', 'serial_number', 'rfid_tag_id',
+  // cost_center removido (legado, RLS de campo travada em Asset.jsonc -- so sector_id e valido pra escrita agora).
+  'plaqueta', 'description', 'account', 'branch_id', 'sector_id', 'location', 'serial_number', 'rfid_tag_id',
   'fiscal_document', 'warranty_expiry_date', 'next_review_date', 'depreciation_start_date',
   'supplier_id', 'supplier_name', 'photo_url', 'invoice_url', 'external_link',
   'registry_link', 'notes', 'purchase_date',
