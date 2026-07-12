@@ -1,0 +1,129 @@
+{
+  "name": "AssetRevaluation",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "asset_id": {
+      "type": "string",
+      "title": "ID do Ativo"
+    },
+    "asset_name": {
+      "type": "string",
+      "title": "Ativo"
+    },
+    "revaluation_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data da Reavaliacao"
+    },
+    "previous_value": {
+      "type": "number",
+      "title": "Valor Anterior (R$)"
+    },
+    "previous_residual_value": {
+      "type": "number",
+      "title": "Valor Residual Anterior (R$)"
+    },
+    "previous_rate": {
+      "type": "number",
+      "title": "Taxa Anterior (%)"
+    },
+    "previous_accumulated_depreciation": {
+      "type": "number",
+      "title": "Depreciacao Acumulada Anterior (R$)"
+    },
+    "appraised_value": {
+      "type": "number",
+      "title": "Valor Avaliado (R$)"
+    },
+    "appraised_residual_value": {
+      "type": "number",
+      "title": "Valor Residual Avaliado (R$)"
+    },
+    "new_useful_life_years": {
+      "type": "number",
+      "title": "Nova Vida Util (anos)"
+    },
+    "gain_amount": {
+      "type": "number",
+      "title": "Ganho (R$)"
+    },
+    "loss_amount": {
+      "type": "number",
+      "title": "Perda (R$)"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observacoes"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "asset_id",
+    "revaluation_date",
+    "appraised_value"
+  ],
+  "rls": {
+    "//": "Tenant + papel: admin/manager registram reavaliacao; viewer/user somente leitura. Delete restrito a admin (registro fiscal/contabil).",
+    "create": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "delete": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
