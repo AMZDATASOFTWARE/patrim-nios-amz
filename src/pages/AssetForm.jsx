@@ -247,10 +247,10 @@ export default function AssetForm() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
             {editId ? 'Editar Ativo' : 'Novo Ativo'}
           </h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="text-sm text-muted-foreground mt-0.5">
             {editId ? 'Atualize as informações do ativo' : 'Preencha os dados para cadastrar um novo ativo'}
           </p>
         </div>
@@ -258,7 +258,7 @@ export default function AssetForm() {
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Basic Info */}
-        <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+        <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
           <h2 className="text-lg font-semibold text-card-foreground">Identificação do Bem</h2>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -349,7 +349,7 @@ export default function AssetForm() {
 
         {/* Property-specific fields */}
         {form.category === 'Imóveis' && (
-          <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+          <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
             <h2 className="text-lg font-semibold text-card-foreground">Dados do Imóvel</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -378,7 +378,7 @@ export default function AssetForm() {
 
         {/* Vehicle-specific fields */}
         {form.category === 'Veículos' && (
-          <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+          <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
             <h2 className="text-lg font-semibold text-card-foreground">Dados do Veículo</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
@@ -410,7 +410,7 @@ export default function AssetForm() {
         )}
 
         {/* Financial Info */}
-        <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+        <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
           <h2 className="text-lg font-semibold text-card-foreground">Informações Financeiras</h2>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -495,7 +495,7 @@ export default function AssetForm() {
         </div>
 
         {/* Supplier & Fiscal */}
-        <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+        <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
           <h2 className="text-lg font-semibold text-card-foreground">Fornecedor & Documento Fiscal</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="sm:col-span-2">
@@ -521,7 +521,7 @@ export default function AssetForm() {
         </div>
 
         {/* Depreciação Fiscal (opcional) */}
-        <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+        <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
           <div>
             <h2 className="text-lg font-semibold text-card-foreground">Depreciação Fiscal (opcional)</h2>
             <p className="text-sm text-muted-foreground">Preencha apenas se a taxa fiscal (Receita Federal) diferir da societária/gerencial acima. Em branco, o livro fiscal espelha o societário.</p>
@@ -549,7 +549,7 @@ export default function AssetForm() {
         </div>
 
         {/* Titularidade / obra em andamento */}
-        <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+        <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
           <h2 className="text-lg font-semibold text-card-foreground">Titularidade</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -596,7 +596,7 @@ export default function AssetForm() {
         </div>
 
         {/* Attachments */}
-        <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+        <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
           <h2 className="text-lg font-semibold text-card-foreground">Anexos e Links</h2>
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
