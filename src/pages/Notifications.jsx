@@ -49,11 +49,11 @@ export default function Notifications() {
   const dot = (t) => (t === 'warning' ? 'bg-amber-500' : t === 'success' ? 'bg-emerald-500' : 'bg-blue-500');
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="max-w-3xl mx-auto space-y-4 sm:space-y-6">
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Notificações</h1>
-          <p className="text-muted-foreground mt-1">Alertas de garantia, revisões e avisos do sistema</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Notificações</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Alertas de garantia, revisões e avisos do sistema</p>
         </div>
         {unread.length > 0 && (
           <Button variant="outline" onClick={markAll} className="gap-2">
@@ -73,11 +73,11 @@ export default function Notifications() {
       ) : (
         <div className="bg-card rounded-xl border border-border shadow-sm divide-y divide-border">
           {items.map((n) => (
-            <div key={n.id} className={`flex items-start gap-3 p-4 ${!n.read ? 'bg-primary/5' : ''}`}>
+            <div key={n.id} className={`flex items-start gap-3 p-3 sm:p-4 ${!n.read ? 'bg-primary/5' : ''}`}>
               <span className={`mt-1.5 h-2.5 w-2.5 rounded-full shrink-0 ${dot(n.type)}`} />
               <div className="flex-1 min-w-0">
-                <p className="font-medium text-foreground">{n.title}</p>
-                {n.body && <p className="text-sm text-muted-foreground">{n.body}</p>}
+                <p className="text-sm sm:text-base font-medium text-foreground">{n.title}</p>
+                {n.body && <p className="text-xs sm:text-sm text-muted-foreground">{n.body}</p>}
                 {n.when && <p className="text-xs text-muted-foreground mt-1">{moment(n.when).format('DD/MM/YYYY HH:mm')}</p>}
               </div>
               <div className="flex items-center gap-2 shrink-0">
