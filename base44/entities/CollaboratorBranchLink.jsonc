@@ -1,0 +1,101 @@
+{
+  "name": "CollaboratorBranchLink",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "collaborator_id": {
+      "type": "string",
+      "title": "ID do Colaborador"
+    },
+    "branch_id": {
+      "type": "string",
+      "title": "ID da Filial"
+    },
+    "is_primary": {
+      "type": "boolean",
+      "title": "Filial principal",
+      "default": false
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observacoes"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "collaborator_id",
+    "branch_id"
+  ],
+  "rls": {
+    "//": "Pivot N:N colaborador<->filial explicita (nao representa vinculo com o Workspace raiz, que ja e implicito via Collaborator.workspace_id). Mesmo padrao de Collaborator: admin/manager gerenciam, leitura tenant qualquer papel.",
+    "create": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "delete": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
