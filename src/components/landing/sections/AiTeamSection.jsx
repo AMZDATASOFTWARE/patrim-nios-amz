@@ -11,7 +11,7 @@ const SUPERVISORS = [
   { icon: Truck, name: 'Operação de Campo', desc: 'Transferências, inventários em aberto, precisão da última conferência.' },
   { icon: Wrench, name: 'Manutenção & Contratos', desc: 'Garantias e contratos vencendo, preventiva × corretiva.' },
   { icon: Calculator, name: 'Fiscal & Contábil', desc: 'Depreciação nos dois livros, CIAP a apropriar, crédito de PIS/COFINS.' },
-  { icon: Users, name: 'Cadastros & Estrutura', desc: 'Fornecedores, colaboradores, filiais e centros de custo.' },
+  { icon: Users, name: 'Cadastros & Estrutura', desc: 'Fornecedores, colaboradores, filiais (com hierarquia) e setores.' },
   { icon: ShieldCheck, name: 'Governança', desc: 'Trilha de auditoria, acessos e conformidade do workspace.' },
 ];
 
