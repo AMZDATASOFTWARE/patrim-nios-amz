@@ -45,9 +45,9 @@ export default function Help() {
       <div>
         <div className="flex items-center gap-2">
           <HelpCircle className="h-7 w-7 text-primary" />
-          <h1 className="text-3xl font-bold text-foreground">Central de Ajuda</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Central de Ajuda</h1>
         </div>
-        <p className="text-muted-foreground mt-1">
+        <p className="text-sm text-muted-foreground mt-0.5">
           Perguntas frequentes, guias passo a passo e como falar com o suporte.
         </p>
       </div>
