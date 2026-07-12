@@ -141,7 +141,7 @@ export default function Dashboard() {
   }).filter(c => c.currentValue > 0 || c.depreciation > 0);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
         <div>
@@ -158,7 +158,7 @@ export default function Dashboard() {
       {/* Faixa de atenção (urgente no topo, sempre visível — independe da aba) */}
       <AttentionStrip items={attentionItems} />
 
-      <Tabs defaultValue="geral" className="space-y-4">
+      <Tabs defaultValue="geral" className="space-y-3 sm:space-y-4">
         <div className="w-full overflow-x-auto">
           <TabsList className="inline-flex w-max">
             <TabsTrigger value="geral" className="gap-1.5"><LayoutDashboard className="h-4 w-4" />Visão Geral</TabsTrigger>
@@ -170,8 +170,8 @@ export default function Dashboard() {
         </div>
 
         {/* Visão Geral: os KPIs mais importantes, pensado pra caber sem rolar */}
-        <TabsContent value="geral" className="space-y-4">
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+        <TabsContent value="geral" className="space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-2 lg:grid-cols-5 gap-2.5 sm:gap-3">
             <StatCard
               title="Patrimônio Total"
               value={formatCurrency(overview.totals.totalCurrentValue)}
@@ -203,7 +203,7 @@ export default function Dashboard() {
             />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <CategoryChart data={categoryData} />
             <DepreciationChart data={depreciationData} />
           </div>
@@ -218,12 +218,12 @@ export default function Dashboard() {
         </TabsContent>
 
         {/* Operação: atividade do dia a dia */}
-        <TabsContent value="operacao" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TabsContent value="operacao" className="space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <KpiSectionCard title="Operação de Campo" subtitle="Transferências, termos e inventário" icon={Truck} kpis={fieldOpsKpis} />
             <KpiSectionCard title="Manutenção & Contratos" subtitle="Preventiva, custos e vigências" icon={Wrench} kpis={maintenanceKpis} />
           </div>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <ExpiringItemsWidget items={expiringItems} compact />
             <MaintenanceAlerts assets={assets} compact />
           </div>
@@ -241,16 +241,16 @@ export default function Dashboard() {
         </TabsContent>
 
         {/* Cadastros: estrutural, consultado ocasionalmente */}
-        <TabsContent value="cadastros" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TabsContent value="cadastros" className="space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <KpiSectionCard title="Cadastros & Estrutura" subtitle="Filiais, fornecedores e colaboradores" icon={Building} kpis={registriesKpis} />
             <KpiSectionCard title="Atividade do Sistema" subtitle="Movimentações registradas hoje" icon={Activity} kpis={activityKpis} />
           </div>
         </TabsContent>
 
         {/* Ativos Recentes: referência */}
-        <TabsContent value="ativos" className="space-y-4">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TabsContent value="ativos" className="space-y-3 sm:space-y-4">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
             <RecentAssets assets={assets} />
             <ExternalLinks />
           </div>
