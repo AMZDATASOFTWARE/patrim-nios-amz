@@ -113,10 +113,10 @@ export default function AssetDetail() {
           </Link>
           <div>
             <div className="flex items-center gap-3">
-              <h1 className="text-3xl font-bold text-foreground">{asset.name}</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">{asset.name}</h1>
               <AssetStatusBadge status={asset.status} />
             </div>
-            <p className="text-muted-foreground mt-1">{asset.category}</p>
+            <p className="text-sm text-muted-foreground mt-0.5">{asset.category}</p>
           </div>
         </div>
         <div className="flex gap-2">
@@ -180,7 +180,7 @@ export default function AssetDetail() {
         {/* Right - Financial */}
         <div className="lg:col-span-2 space-y-6">
           {/* Values */}
-          <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+          <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm">
             <h2 className="text-lg font-semibold text-card-foreground mb-4">Informações Contábeis</h2>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-6">
               <div>
@@ -223,7 +223,7 @@ export default function AssetDetail() {
 
           {/* Property-specific fields */}
           {asset.category === 'Imóveis' && (asset.property_registration_number || asset.property_registry_office || asset.property_iptu_number || asset.property_area_m2 || asset.property_registration_type) && (
-            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-card-foreground mb-4">Dados do Imóvel</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {asset.property_registration_number && (
@@ -247,7 +247,7 @@ export default function AssetDetail() {
 
           {/* Vehicle-specific fields */}
           {asset.category === 'Veículos' && (asset.vehicle_plate || asset.vehicle_renavam || asset.vehicle_chassis || asset.vehicle_ipva_due_date || asset.vehicle_fuel_type || asset.vehicle_model_year) && (
-            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-card-foreground mb-4">Dados do Veículo</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {asset.vehicle_plate && (
@@ -274,7 +274,7 @@ export default function AssetDetail() {
 
           {/* Titularidade / obra em andamento */}
           {((asset.ownership_type && asset.ownership_type !== 'proprio') || asset.is_construction_in_progress) && (
-            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-card-foreground mb-4">Titularidade</h2>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                 {asset.ownership_type && asset.ownership_type !== 'proprio' && (
@@ -301,7 +301,7 @@ export default function AssetDetail() {
 
           {/* Links */}
           {(asset.external_link || asset.registry_link) && (
-            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-card-foreground mb-4">Links Externos</h2>
               <div className="space-y-2">
                 {asset.external_link && (
@@ -320,7 +320,7 @@ export default function AssetDetail() {
 
           {/* Description */}
           {asset.description && (
-            <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+            <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm">
               <h2 className="text-lg font-semibold text-card-foreground mb-2">Descrição</h2>
               <p className="text-muted-foreground whitespace-pre-wrap">{asset.description}</p>
             </div>
