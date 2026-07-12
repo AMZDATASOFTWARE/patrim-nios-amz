@@ -43,6 +43,17 @@
         "inativa"
       ],
       "default": "ativa"
+    },
+    "parent_branch_id": {
+      "type": "string",
+      "title": "Filial pai (sub-filial de)",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "is_platform_admin": true
+          }
+        }
+      }
     }
   },
   "required": [
@@ -50,7 +61,7 @@
     "name"
   ],
   "rls": {
-    "//": "create bloqueado no SDK (passa por createBranch, que exige plano enterprise + admin). read por tenant; update/delete admin.",
+    "//": "create bloqueado no SDK (passa por createBranch, que exige plano enterprise + admin). read por tenant; update/delete admin. parent_branch_id tem RLS de CAMPO travada em is_platform_admin - so createBranch/moveBranch (service-role) gravam, prevenindo que um admin escreva um pai arbitrario (potencialmente ciclico) via update direto.",
     "create": {
       "user_condition": {
         "is_platform_admin": true
