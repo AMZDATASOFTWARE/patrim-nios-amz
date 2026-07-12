@@ -71,8 +71,8 @@ export default function Depreciation() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Depreciação</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Depreciação</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
             {basis === 'diferenca'
               ? 'Diferença entre depreciação societária e fiscal (base temporária)'
               : `Livro ${basis === 'fiscal' ? 'fiscal' : 'societário'} — Método da Linha Reta`}
@@ -105,19 +105,19 @@ export default function Depreciation() {
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-        <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+        <div className="bg-card rounded-xl border border-border p-3 sm:p-5 shadow-sm">
           <p className="text-sm text-muted-foreground">Total Aquisição</p>
           <p className="text-xl font-bold mt-1">{formatCurrency(totalAcquisition)}</p>
         </div>
-        <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+        <div className="bg-card rounded-xl border border-border p-3 sm:p-5 shadow-sm">
           <p className="text-sm text-muted-foreground">Valor Contábil Atual</p>
           <p className="text-xl font-bold text-primary mt-1">{formatCurrency(totalCurrent)}</p>
         </div>
-        <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+        <div className="bg-card rounded-xl border border-border p-3 sm:p-5 shadow-sm">
           <p className="text-sm text-muted-foreground">Depreciação Acumulada</p>
           <p className="text-xl font-bold text-destructive mt-1">{formatCurrency(totalAccumulated)}</p>
         </div>
-        <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+        <div className="bg-card rounded-xl border border-border p-3 sm:p-5 shadow-sm">
           <p className="text-sm text-muted-foreground">Depreciação Mensal</p>
           <p className="text-xl font-bold mt-1">{formatCurrency(totalMonthly)}</p>
         </div>
