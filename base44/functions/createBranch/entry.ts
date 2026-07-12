@@ -70,7 +70,7 @@ Deno.serve(async (req) => {
     const name = String(body.name || '').trim().substring(0, 200);
     if (!name) return json({ error: 'Nome da filial obrigatorio.' }, 400);
     const isHeadquarters = body.is_headquarters === true;
-    let parentBranchId: string | null = body.parent_branch_id ? String(body.parent_branch_id) : null;
+    const parentBranchId: string | null = body.parent_branch_id ? String(body.parent_branch_id) : null;
 
     if (isHeadquarters && parentBranchId) {
       return json({ error: 'A matriz nao pode ter uma filial pai.' }, 400);
