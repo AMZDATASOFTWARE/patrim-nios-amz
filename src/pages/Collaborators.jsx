@@ -154,7 +154,6 @@ export default function Collaborators() {
     assignments.filter(a => a.collaborator_name === collabName).length;
 
   const branchLabelFor = (id) => branches.find((b) => b.id === id)?.name || '';
-  const sectorLabelFor = (id) => sectors.find((s) => s.id === id)?.name || '';
 
   return (
     <div className="space-y-6">
