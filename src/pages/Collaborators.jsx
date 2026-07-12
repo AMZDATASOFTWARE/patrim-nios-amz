@@ -6,9 +6,10 @@ import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Plus, Search, Users, Pencil, Trash2, Package } from 'lucide-react';
 import { maskCpf } from '@/lib/mask';
-import moment from 'moment';
+import { toast } from 'sonner';
 
 const EMPTY = { name: '', cpf: '', email: '', phone: '', department: '', role: '', registration_number: '', status: 'Ativo', hire_date: '', notes: '' };
 const statusColors = { Ativo: 'bg-emerald-100 text-emerald-700', Inativo: 'bg-gray-100 text-gray-500', Afastado: 'bg-amber-100 text-amber-700' };
@@ -16,41 +17,124 @@ const statusColors = { Ativo: 'bg-emerald-100 text-emerald-700', Inativo: 'bg-gr
 export default function Collaborators() {
   const [collaborators, setCollaborators] = useState([]);
   const [assignments, setAssignments] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [sectors, setSectors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(EMPTY);
+  const [selectedBranchIds, setSelectedBranchIds] = useState([]);
+  const [selectedSectorIds, setSelectedSectorIds] = useState([]);
+  const [savedBranchLinks, setSavedBranchLinks] = useState([]);
+  const [savedSectorLinks, setSavedSectorLinks] = useState([]);
   const CollabEntity = useWorkspaceEntity('Collaborator');
   const AssignEntity = useWorkspaceEntity('AssetAssignment');
+  const BranchEntity = useWorkspaceEntity('Branch');
+  const SectorEntity = useWorkspaceEntity('Sector');
+  const CollabBranchLinkEntity = useWorkspaceEntity('CollaboratorBranchLink');
+  const CollabSectorLinkEntity = useWorkspaceEntity('CollaboratorSectorLink');
   const { workspaceId } = CollabEntity;
 
   useEffect(() => { if (workspaceId) load(); }, [workspaceId]);
 
   const load = async () => {
-    const [c, a] = await Promise.all([
+    const [c, a, b, s] = await Promise.all([
       CollabEntity.list('-created_date', 200),
       AssignEntity.filter({ status: 'Ativo' }, '-assignment_date', 500),
+      BranchEntity.list('name', 500),
+      SectorEntity.list('name', 500),
     ]);
     setCollaborators(c);
     setAssignments(a);
+    setBranches(b);
+    setSectors(s);
     setLoading(false);
   };
 
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
-  const openNew = () => { setEditing(null); setForm(EMPTY); setOpen(true); };
-  const openEdit = (c) => { setEditing(c); setForm({ ...EMPTY, ...c }); setOpen(true); };
+  const openNew = () => {
+    setEditing(null);
+    setForm(EMPTY);
+    setSelectedBranchIds([]);
+    setSelectedSectorIds([]);
+    setSavedBranchLinks([]);
+    setSavedSectorLinks([]);
+    setOpen(true);
+  };
+
+  const openEdit = async (c) => {
+    setEditing(c);
+    setForm({ ...EMPTY, ...c });
+    const [bLinks, sLinks] = await Promise.all([
+      CollabBranchLinkEntity.filter({ collaborator_id: c.id }, '-created_date', 200),
+      CollabSectorLinkEntity.filter({ collaborator_id: c.id }, '-created_date', 200),
+    ]);
+    setSavedBranchLinks(bLinks);
+    setSavedSectorLinks(sLinks);
+    setSelectedBranchIds(bLinks.map((l) => l.branch_id));
+    setSelectedSectorIds(sLinks.map((l) => l.sector_id));
+    setOpen(true);
+  };
+
+  const toggleBranch = (branchId) => {
+    setSelectedBranchIds((prev) => {
+      const next = prev.includes(branchId) ? prev.filter((id) => id !== branchId) : [...prev, branchId];
+      return next;
+    });
+    // Cascata: se a filial foi removida, tira também os setores dela ja selecionados
+    // (setor pertence a uma filial especifica — nao faz sentido manter selecionado
+    // um setor de uma filial que o colaborador nao esta mais vinculado).
+    if (selectedBranchIds.includes(branchId)) {
+      const sectorsOfBranch = sectors.filter((s) => s.branch_id === branchId).map((s) => s.id);
+      setSelectedSectorIds((prev) => {
+        const removed = prev.filter((id) => sectorsOfBranch.includes(id));
+        if (removed.length > 0) toast.info(`${removed.length} setor(es) dessa filial foram removidos da seleção.`);
+        return prev.filter((id) => !sectorsOfBranch.includes(id));
+      });
+    }
+  };
+
+  const toggleSector = (sectorId) => {
+    setSelectedSectorIds((prev) => prev.includes(sectorId) ? prev.filter((id) => id !== sectorId) : [...prev, sectorId]);
+  };
+
+  // Setores disponiveis para escolher: da Sede (branch_id vazio, sempre disponivel)
+  // ou de alguma filial ja selecionada acima — evita vincular a um setor de uma
+  // filial que o colaborador nunca foi associado.
+  const availableSectors = sectors.filter((s) => !s.branch_id || selectedBranchIds.includes(s.branch_id));
+
+  const syncLinks = async (collaboratorId) => {
+    const toCreateBranches = selectedBranchIds.filter((id) => !savedBranchLinks.some((l) => l.branch_id === id));
+    const toDeleteBranches = savedBranchLinks.filter((l) => !selectedBranchIds.includes(l.branch_id));
+    const toCreateSectors = selectedSectorIds.filter((id) => !savedSectorLinks.some((l) => l.sector_id === id));
+    const toDeleteSectors = savedSectorLinks.filter((l) => !selectedSectorIds.includes(l.sector_id));
+
+    await Promise.all([
+      ...toCreateBranches.map((branch_id) => CollabBranchLinkEntity.create({ collaborator_id: collaboratorId, branch_id })),
+      ...toDeleteBranches.map((l) => CollabBranchLinkEntity.del(l.id)),
+      ...toCreateSectors.map((sector_id) => CollabSectorLinkEntity.create({ collaborator_id: collaboratorId, sector_id })),
+      ...toDeleteSectors.map((l) => CollabSectorLinkEntity.del(l.id)),
+    ]);
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (editing) {
-      await CollabEntity.update(editing.id, form);
-    } else {
-      await CollabEntity.create(form);
+    try {
+      let collaboratorId = editing?.id;
+      if (editing) {
+        await CollabEntity.update(editing.id, form);
+      } else {
+        const row = await CollabEntity.create(form);
+        collaboratorId = row.id;
+      }
+      await syncLinks(collaboratorId);
+      setOpen(false);
+      load();
+    } catch (err) {
+      toast.error(err?.message || 'Não foi possível salvar o colaborador.');
     }
-    setOpen(false);
-    load();
   };
 
   const handleDelete = async (id) => {
@@ -68,6 +152,9 @@ export default function Collaborators() {
 
   const activeAssetsFor = (collabName) =>
     assignments.filter(a => a.collaborator_name === collabName).length;
+
+  const branchLabelFor = (id) => branches.find((b) => b.id === id)?.name || '';
+  const sectorLabelFor = (id) => sectors.find((s) => s.id === id)?.name || '';
 
   return (
     <div className="space-y-6">
@@ -113,7 +200,7 @@ export default function Collaborators() {
 
                 <div className="space-y-1 text-xs text-muted-foreground mb-4">
                   <p><span className="font-medium text-foreground">CPF:</span> {maskCpf(c.cpf)}</p>
-                  {c.department && <p><span className="font-medium text-foreground">Setor:</span> {c.department}</p>}
+                  {c.department && <p><span className="font-medium text-foreground">Departamento (texto livre):</span> {c.department}</p>}
                   {c.email && <p><span className="font-medium text-foreground">E-mail:</span> {c.email}</p>}
                   {c.registration_number && <p><span className="font-medium text-foreground">Matrícula:</span> {c.registration_number}</p>}
                 </div>
@@ -166,10 +253,6 @@ export default function Collaborators() {
                 <Input value={form.phone} onChange={e => f('phone', e.target.value)} />
               </div>
               <div>
-                <Label>Departamento / Setor</Label>
-                <Input value={form.department} onChange={e => f('department', e.target.value)} />
-              </div>
-              <div>
                 <Label>Cargo</Label>
                 <Input value={form.role} onChange={e => f('role', e.target.value)} />
               </div>
@@ -188,10 +271,49 @@ export default function Collaborators() {
                   </SelectContent>
                 </Select>
               </div>
-              <div className="col-span-2">
-                <Label>Observações</Label>
-                <Textarea value={form.notes} onChange={e => f('notes', e.target.value)} rows={2} />
+            </div>
+
+            {branches.length > 0 && (
+              <div>
+                <Label>Filiais vinculadas</Label>
+                <div className="border border-border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1 mt-1">
+                  {branches.map((b) => (
+                    <label key={b.id} className="flex items-center gap-2 text-sm cursor-pointer py-0.5">
+                      <Checkbox checked={selectedBranchIds.includes(b.id)} onCheckedChange={() => toggleBranch(b.id)} />
+                      {b.name}
+                    </label>
+                  ))}
+                </div>
               </div>
+            )}
+
+            <div>
+              <Label>Setores vinculados</Label>
+              {availableSectors.length === 0 ? (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {branches.length > 0 && selectedBranchIds.length === 0
+                    ? 'Selecione uma filial acima ou cadastre um setor na Sede.'
+                    : 'Nenhum setor cadastrado ainda — cadastre em Cadastros → Setores.'}
+                </p>
+              ) : (
+                <div className="border border-border rounded-lg p-2 max-h-32 overflow-y-auto space-y-1 mt-1">
+                  {availableSectors.map((s) => (
+                    <label key={s.id} className="flex items-center gap-2 text-sm cursor-pointer py-0.5">
+                      <Checkbox checked={selectedSectorIds.includes(s.id)} onCheckedChange={() => toggleSector(s.id)} />
+                      {s.name}{s.branch_id ? ` (${branchLabelFor(s.branch_id)})` : ' (Sede)'}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <Label>Departamento (texto livre)</Label>
+              <Input value={form.department} onChange={e => f('department', e.target.value)} placeholder="Campo legado — prefira os Setores acima" />
+            </div>
+            <div>
+              <Label>Observações</Label>
+              <Textarea value={form.notes} onChange={e => f('notes', e.target.value)} rows={2} />
             </div>
             <Button type="submit" className="w-full">{editing ? 'Salvar Alterações' : 'Cadastrar Colaborador'}</Button>
           </form>
