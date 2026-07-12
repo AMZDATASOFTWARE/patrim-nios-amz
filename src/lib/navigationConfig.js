@@ -12,7 +12,7 @@ import {
   Wrench, FileSignature, TrendingDown, Percent, FileDown, FileText,
   Landmark, Building2, Truck, Users, UserCog, ArrowUpDown, History, Settings,
   CreditCard, ShieldCheck, Coins, Home, Boxes, Hammer, Calculator, FolderOpen,
-  SlidersHorizontal, Server, Newspaper,
+  SlidersHorizontal, Server, Newspaper, Handshake, PackageX, Scale,
 } from 'lucide-react';
 import { can, canManageBilling } from '@/lib/permissions';
 import { ROUTE_PERMISSIONS } from '@/lib/routePermissions';
@@ -56,6 +56,8 @@ export const NAV_GROUPS = [
       { id: 'transfers', name: 'Transferências', href: '/Transfers', icon: ArrowLeftRight, permission: 'view_transfers', tabLabel: 'Transferir', badge: 'pendingTransfers' },
       { id: 'map', name: 'Mapa', href: '/AssetMap', icon: Map, permission: 'view_map' },
       { id: 'labels', name: 'Etiquetas / QR', href: '/AssetLabel', icon: QrCode, permission: 'view_labels' },
+      { id: 'loans', name: 'Empréstimos', href: '/Loans', icon: Handshake, permission: 'view_loans' },
+      { id: 'disposals', name: 'Baixa / Alienação', href: '/Disposals', icon: PackageX, permission: 'view_disposals' },
     ],
   },
   {
@@ -69,6 +71,7 @@ export const NAV_GROUPS = [
     id: 'fiscal_contabil', label: 'Fiscal & Contábil', icon: Calculator, collapsible: true,
     items: [
       { id: 'depreciation', name: 'Depreciação', href: '/Depreciation', icon: TrendingDown, permission: 'view_depreciation' },
+      { id: 'revaluations', name: 'Reavaliações', href: '/Revaluations', icon: Scale, permission: 'view_revaluations' },
       // Percent (was Landmark) — Landmark stays exclusive to Empresa; fixes icon collision in collapsed mode.
       { id: 'ciap', name: 'Créditos CIAP', href: '/CiapCredits', icon: Percent, permission: 'view_fiscal_credits' },
       { id: 'accounting_export', name: 'Export. Contábil', href: '/AccountingExport', icon: FileDown, permission: 'view_accounting_export' },
