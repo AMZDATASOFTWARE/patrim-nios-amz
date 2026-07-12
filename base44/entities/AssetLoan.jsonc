@@ -20,7 +20,11 @@
     },
     "borrower_sector": {
       "type": "string",
-      "title": "Setor/Departamento do Tomador"
+      "title": "Setor/Departamento do Tomador (texto livre - uso externo)"
+    },
+    "sector_id": {
+      "type": "string",
+      "title": "Setor interno (opcional)"
     },
     "loan_date": {
       "type": "string",
