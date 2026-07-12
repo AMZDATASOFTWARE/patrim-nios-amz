@@ -124,8 +124,8 @@ export default function CiapCredits() {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Créditos Fiscais (CIAP)</h1>
-          <p className="text-muted-foreground mt-1">Crédito de ICMS do ativo imobilizado (Bloco G) e créditos PIS/COFINS</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Créditos Fiscais (CIAP)</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Crédito de ICMS do ativo imobilizado (Bloco G) e créditos PIS/COFINS</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" className="gap-2" onClick={exportCSV} disabled={credits.length === 0}>
@@ -140,15 +140,15 @@ export default function CiapCredits() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+        <div className="bg-card rounded-xl border border-border p-3 sm:p-5 shadow-sm">
           <p className="text-sm text-muted-foreground">Créditos cadastrados</p>
           <p className="text-2xl font-bold mt-1">{credits.length}</p>
         </div>
-        <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+        <div className="bg-card rounded-xl border border-border p-3 sm:p-5 shadow-sm">
           <p className="text-sm text-muted-foreground">ICMS total do imobilizado</p>
           <p className="text-2xl font-bold mt-1">{formatCurrency(totalIcms)}</p>
         </div>
-        <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+        <div className="bg-card rounded-xl border border-border p-3 sm:p-5 shadow-sm">
           <p className="text-sm text-muted-foreground">Crédito mensal (em apropriação)</p>
           <p className="text-2xl font-bold text-primary mt-1">{formatCurrency(totalMonthly)}</p>
         </div>
