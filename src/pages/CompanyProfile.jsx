@@ -62,11 +62,11 @@ export default function CompanyProfile() {
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Perfil da Empresa</h1>
-        <p className="text-muted-foreground mt-1">Informações utilizadas nas etiquetas e relatórios do sistema</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Perfil da Empresa</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Informações utilizadas nas etiquetas e relatórios do sistema</p>
       </div>
 
-      <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-6">
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-6">
         {/* Logo */}
         <div>
           <Label className="text-base font-semibold">Logo da Empresa</Label>
@@ -162,7 +162,7 @@ export default function CompanyProfile() {
       </div>
 
       {/* Cabecalho de relatorios */}
-      <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-6">
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-6">
         <div className="flex items-center gap-2">
           <FileText className="h-5 w-5 text-primary" />
           <div>
