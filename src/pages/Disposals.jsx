@@ -95,8 +95,8 @@ export default function Disposals() {
     <div className="max-w-5xl mx-auto space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Baixa / Alienação de Patrimônio</h1>
-          <p className="text-muted-foreground mt-1">Registre descarte simples (baixa) ou venda com nota fiscal (alienação)</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Baixa / Alienação de Patrimônio</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Registre descarte simples (baixa) ou venda com nota fiscal (alienação)</p>
         </div>
         {canManage && <Button className="gap-2" onClick={openNew}><Plus className="h-4 w-4" /> Nova saída</Button>}
       </div>
