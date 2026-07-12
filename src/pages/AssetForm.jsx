@@ -194,8 +194,9 @@ export default function AssetForm() {
 
     setSaving(true);
 
+    const { cost_center: _legacyCostCenter, ...formWithoutLegacy } = form;
     const data = {
-      ...form,
+      ...formWithoutLegacy,
       acquisition_value: parseFloat(form.acquisition_value) || 0,
       depreciation_rate: parseFloat(form.depreciation_rate) || 0,
       useful_life_years: parseFloat(form.useful_life_years) || 0,
@@ -322,10 +323,12 @@ export default function AssetForm() {
               <Input id="account" value={form.account} onChange={(e) => setForm({ ...form, account: e.target.value })} placeholder="Ex: 1.2.3.01 - Máquinas e Equipamentos" />
             </div>
 
-            <div>
-              <Label htmlFor="cost_center">Centro de Custo / Departamento</Label>
-              <Input id="cost_center" value={form.cost_center} onChange={(e) => setForm({ ...form, cost_center: e.target.value })} placeholder="Ex: Produção - Galpão 1" />
-            </div>
+            {form.cost_center && (
+              <div>
+                <Label>Centro de Custo / Departamento (legado)</Label>
+                <p className="text-sm text-muted-foreground py-2">{form.cost_center} — somente leitura, use o Setor abaixo</p>
+              </div>
+            )}
 
             {branches.length > 0 && (
               <div>
