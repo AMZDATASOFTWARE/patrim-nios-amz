@@ -8,7 +8,7 @@
     },
     "name": {
       "type": "string",
-      "title": "Nome do Inventário"
+      "title": "Nome do Invent\u00e1rio"
     },
     "status": {
       "type": "string",
@@ -35,7 +35,7 @@
     "started_at": {
       "type": "string",
       "format": "date-time",
-      "title": "Início"
+      "title": "In\u00edcio"
     },
     "closed_at": {
       "type": "string",
@@ -48,7 +48,11 @@
     },
     "notes": {
       "type": "string",
-      "title": "Observações"
+      "title": "Observa\u00e7\u00f5es"
+    },
+    "committee_members": {
+      "type": "string",
+      "title": "Comiss\u00e3o de invent\u00e1rio (Nome \u2014 Fun\u00e7\u00e3o, um por linha)"
     }
   },
   "required": [
@@ -57,30 +61,62 @@
     "status"
   ],
   "rls": {
-    "//": "Tenant + papel: admin/manager conduzem o inventário; viewer/user somente leitura.",
+    "//": "Tenant + papel: admin/manager conduzem o invent\u00e1rio; viewer/user somente leitura.",
     "create": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "$or": [
-          { "user_condition": { "role": "admin" } },
-          { "user_condition": { "role": "manager" } }
-        ] }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
       ]
     },
-    "read": { "data.workspace_id": "{{user.data.workspace_id}}" },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
     "update": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "$or": [
-          { "user_condition": { "role": "admin" } },
-          { "user_condition": { "role": "manager" } }
-        ] }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
       ]
     },
     "delete": {
       "$and": [
-        { "data.workspace_id": "{{user.data.workspace_id}}" },
-        { "user_condition": { "role": "admin" } }
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
       ]
     }
   }
