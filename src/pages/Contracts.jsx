@@ -143,11 +143,11 @@ export default function Contracts() {
   }).length;
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Contratos & Garantias</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Contratos & Garantias</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
             Garantias, seguros e contratos dos seus ativos
             {expiringCount > 0 && <span className="text-amber-600 font-medium"> • {expiringCount} vencendo/vencido(s)</span>}
           </p>
@@ -184,14 +184,14 @@ export default function Contracts() {
             const Icon = meta.icon;
             const exp = expiryStatus(c.end_date);
             return (
-              <div key={c.id} className="bg-card rounded-xl border border-border p-4 shadow-sm flex items-start justify-between gap-3">
+              <div key={c.id} className="bg-card rounded-xl border border-border p-3 sm:p-4 shadow-sm flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">
-                  <span className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 border ${meta.color}`}>
-                    <Icon className="h-5 w-5" />
+                  <span className={`h-9 w-9 sm:h-10 sm:w-10 rounded-lg flex items-center justify-center shrink-0 border ${meta.color}`}>
+                    <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
                   </span>
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-semibold text-foreground truncate">{c.title}</p>
+                      <p className="text-sm sm:text-base font-semibold text-foreground truncate">{c.title}</p>
                       <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${meta.color}`}>{meta.label}</span>
                       {exp && <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${exp.color}`}>{exp.label}</span>}
                     </div>
