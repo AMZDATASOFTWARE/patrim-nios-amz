@@ -34,6 +34,10 @@ const FAQS = [
     a: 'Pode. São 4 papéis (administrador, gerente, visualizador e usuário) com permissões próprias. O número de usuários inclusos varia por plano (3 no Starter, 15 no Professional, ilimitado no Enterprise).',
   },
   {
+    q: 'Como funciona a estrutura de filiais e setores?',
+    a: 'Filiais (opcional, plano Enterprise) podem ter sub-filiais em hierarquia infinita. Setores são gratuitos em todos os planos, podem ficar na Sede ou numa filial específica, e cada colaborador pode ser vinculado a várias filiais e setores ao mesmo tempo — direto em Cadastros → Setores e Cadastros → Colaboradores.',
+  },
+  {
     q: 'E se eu quiser cancelar?',
     a: 'O cancelamento é feito por você mesmo, direto no painel de assinatura — sem ligação de retenção. Seus dados continuam exportáveis em CSV a qualquer momento.',
   },
