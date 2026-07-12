@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Drawer as DrawerPrimitive } from 'vaul';
-import { LogOut } from 'lucide-react';
+import { HelpCircle, LogOut } from 'lucide-react';
 import { base44 } from '@/api/base44Client';
 
 /**
@@ -140,9 +140,24 @@ export default function MoreSheet({ open, onOpenChange, groups, isActive, badgeF
           </div>
 
           <div
-            className="flex-shrink-0 border-t border-sidebar-border p-2"
+            className="flex-shrink-0 border-t border-sidebar-border p-2 space-y-1"
             style={{ paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom))' }}
           >
+            {/* Ajuda — item fixo, fora de NAV_GROUPS por decisão de produto (sempre no final, mesmo padrão estrutural de "Sair") */}
+            <button
+              type="button"
+              onClick={() => handleNavigate('/Help')}
+              aria-current={isActive('/Help') ? 'page' : undefined}
+              className={`flex w-full items-center gap-3 rounded-lg px-4 py-3 text-left text-sm font-medium transition-colors duration-150 ${
+                isActive('/Help')
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                  : 'text-sidebar-foreground/70 active:bg-sidebar-accent'
+              }`}
+            >
+              <HelpCircle className="h-5 w-5 flex-shrink-0" aria-hidden="true" />
+              <span>Ajuda</span>
+            </button>
+
             <button
               type="button"
               onClick={() => base44.auth.logout()}
