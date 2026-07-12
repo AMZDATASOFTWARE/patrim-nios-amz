@@ -168,7 +168,7 @@ Relatório completo: `AUDIT_REPORT.md`. 3 ALTO + 6 MÉDIO corrigidos de imediato
 
 ## 8. Postura de segurança (auditoria)
 
-Relatório completo: `AUDIT_REPORT.md` (última rodada: 2026-07-11, ver 3.1). **Zero CRÍTICO em todas as rodadas.** Achados fechados: N2, N4, N5, N7, N9, N10, N11, N12, N14, N15 (2026-07-06); A1, A2, A3, M1, M2, M3, M4, M5, B4 (2026-07-11). Pendentes: M6, B1-B3 (baixo esforço/risco).
+Relatório completo: `AUDIT_REPORT.md` (última rodada: 2026-07-11, ver 3.1; achado avulso N16 em 2026-07-12). **Zero CRÍTICO em todas as rodadas.** Achados fechados: N2, N4, N5, N7, N9, N10, N11, N12, N14, N15 (2026-07-06); A1, A2, A3, M1, M2, M3, M4, M5, B4 (2026-07-11); N16 (2026-07-12, mitigado por soft gate — reforço rígido opcional, ver seção 9 item 10). Pendentes: M6, B1-B3 (baixo esforço/risco).
 
 **Aceitos/adiados conscientemente:**
 - **N1** — bloquear *leitura* de tenant suspenso: inviável limpo no Base44 (RLS de Asset não lê `plan_status` do Workspace pai sem desnormalizar). Escrita já bloqueada; resíduo = ler os próprios dados (questão de receita, não vazamento).
