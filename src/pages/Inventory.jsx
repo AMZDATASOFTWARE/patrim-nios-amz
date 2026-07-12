@@ -72,11 +72,11 @@ export default function Inventory() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto space-y-6">
+    <div className="max-w-5xl mx-auto space-y-4 sm:space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Inventário Físico</h1>
-          <p className="text-muted-foreground mt-1">Concilie o cadastro com o que existe fisicamente</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Inventário Físico</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Concilie o cadastro com o que existe fisicamente</p>
         </div>
         {canManage && (
           <NewInventoryDialog
@@ -102,7 +102,7 @@ export default function Inventory() {
           </p>
         </div>
       ) : (
-        <div className="grid gap-4">
+        <div className="grid gap-3 sm:gap-4">
           {counts.map((c) => (
             <InventoryCard key={c.id} count={c} ItemEntity={ItemEntity} onOpen={() => setSelected(c.id)} />
           ))}
@@ -128,12 +128,12 @@ function InventoryCard({ count, ItemEntity, onOpen }) {
   return (
     <button
       onClick={onOpen}
-      className="text-left bg-card rounded-xl border border-border p-5 shadow-sm hover:border-primary/40 transition-colors"
+      className="text-left bg-card rounded-xl border border-border p-3 sm:p-5 shadow-sm hover:border-primary/40 transition-colors"
     >
       <div className="flex items-center justify-between gap-3 flex-wrap">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="font-semibold text-foreground">{count.name}</h3>
+            <h3 className="text-sm sm:text-base font-semibold text-foreground">{count.name}</h3>
             <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
               isOpen ? 'bg-blue-100 text-blue-700 border-blue-200' :
               count.status === 'concluido' ? 'bg-emerald-100 text-emerald-700 border-emerald-200' :
@@ -527,7 +527,7 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
       </div>
 
       {/* Reconciliação */}
-      <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+      <div className="bg-card rounded-xl border border-border p-3 sm:p-5 shadow-sm">
         <div className="flex items-center justify-between mb-3">
           <span className="text-sm font-medium text-foreground">Progresso da conciliação</span>
           <span className="text-sm text-muted-foreground">{done}/{total} ({pct}%)</span>
@@ -615,7 +615,7 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
           const displayCode = item.is_surplus ? item.found_plaqueta : item.plaqueta;
           const displayLocation = item.is_surplus ? item.found_location : item.expected_location;
           return (
-            <div key={item.id} className="flex items-center justify-between gap-3 p-4">
+            <div key={item.id} className="flex items-center justify-between gap-3 p-3 sm:p-4">
               <div className="flex items-center gap-3 min-w-0">
                 <Icon className={`h-5 w-5 shrink-0 ${meta.color}`} />
                 <div className="min-w-0">
