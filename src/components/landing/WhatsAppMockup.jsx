@@ -4,8 +4,8 @@ import { display, dim, dimmer } from './landingTheme';
 const MESSAGES = [
   { from: 'user', text: 'Quais contratos vencem este mês?' },
   { from: 'assistant', text: '2 contratos vencem em breve: Locação da impressora (dia 15) e Seguro da frota (dia 28). Quer que eu detalhe algum?' },
-  { from: 'user', text: 'Depois vejo. Cadastra um notebook Dell pra filial Belém, R$ 4.500, categoria Informática.' },
-  { from: 'assistant', text: 'Cadastrado ✅ Notebook Dell · R$ 4.500,00 · Informática · Filial Belém. Já está no seu inventário e entra no cálculo de depreciação deste mês.' },
+  { from: 'user', text: 'Depois vejo. Cadastra um notebook Dell pra filial Belém, setor TI, R$ 4.500, categoria Informática.' },
+  { from: 'assistant', text: 'Cadastrado ✅ Notebook Dell · R$ 4.500,00 · Informática · Filial Belém · Setor TI. Já está no seu inventário e entra no cálculo de depreciação deste mês.' },
 ];
 
 /** Mockup estático de conversa com o Assistente Patrimonial no WhatsApp (dados ilustrativos). */
