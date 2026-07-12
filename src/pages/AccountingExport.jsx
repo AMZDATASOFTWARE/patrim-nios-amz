@@ -154,7 +154,6 @@ export default function AccountingExport() {
                         <SelectItem value="categoria">Categoria</SelectItem>
                         <SelectItem value="setor">Setor</SelectItem>
                         <SelectItem value="todos">Todos os ativos (padrão)</SelectItem>
-                        {form.match_type === 'centro_custo' && <SelectItem value="centro_custo">Centro de custo (legado)</SelectItem>}
                       </SelectContent>
                     </Select>
                   </div>
@@ -162,12 +161,6 @@ export default function AccountingExport() {
                     <div>
                       <Label>Categoria</Label>
                       <Input value={form.match_value} onChange={(e) => setForm({ ...form, match_value: e.target.value })} placeholder="Ex: Veículos" />
-                    </div>
-                  )}
-                  {form.match_type === 'centro_custo' && (
-                    <div>
-                      <Label>Centro de custo (legado)</Label>
-                      <Input value={form.match_value} onChange={(e) => setForm({ ...form, match_value: e.target.value })} placeholder="Ex: Produção" />
                     </div>
                   )}
                   {form.match_type === 'setor' && (
