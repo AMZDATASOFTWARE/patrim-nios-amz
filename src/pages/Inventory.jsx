@@ -573,7 +573,7 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
       {/* Conferência rápida por plaqueta / câmera */}
       {isOpen && canManage && (
         <div className="flex flex-col sm:flex-row gap-3">
-          <form onSubmit={handleScan} className="bg-card rounded-xl border border-border p-4 shadow-sm flex gap-2 items-center flex-1">
+          <form onSubmit={handleScan} className="bg-card rounded-xl border border-border p-3 sm:p-4 shadow-sm flex gap-2 items-center flex-1">
             <ScanLine className="h-5 w-5 text-muted-foreground shrink-0" />
             <Input
               value={scanCode}
