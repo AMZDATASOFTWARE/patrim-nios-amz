@@ -32,7 +32,7 @@ async function urlToDataUrl(url) {
   }
 }
 
-const EMPTY = { collaborator_name: '', collaborator_email: '', collaborator_cpf: '', collaborator_department: '', collaborator_phone: '', assignment_date: new Date().toISOString().split('T')[0], expected_return_date: '', purpose: '', condition_on_assignment: 'Bom estado', supervisor_name: '', notes: '', status: 'Ativo', signed: false };
+const EMPTY = { collaborator_name: '', collaborator_email: '', collaborator_cpf: '', collaborator_department: '', collaborator_sector_id: '', collaborator_phone: '', assignment_date: new Date().toISOString().split('T')[0], expected_return_date: '', purpose: '', condition_on_assignment: 'Bom estado', supervisor_name: '', notes: '', status: 'Ativo', signed: false };
 
 const statusColors = { Ativo: 'bg-emerald-100 text-emerald-700', Devolvido: 'bg-gray-100 text-gray-600', Atrasado: 'bg-red-100 text-red-700', Cancelado: 'bg-gray-100 text-gray-400' };
 
@@ -47,28 +47,42 @@ export default function AssignmentSection({ assetId, assetName }) {
   const [showCollabDropdown, setShowCollabDropdown] = useState(false);
   const AssignEntity = useWorkspaceEntity('AssetAssignment');
   const CollabEntity = useWorkspaceEntity('Collaborator');
+  const CollabSectorLinkEntity = useWorkspaceEntity('CollaboratorSectorLink');
+  const SectorEntity = useWorkspaceEntity('Sector');
+  const [sectors, setSectors] = useState([]);
 
   useEffect(() => { load(); }, [assetId]);
 
   const load = async () => {
-    const [data, collabs] = await Promise.all([
+    const [data, collabs, s] = await Promise.all([
       AssignEntity.filter({ asset_id: assetId }, '-assignment_date', 50),
       CollabEntity.list('-name', 200),
+      SectorEntity.list('name', 500),
     ]);
     setRecords(data);
     setCollaborators(collabs);
+    setSectors(s.filter((row) => row.status !== 'inativo'));
     setLoading(false);
   };
 
   const f = (k, v) => setForm(p => ({ ...p, [k]: v }));
 
-  const selectCollaborator = (collab) => {
+  const selectCollaborator = async (collab) => {
+    // Auto-preenche o setor só quando o vínculo é inequívoco (exatamente 1 setor
+    // ligado ao colaborador) -- com 0 ou 2+ vínculos, deixa em branco e editável,
+    // pra não gravar um setor errado num documento com relevância legal (o termo assinado).
+    let sectorId = '';
+    try {
+      const links = await CollabSectorLinkEntity.filter({ collaborator_id: collab.id }, '-created_date', 5);
+      if (links.length === 1) sectorId = links[0].sector_id;
+    } catch (_) { /* não critico -- campo fica editavel manualmente */ }
     setForm(p => ({
       ...p,
       collaborator_name: collab.name,
       collaborator_cpf: collab.cpf || '',
       collaborator_email: collab.email || '',
       collaborator_department: collab.department || '',
+      collaborator_sector_id: sectorId,
       collaborator_phone: collab.phone || '',
     }));
     setCollabSearch(collab.name);
@@ -230,6 +244,16 @@ export default function AssignmentSection({ assetId, assetName }) {
                 <div><Label>CPF *</Label><Input value={form.collaborator_cpf} onChange={e => f('collaborator_cpf', e.target.value)} required placeholder="000.000.000-00" /></div>
                 <div><Label>E-mail</Label><Input type="email" value={form.collaborator_email} onChange={e => f('collaborator_email', e.target.value)} /></div>
                 <div><Label>Departamento</Label><Input value={form.collaborator_department} onChange={e => f('collaborator_department', e.target.value)} /></div>
+                <div>
+                  <Label>Setor</Label>
+                  <Select value={form.collaborator_sector_id || 'none'} onValueChange={(v) => f('collaborator_sector_id', v === 'none' ? '' : v)}>
+                    <SelectTrigger><SelectValue placeholder="Nenhum setor cadastrado" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">Sem setor</SelectItem>
+                      {sectors.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div><Label>Telefone</Label><Input value={form.collaborator_phone} onChange={e => f('collaborator_phone', e.target.value)} /></div>
                 <div><Label>Data Atribuição</Label><Input type="date" value={form.assignment_date} onChange={e => f('assignment_date', e.target.value)} required /></div>
                 <div><Label>Devolução Prevista</Label><Input type="date" value={form.expected_return_date} onChange={e => f('expected_return_date', e.target.value)} /></div>
