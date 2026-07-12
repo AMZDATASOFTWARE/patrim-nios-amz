@@ -97,7 +97,7 @@ export default function Collaborators() {
           {filtered.map(c => {
             const assets = activeAssetsFor(c.name);
             return (
-              <div key={c.id} className="bg-card border border-border rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow">
+              <div key={c.id} className="bg-card border border-border rounded-xl p-3 sm:p-5 shadow-sm hover:shadow-md transition-shadow">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
                     <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
