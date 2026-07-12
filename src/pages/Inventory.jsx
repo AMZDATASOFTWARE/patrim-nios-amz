@@ -156,13 +156,18 @@ function InventoryCard({ count, ItemEntity, onOpen }) {
   );
 }
 
-function NewInventoryDialog({ AssetEntity, CountEntity, ItemEntity, userEmail, onCreated }) {
+function NewInventoryDialog({ AssetEntity, CountEntity, ItemEntity, SectorEntity, userEmail, onCreated }) {
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState(`Inventário ${moment().format('DD/MM/YYYY')}`);
   const [category, setCategory] = useState('todos');
-  const [costCenter, setCostCenter] = useState('');
+  const [sectorId, setSectorId] = useState('');
+  const [sectors, setSectors] = useState([]);
   const [committeeMembers, setCommitteeMembers] = useState('');
+
+  useEffect(() => {
+    if (open) SectorEntity.list('name', 500).then((rows) => setSectors(rows.filter((s) => s.status !== 'inativo'))).catch(() => {});
+  }, [open]);
 
   const handleCreate = async () => {
     setCreating(true);
@@ -170,11 +175,8 @@ function NewInventoryDialog({ AssetEntity, CountEntity, ItemEntity, userEmail, o
       // Snapshot dos ativos que casam com o filtro no momento da abertura.
       const query = {};
       if (category !== 'todos') query.category = category;
-      let assets = await AssetEntity.filter(query, '-created_date', 5000);
-      if (costCenter.trim()) {
-        const cc = costCenter.trim().toLowerCase();
-        assets = assets.filter((a) => (a.cost_center || '').toLowerCase().includes(cc));
-      }
+      if (sectorId) query.sector_id = sectorId;
+      const assets = await AssetEntity.filter(query, '-created_date', 5000);
       if (assets.length === 0) {
         toast.error('Nenhum ativo encontrado para esse filtro.');
         setCreating(false);
@@ -185,7 +187,7 @@ function NewInventoryDialog({ AssetEntity, CountEntity, ItemEntity, userEmail, o
         name: name.trim() || `Inventário ${moment().format('DD/MM/YYYY')}`,
         status: 'em_andamento',
         scope_category: category === 'todos' ? '' : category,
-        scope_cost_center: costCenter.trim(),
+        scope_sector_id: sectorId,
         started_by: userEmail || '',
         started_at: new Date().toISOString(),
         total_expected: assets.length,
@@ -237,8 +239,14 @@ function NewInventoryDialog({ AssetEntity, CountEntity, ItemEntity, userEmail, o
             </Select>
           </div>
           <div>
-            <Label>Centro de custo (opcional)</Label>
-            <Input value={costCenter} onChange={(e) => setCostCenter(e.target.value)} placeholder="Filtra por parte do nome" />
+            <Label>Setor (opcional)</Label>
+            <Select value={sectorId || 'none'} onValueChange={(v) => setSectorId(v === 'none' ? '' : v)}>
+              <SelectTrigger><SelectValue placeholder="Todos os setores" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Todos os setores</SelectItem>
+                {sectors.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
           </div>
           <div>
             <Label>Comissão de inventário (opcional)</Label>
