@@ -1,0 +1,101 @@
+{
+  "name": "CollaboratorSectorLink",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "collaborator_id": {
+      "type": "string",
+      "title": "ID do Colaborador"
+    },
+    "sector_id": {
+      "type": "string",
+      "title": "ID do Setor"
+    },
+    "is_primary": {
+      "type": "boolean",
+      "title": "Setor principal",
+      "default": false
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observacoes"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "collaborator_id",
+    "sector_id"
+  ],
+  "rls": {
+    "//": "Pivot N:N colaborador<->setor. Mesmo padrao de CollaboratorBranchLink - entidade separada porque um colaborador pode estar alocado numa filial sem ter setor especifico nela (dois relacionamentos independentes).",
+    "create": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "delete": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
