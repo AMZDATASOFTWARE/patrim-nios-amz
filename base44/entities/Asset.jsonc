@@ -35,7 +35,14 @@
     },
     "cost_center": {
       "type": "string",
-      "title": "Centro de Custo / Departamento"
+      "title": "Centro de Custo / Departamento (legado, somente leitura)",
+      "rls": {
+        "update": {
+          "user_condition": {
+            "is_platform_admin": true
+          }
+        }
+      }
     },
     "branch_id": {
       "type": "string",
