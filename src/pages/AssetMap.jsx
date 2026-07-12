@@ -116,8 +116,8 @@ export default function AssetMap() {
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Mapa de Ativos</h1>
-          <p className="text-muted-foreground mt-1">{filteredLatest.length} ativo(s) com localização</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Mapa de Ativos</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">{filteredLatest.length} ativo(s) com localização</p>
         </div>
         <div className="flex gap-3">
           <Select value={selectedAsset} onValueChange={setSelectedAsset}>
@@ -137,7 +137,7 @@ export default function AssetMap() {
       </div>
 
       {/* Filtros de data */}
-      <div className="flex flex-wrap items-end gap-3 bg-card rounded-xl border border-border p-4 shadow-sm">
+      <div className="flex flex-wrap items-end gap-3 bg-card rounded-xl border border-border p-3 sm:p-4 shadow-sm">
         <div className="flex flex-col gap-1">
           <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
             <Calendar className="h-3 w-3" /> Data inicial
