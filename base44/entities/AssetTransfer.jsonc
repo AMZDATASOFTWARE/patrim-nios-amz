@@ -30,6 +30,14 @@
       "type": "string",
       "title": "Destino (centro de custo)"
     },
+    "from_sector_id": {
+      "type": "string",
+      "title": "Setor de Origem"
+    },
+    "to_sector_id": {
+      "type": "string",
+      "title": "Setor de Destino"
+    },
     "requested_by_email": {
       "type": "string",
       "title": "Solicitante (e-mail)"
