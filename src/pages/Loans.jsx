@@ -19,7 +19,7 @@ const STATUS_META = {
 };
 
 const EMPTY = {
-  asset_id: '', asset_name: '', borrower_name: '', borrower_sector: '',
+  asset_id: '', asset_name: '', borrower_name: '', borrower_sector: '', sector_id: '',
   loan_date: moment().format('YYYY-MM-DD'), expected_return_date: '', notes: '',
 };
 
@@ -29,9 +29,11 @@ export default function Loans() {
   const canManage = can('manage_loans');
   const LoanEntity = useWorkspaceEntity('AssetLoan');
   const AssetEntity = useWorkspaceEntity('Asset');
+  const SectorEntity = useWorkspaceEntity('Sector');
 
   const [loans, setLoans] = useState([]);
   const [assets, setAssets] = useState([]);
+  const [sectors, setSectors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
@@ -41,9 +43,10 @@ export default function Loans() {
 
   const load = async () => {
     setLoading(true);
-    const [l, a] = await Promise.all([
+    const [l, a, s] = await Promise.all([
       LoanEntity.list('-loan_date', 500),
       AssetEntity.list('-created_date', 1000),
+      SectorEntity.list('name', 500),
     ]);
     // Marca como atrasado (visualmente) quem passou da previsão sem devolução — não altera o registro salvo.
     const today = moment().format('YYYY-MM-DD');
@@ -53,6 +56,7 @@ export default function Loans() {
         : x
     )));
     setAssets(a);
+    setSectors(s.filter((row) => row.status !== 'inativo'));
     setLoading(false);
   };
 
@@ -150,7 +154,17 @@ export default function Loans() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div><Label>Tomador do empréstimo *</Label><Input value={form.borrower_name} onChange={(e) => setForm({ ...form, borrower_name: e.target.value })} /></div>
-              <div><Label>Setor/Departamento</Label><Input value={form.borrower_sector} onChange={(e) => setForm({ ...form, borrower_sector: e.target.value })} /></div>
+              <div><Label>Setor/Departamento (texto livre, uso externo)</Label><Input value={form.borrower_sector} onChange={(e) => setForm({ ...form, borrower_sector: e.target.value })} /></div>
+              <div className="col-span-2">
+                <Label>Setor interno (opcional)</Label>
+                <Select value={form.sector_id || 'none'} onValueChange={(v) => setForm({ ...form, sector_id: v === 'none' ? '' : v })}>
+                  <SelectTrigger><SelectValue placeholder="Nenhum setor cadastrado" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Sem setor</SelectItem>
+                    {sectors.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
               <div><Label>Data do empréstimo *</Label><Input type="date" value={form.loan_date} onChange={(e) => setForm({ ...form, loan_date: e.target.value })} /></div>
               <div><Label>Previsão de devolução *</Label><Input type="date" value={form.expected_return_date} onChange={(e) => setForm({ ...form, expected_return_date: e.target.value })} /></div>
             </div>
