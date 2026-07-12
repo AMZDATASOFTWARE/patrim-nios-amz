@@ -4,10 +4,12 @@ import Sparkline from './Sparkline';
 
 // 3 tamanhos por importância (grande/médio/pequeno). Sparkline só renderiza em
 // 'lg' (economiza altura nos cards médios/pequenos da linha-herói).
+// Mobile-first: cada classe carrega o valor compacto (<640px) primeiro e o
+// valor atual de desktop via `sm:` — breakpoint >=640px fica idêntico ao de antes.
 const SIZE = {
-  lg: { pad: 'p-6', icon: 'h-12 w-12', iconSvg: 'h-6 w-6', value: 'text-3xl', title: 'text-sm', subtitle: 'text-sm' },
-  md: { pad: 'p-4', icon: 'h-10 w-10', iconSvg: 'h-5 w-5', value: 'text-2xl', title: 'text-xs', subtitle: 'text-xs' },
-  sm: { pad: 'p-3', icon: 'h-8 w-8', iconSvg: 'h-4 w-4', value: 'text-xl', title: 'text-xs', subtitle: 'text-xs' },
+  lg: { pad: 'p-4 sm:p-6', icon: 'h-10 w-10 sm:h-12 sm:w-12', iconSvg: 'h-5 w-5 sm:h-6 sm:w-6', value: 'text-2xl sm:text-3xl', title: 'text-xs sm:text-sm', subtitle: 'text-xs sm:text-sm' },
+  md: { pad: 'p-3 sm:p-4', icon: 'h-8 w-8 sm:h-10 sm:w-10', iconSvg: 'h-4 w-4 sm:h-5 sm:w-5', value: 'text-xl sm:text-2xl', title: 'text-xs', subtitle: 'text-xs' },
+  sm: { pad: 'p-2.5 sm:p-3', icon: 'h-7 w-7 sm:h-8 sm:w-8', iconSvg: 'h-4 w-4', value: 'text-lg sm:text-xl', title: 'text-xs', subtitle: 'text-xs' },
 };
 
 // Props opcionais (retrocompatível com os usos em AdminCredits.jsx, que não
