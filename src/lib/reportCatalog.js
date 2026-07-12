@@ -189,6 +189,31 @@ function flattenGrouped(groups, groupLabel) {
   return rows;
 }
 
+// Resolve o nome do Setor de um ativo (sector_id -> Sector.name). Ativos sem
+// sector_id mas com o cost_center legado preenchido caem num bucket "legado"
+// separado (nao some do relatorio, so fica marcado como pendente de migracao
+// pro novo modelo). Mesmo padrao de lookup client-side ja usado em bens_por_grupo.
+function resolveSectorLabel(asset, sectors) {
+  if (asset.sector_id) {
+    const sector = sectors.find((s) => s.id === asset.sector_id);
+    return sector ? sector.name : 'Setor removido';
+  }
+  if ((asset.cost_center || '').trim()) {
+    return `(sem setor — centro de custo legado: ${asset.cost_center.trim()})`;
+  }
+  return 'Sem setor';
+}
+
+function groupBySector(assets, sectors) {
+  const groups = {};
+  assets.forEach((a) => {
+    const key = resolveSectorLabel(a, sectors);
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(a);
+  });
+  return groups;
+}
+
 /**
  * Catálogo de relatórios — inspirado no menu real do PatPro (lista fornecida
  * pelo usuário). Cada entrada usa o mesmo dataset já carregado em Reports.jsx
@@ -211,15 +236,15 @@ export const REPORT_CATALOG = [
   {
     id: 'bens_por_setor',
     group: 'Cadastro',
-    title: 'Bens por Setor / Centro de Custo',
-    description: 'Agrupado por centro de custo (setor)',
-    build: ({ assets }) => ({
+    title: 'Bens por Setor',
+    description: 'Agrupado por setor cadastrado (ativos ainda sem setor aparecem à parte, com o centro de custo legado se houver)',
+    build: ({ assets, sectors = [] }) => ({
       columns: [
-        { label: 'Setor / Centro de Custo', width: 2, get: (a) => a.setor },
+        { label: 'Setor', width: 2, get: (a) => a.setor },
         ...ASSET_COLS_BASE,
         ...assetValueCols(),
       ],
-      rows: flattenGrouped(groupByField(assets, 'cost_center', 'Sem centro de custo'), 'setor'),
+      rows: flattenGrouped(groupBySector(assets, sectors), 'setor'),
     }),
   },
   {
@@ -380,10 +405,10 @@ export const REPORT_CATALOG = [
   {
     id: 'centros_custo',
     group: 'Cadastro',
-    title: 'Relação de Centros de Custo',
-    description: 'Centros de custo em uso e quantidade de ativos',
-    build: ({ assets }) => {
-      const groups = groupByField(assets, 'cost_center', 'Sem centro de custo');
+    title: 'Relação de Setores',
+    description: 'Setores cadastrados e quantidade de ativos vinculados',
+    build: ({ assets, sectors = [] }) => {
+      const groups = groupBySector(assets, sectors);
       const rows = Object.keys(groups).sort().map((key) => ({
         setor: key,
         qtd: groups[key].length,
@@ -391,7 +416,7 @@ export const REPORT_CATALOG = [
       }));
       return {
         columns: [
-          { label: 'Centro de Custo', width: 3, get: (r) => r.setor },
+          { label: 'Setor', width: 3, get: (r) => r.setor },
           { label: 'Qtd. de Ativos', width: 1.4, get: (r) => r.qtd },
           { label: 'Valor Total', width: 1.6, get: (r) => formatCurrency(r.valor) },
         ],
