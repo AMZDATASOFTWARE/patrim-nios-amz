@@ -65,6 +65,10 @@
     "checklist": {
       "type": "string",
       "title": "Checklist (um item por linha)"
+    },
+    "sector_id": {
+      "type": "string",
+      "title": "Setor (opcional)"
     }
   },
   "required": [
