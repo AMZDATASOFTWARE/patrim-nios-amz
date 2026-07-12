@@ -115,7 +115,9 @@ Deno.serve(async (req) => {
       return json({ error: 'Esse movimento ultrapassaria a profundidade maxima da hierarquia de filiais.' }, 400);
     }
 
-    await svc.entities.Branch.update(branchId, { parent_branch_id: newParentId || undefined });
+    // null explicito (nao undefined) para realmente limpar o campo quando movendo para a raiz --
+    // undefined seria omitido do payload JSON e deixaria o parent_branch_id antigo intacto.
+    await svc.entities.Branch.update(branchId, { parent_branch_id: newParentId });
 
     return json({ ok: true });
   } catch (_) {
