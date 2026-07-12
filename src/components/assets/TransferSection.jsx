@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeftRight, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import moment from 'moment';
@@ -19,17 +20,23 @@ const STATUS_META = {
 
 export default function TransferSection({ assetId, assetName, canManage }) {
   const TransferEntity = useWorkspaceEntity('AssetTransfer');
+  const SectorEntity = useWorkspaceEntity('Sector');
   const [transfers, setTransfers] = useState([]);
+  const [sectors, setSectors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [sending, setSending] = useState(false);
-  const [form, setForm] = useState({ recipient_email: '', recipient_name: '', to_location: '', to_cost_center: '', reason: '' });
+  const [form, setForm] = useState({ recipient_email: '', recipient_name: '', to_location: '', to_cost_center: '', to_sector_id: '', reason: '' });
 
   useEffect(() => { load(); }, [assetId]);
 
   const load = async () => {
-    const data = await TransferEntity.filter({ asset_id: assetId }, '-requested_at', 50);
+    const [data, s] = await Promise.all([
+      TransferEntity.filter({ asset_id: assetId }, '-requested_at', 50),
+      SectorEntity.list('name', 500),
+    ]);
     setTransfers(data);
+    setSectors(s.filter((row) => row.status !== 'inativo'));
     setLoading(false);
   };
 
@@ -41,7 +48,7 @@ export default function TransferSection({ assetId, assetName, canManage }) {
       if (!res?.data?.ok) throw new Error(res?.data?.error || 'Falha ao solicitar transferência.');
       toast.success('Solicitação enviada ao destinatário.');
       setOpen(false);
-      setForm({ recipient_email: '', recipient_name: '', to_location: '', to_cost_center: '', reason: '' });
+      setForm({ recipient_email: '', recipient_name: '', to_location: '', to_cost_center: '', to_sector_id: '', reason: '' });
       load();
     } catch (e) {
       toast.error(e?.response?.data?.error || e?.message || 'Não foi possível solicitar a transferência.');
@@ -78,8 +85,14 @@ export default function TransferSection({ assetId, assetName, canManage }) {
                     <Input value={form.to_location} onChange={(e) => setForm({ ...form, to_location: e.target.value })} />
                   </div>
                   <div>
-                    <Label>Novo centro de custo</Label>
-                    <Input value={form.to_cost_center} onChange={(e) => setForm({ ...form, to_cost_center: e.target.value })} />
+                    <Label>Novo setor</Label>
+                    <Select value={form.to_sector_id || 'none'} onValueChange={(v) => setForm({ ...form, to_sector_id: v === 'none' ? '' : v })}>
+                      <SelectTrigger><SelectValue placeholder="Nenhum setor cadastrado" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">Sem setor</SelectItem>
+                        {sectors.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
                 </div>
                 <div>
