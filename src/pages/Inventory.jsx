@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import {
@@ -161,6 +162,7 @@ function NewInventoryDialog({ AssetEntity, CountEntity, ItemEntity, userEmail, o
   const [name, setName] = useState(`Inventário ${moment().format('DD/MM/YYYY')}`);
   const [category, setCategory] = useState('todos');
   const [costCenter, setCostCenter] = useState('');
+  const [committeeMembers, setCommitteeMembers] = useState('');
 
   const handleCreate = async () => {
     setCreating(true);
@@ -187,6 +189,7 @@ function NewInventoryDialog({ AssetEntity, CountEntity, ItemEntity, userEmail, o
         started_by: userEmail || '',
         started_at: new Date().toISOString(),
         total_expected: assets.length,
+        committee_members: committeeMembers.trim(),
       });
 
       // Cria um item por ativo (situação inicial: pendente).
@@ -236,6 +239,15 @@ function NewInventoryDialog({ AssetEntity, CountEntity, ItemEntity, userEmail, o
           <div>
             <Label>Centro de custo (opcional)</Label>
             <Input value={costCenter} onChange={(e) => setCostCenter(e.target.value)} placeholder="Filtra por parte do nome" />
+          </div>
+          <div>
+            <Label>Comissão de inventário (opcional)</Label>
+            <Textarea
+              value={committeeMembers}
+              onChange={(e) => setCommitteeMembers(e.target.value)}
+              placeholder={'Nome — Função, um por linha\nEx: Maria Silva — Presidente da comissão'}
+              rows={2}
+            />
           </div>
         </div>
         <DialogFooter>
