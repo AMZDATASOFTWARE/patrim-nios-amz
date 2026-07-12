@@ -113,7 +113,7 @@ export default function Disposals() {
           {disposals.map((d) => {
             const meta = TYPE_META[d.disposal_type] || TYPE_META.baixa;
             return (
-              <div key={d.id} className="flex items-center justify-between gap-3 p-4 flex-wrap">
+              <div key={d.id} className="flex items-center justify-between gap-3 p-3 sm:p-4 flex-wrap">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-card-foreground truncate">{d.asset_name || '—'}</p>
