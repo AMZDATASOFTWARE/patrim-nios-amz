@@ -113,14 +113,14 @@ export default function Maintenance() {
     if (items.length === 0) return null;
     return (
       <div className="bg-card rounded-xl border border-border shadow-sm">
-        <div className="flex items-center gap-2 p-4 border-b border-border">
+        <div className="flex items-center gap-2 p-3 sm:p-4 border-b border-border">
           <Icon className={`h-5 w-5 ${tone}`} />
-          <h2 className="font-semibold text-foreground">{title}</h2>
+          <h2 className="text-sm sm:text-base font-semibold text-foreground">{title}</h2>
           <span className="text-sm text-muted-foreground">({items.length})</span>
         </div>
         <div className="divide-y divide-border">
           {items.map((s) => (
-            <div key={s.id} className="flex items-center justify-between gap-3 p-4">
+            <div key={s.id} className="flex items-center justify-between gap-3 p-3 sm:p-4">
               <div className="min-w-0">
                 <Link to={`/AssetDetail?id=${s.asset_id}`} className="font-medium text-foreground hover:underline truncate block">
                   {s.asset_name || '—'}
@@ -142,11 +142,11 @@ export default function Maintenance() {
   };
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-4xl mx-auto space-y-4 sm:space-y-6">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Manutenções</h1>
-          <p className="text-muted-foreground mt-1">Ordens agendadas, revisões previstas e histórico</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Manutenções</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Ordens agendadas, revisões previstas e histórico</p>
         </div>
         {canManage && (
           <Dialog open={open} onOpenChange={setOpen}>
@@ -210,10 +210,10 @@ export default function Maintenance() {
 
           {/* Histórico */}
           <div className="bg-card rounded-xl border border-border shadow-sm">
-            <div className="flex items-center justify-between p-4 border-b border-border">
+            <div className="flex items-center justify-between p-3 sm:p-4 border-b border-border">
               <div className="flex items-center gap-2">
                 <Wrench className="h-5 w-5 text-muted-foreground" />
-                <h2 className="font-semibold text-foreground">Histórico</h2>
+                <h2 className="text-sm sm:text-base font-semibold text-foreground">Histórico</h2>
               </div>
               <span className="text-sm text-muted-foreground">Total: {formatCurrency(totalCost)}</span>
             </div>
@@ -222,7 +222,7 @@ export default function Maintenance() {
             ) : (
               <div className="divide-y divide-border">
                 {history.map((r) => (
-                  <div key={r.id} className="flex items-center justify-between gap-3 p-4">
+                  <div key={r.id} className="flex items-center justify-between gap-3 p-3 sm:p-4">
                     <div className="min-w-0">
                       <Link to={`/AssetDetail?id=${r.asset_id}`} className="font-medium text-foreground hover:underline truncate block">
                         {r.asset_name || '—'}
