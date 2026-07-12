@@ -12,6 +12,7 @@ const ROWS = [
   { criterio: 'Inventário pelo celular, sem coletor proprietário', nos: ['yes', 'Qualquer smartphone'], br: ['partial', 'App atrelado a projeto/serviço'], global: ['yes', 'Mobile-first'] },
   { criterio: 'Comece hoje, pelo navegador', nos: ['yes', 'Sem implantação'], br: ['no', 'Projeto de semanas/meses'], global: ['partial', 'Onboarding de dias'] },
   { criterio: 'Assinatura eletrônica no termo', nos: ['yes', 'Dentro do sistema, com hash'], br: ['no', 'Termo é só um relatório para imprimir'], global: ['no', 'Conceito não existe'] },
+  { criterio: 'Estrutura organizacional nativa (setor + filiais em hierarquia)', nos: ['yes', 'Setor e filiais com hierarquia infinita, colaborador em várias ao mesmo tempo'], br: ['partial', 'Filial e centro de custo como campos, sem hierarquia nem vínculo múltiplo'], global: ['partial', 'Só via configuração manual de campos custom'] },
 ];
 
 const MARKS = {
