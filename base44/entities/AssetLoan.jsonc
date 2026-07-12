@@ -1,0 +1,132 @@
+{
+  "name": "AssetLoan",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "asset_id": {
+      "type": "string",
+      "title": "ID do Ativo"
+    },
+    "asset_name": {
+      "type": "string",
+      "title": "Ativo"
+    },
+    "borrower_name": {
+      "type": "string",
+      "title": "Tomador do Emprestimo"
+    },
+    "borrower_sector": {
+      "type": "string",
+      "title": "Setor/Departamento do Tomador"
+    },
+    "loan_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data do Emprestimo"
+    },
+    "expected_return_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Previsao de Devolucao"
+    },
+    "actual_return_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Devolucao Efetiva"
+    },
+    "status": {
+      "type": "string",
+      "title": "Situacao",
+      "enum": [
+        "emprestado",
+        "devolvido",
+        "atrasado"
+      ],
+      "default": "emprestado"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observacoes"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "asset_id",
+    "borrower_name",
+    "loan_date",
+    "expected_return_date",
+    "status"
+  ],
+  "rls": {
+    "//": "Tenant + papel: admin/manager lancam emprestimo; viewer/user somente leitura. Mesmo padrao de MaintenanceRecord (registro operacional de rotina).",
+    "create": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "delete": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
