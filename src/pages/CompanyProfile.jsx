@@ -4,7 +4,8 @@ import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Building2, Upload, Save } from 'lucide-react';
+import { Building2, Upload, Save, FileText } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
 
 export default function CompanyProfile() {
@@ -18,7 +19,21 @@ export default function CompanyProfile() {
     phone: workspace?.phone || '',
     address: workspace?.address || '',
     logo_url: workspace?.logo_url || '',
+    report_letterhead_text: workspace?.report_letterhead_text || '',
+    report_footer_text: workspace?.report_footer_text || '',
+    report_responsible_name: workspace?.report_responsible_name || '',
+    report_signature_url: workspace?.report_signature_url || '',
   });
+  const [uploadingSignature, setUploadingSignature] = useState(false);
+
+  const handleSignatureUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setUploadingSignature(true);
+    const { file_url } = await base44.integrations.Core.UploadFile({ file });
+    setForm((prev) => ({ ...prev, report_signature_url: file_url }));
+    setUploadingSignature(false);
+  };
 
   const handleLogoUpload = async (e) => {
     const file = e.target.files[0];
@@ -143,6 +158,83 @@ export default function CompanyProfile() {
         <Button onClick={handleSave} disabled={saving} className="gap-2 w-full sm:w-auto">
           <Save className="h-4 w-4" />
           {saving ? 'Salvando...' : 'Salvar Informações'}
+        </Button>
+      </div>
+
+      {/* Cabecalho de relatorios */}
+      <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-6">
+        <div className="flex items-center gap-2">
+          <FileText className="h-5 w-5 text-primary" />
+          <div>
+            <Label className="text-base font-semibold">Cabeçalho dos Relatórios</Label>
+            <p className="text-sm text-muted-foreground">Personalize o topo, rodapé e assinatura impressos nos relatórios em PDF da sua empresa</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <Label htmlFor="report_letterhead_text">Texto de cabeçalho</Label>
+            <Textarea
+              id="report_letterhead_text"
+              value={form.report_letterhead_text}
+              onChange={(e) => setForm({ ...form, report_letterhead_text: e.target.value })}
+              placeholder="Ex: Empresa LTDA - Unidade Matriz"
+              rows={2}
+            />
+          </div>
+          <div>
+            <Label htmlFor="report_responsible_name">Responsável pelos relatórios</Label>
+            <Input
+              id="report_responsible_name"
+              value={form.report_responsible_name}
+              onChange={(e) => setForm({ ...form, report_responsible_name: e.target.value })}
+              placeholder="Nome do responsável pelo patrimônio"
+            />
+          </div>
+          <div>
+            <Label htmlFor="report_footer_text">Texto de rodapé</Label>
+            <Textarea
+              id="report_footer_text"
+              value={form.report_footer_text}
+              onChange={(e) => setForm({ ...form, report_footer_text: e.target.value })}
+              placeholder="Ex: Documento gerado automaticamente pelo sistema de gestão patrimonial"
+              rows={2}
+            />
+          </div>
+          <div>
+            <Label className="block mb-2">Imagem de assinatura</Label>
+            <div className="flex items-center gap-4">
+              {form.report_signature_url ? (
+                <div className="relative">
+                  <img src={form.report_signature_url} alt="Assinatura" className="h-16 w-32 object-contain rounded-lg border border-border bg-muted" />
+                  <button
+                    onClick={() => setForm({ ...form, report_signature_url: '' })}
+                    className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                  >×</button>
+                </div>
+              ) : (
+                <div className="h-16 w-32 rounded-lg border-2 border-dashed border-border flex items-center justify-center bg-muted">
+                  <FileText className="h-6 w-6 text-muted-foreground" />
+                </div>
+              )}
+              <label className="cursor-pointer">
+                <div className="flex items-center gap-2 px-4 py-2 rounded-lg border border-border bg-muted hover:bg-muted/80 transition-colors text-sm font-medium">
+                  {uploadingSignature ? (
+                    <div className="w-4 h-4 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                  ) : (
+                    <Upload className="h-4 w-4" />
+                  )}
+                  {uploadingSignature ? 'Enviando...' : 'Enviar Assinatura'}
+                </div>
+                <input type="file" accept="image/*" className="hidden" onChange={handleSignatureUpload} />
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <Button onClick={handleSave} disabled={saving} className="gap-2 w-full sm:w-auto">
+          <Save className="h-4 w-4" />
+          {saving ? 'Salvando...' : 'Salvar Cabeçalho'}
         </Button>
       </div>
     </div>
