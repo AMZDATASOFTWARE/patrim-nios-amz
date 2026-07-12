@@ -282,7 +282,7 @@ export default function ImportExport() {
 
       {/* Export section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+        <div className="bg-card border border-border rounded-xl p-4 sm:p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
             <div className="h-10 w-10 rounded-lg bg-blue-50 flex items-center justify-center">
               <Download className="h-5 w-5 text-blue-600" />
@@ -298,7 +298,7 @@ export default function ImportExport() {
           </Button>
         </div>
 
-        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
+        <div className="bg-card border border-border rounded-xl p-4 sm:p-6 shadow-sm">
           <div className="flex items-center gap-3 mb-3">
             <div className="h-10 w-10 rounded-lg bg-emerald-50 flex items-center justify-center">
               <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
@@ -316,7 +316,7 @@ export default function ImportExport() {
       </div>
 
       {/* Import section */}
-      <div className="bg-card border border-border rounded-xl p-6 shadow-sm space-y-5">
+      <div className="bg-card border border-border rounded-xl p-4 sm:p-6 shadow-sm space-y-5">
         <div className="flex items-center gap-3">
           <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
             <Upload className="h-5 w-5 text-primary" />
@@ -407,7 +407,7 @@ export default function ImportExport() {
 
         {/* Result */}
         {result && (
-          <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-5 text-center space-y-2">
+          <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-3 sm:p-5 text-center space-y-2">
             <CheckCircle className="h-8 w-8 text-emerald-500 mx-auto" />
             <p className="font-bold text-emerald-700 text-lg">Importação concluída!</p>
             <div className="flex justify-center gap-6 text-sm">
