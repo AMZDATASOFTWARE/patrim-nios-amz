@@ -26,21 +26,21 @@ export default function AssetCard({ asset }) {
       to={`/AssetDetail?id=${asset.id}`}
       className={`block bg-card rounded-xl border border-border shadow-sm hover:shadow-md transition-all border-l-4 ${categoryColors[asset.category] || 'border-l-gray-300'}`}
     >
-      <div className="p-5">
-        <div className="flex items-start gap-4">
+      <div className="p-3 sm:p-5">
+        <div className="flex items-start gap-3 sm:gap-4">
           {asset.photo_url ? (
-            <img src={asset.photo_url} alt={asset.name} className="h-16 w-16 rounded-lg object-cover" />
+            <img src={asset.photo_url} alt={asset.name} className="h-12 w-12 sm:h-16 sm:w-16 rounded-lg object-cover flex-shrink-0" />
           ) : (
-            <div className="h-16 w-16 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-              <Package className="h-8 w-8 text-muted-foreground" />
+            <div className="h-12 w-12 sm:h-16 sm:w-16 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
+              <Package className="h-6 w-6 sm:h-8 sm:w-8 text-muted-foreground" />
             </div>
           )}
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
-              <h3 className="font-semibold text-card-foreground truncate">{asset.name}</h3>
+              <h3 className="text-sm sm:text-base font-semibold text-card-foreground truncate">{asset.name}</h3>
               <AssetStatusBadge status={asset.status} />
             </div>
-            <p className="text-sm text-muted-foreground mt-0.5">{asset.category}</p>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">{asset.category}</p>
             {asset.location && (
               <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
                 <MapPin className="h-3 w-3" />
@@ -50,18 +50,18 @@ export default function AssetCard({ asset }) {
           </div>
         </div>
 
-        <div className="mt-4 grid grid-cols-2 gap-4">
+        <div className="mt-3 sm:mt-4 grid grid-cols-2 gap-3 sm:gap-4">
           <div>
             <p className="text-xs text-muted-foreground">Valor de Aquisição</p>
-            <p className="font-semibold text-card-foreground">{formatCurrency(asset.acquisition_value)}</p>
+            <p className="text-sm sm:text-base font-semibold text-card-foreground">{formatCurrency(asset.acquisition_value)}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">Valor Atual</p>
-            <p className="font-semibold text-primary">{formatCurrency(currentValue)}</p>
+            <p className="text-sm sm:text-base font-semibold text-primary">{formatCurrency(currentValue)}</p>
           </div>
         </div>
 
-        <div className="mt-3">
+        <div className="mt-2.5 sm:mt-3">
           <div className="flex justify-between text-xs text-muted-foreground mb-1">
             <span>Depreciação</span>
             <span>{depPct.toFixed(1)}%</span>
