@@ -10,7 +10,7 @@ import moment from 'moment';
 const REQUIRED_COLS = ['name', 'category', 'acquisition_value', 'purchase_date', 'depreciation_rate'];
 const ALL_COLS = [
   'name', 'category', 'acquisition_value', 'purchase_date', 'depreciation_rate',
-  'plaqueta', 'description', 'account', 'cost_center', 'useful_life_years',
+  'plaqueta', 'description', 'account', 'sector_id', 'useful_life_years',
   'residual_value', 'depreciation_start_date', 'location', 'status',
   'conservation_state', 'serial_number', 'fiscal_document', 'warranty_expiry_date',
   'next_review_date', 'supplier_name',
@@ -30,7 +30,7 @@ const COL_LABELS = {
   plaqueta: 'Plaqueta / Código',
   description: 'Detalhes Adicionais',
   account: 'Conta Contábil',
-  cost_center: 'Centro de Custo',
+  sector_id: 'ID do Setor (ver em Cadastros → Setores)',
   useful_life_years: 'Vida Útil (anos)',
   residual_value: 'Valor Residual (R$)',
   depreciation_start_date: 'Início da Depreciação (AAAA-MM-DD)',
@@ -57,8 +57,8 @@ const COL_LABELS = {
 };
 
 const SAMPLE_ROWS = [
-  ['Notebook Dell Inspiron 15', 'Equipamentos', '4500', '2023-06-01', '20', 'PAT-001', 'Uso administrativo', '', 'TI', '5', '450', '2023-06-01', 'Escritório Central', 'Ativo', 'Bom', 'SN-12345', 'NF-001', '2025-06-01', '', 'Dell Brasil', '', '', '', '', '', '', '', '', '', '', '', ''],
-  ['Veículo Toyota Corolla', 'Veículos', '95000', '2022-03-15', '20', 'PAT-002', 'Uso da diretoria', '', 'Administrativo', '5', '9500', '2022-03-15', 'Garagem', 'Ativo', 'Ótimo', '', 'NF-002', '', '', '', '', '', '', '', '', 'ABC1D234', '', '', '', 'Flex', '2022/2023', ''],
+  ['Notebook Dell Inspiron 15', 'Equipamentos', '4500', '2023-06-01', '20', 'PAT-001', 'Uso administrativo', '', '', '5', '450', '2023-06-01', 'Escritório Central', 'Ativo', 'Bom', 'SN-12345', 'NF-001', '2025-06-01', '', 'Dell Brasil', '', '', '', '', '', '', '', '', '', '', '', ''],
+  ['Veículo Toyota Corolla', 'Veículos', '95000', '2022-03-15', '20', 'PAT-002', 'Uso da diretoria', '', '', '5', '9500', '2022-03-15', 'Garagem', 'Ativo', 'Ótimo', '', 'NF-002', '', '', '', '', '', '', '', '', 'ABC1D234', '', '', '', 'Flex', '2022/2023', ''],
 ];
 
 const VALID_CATEGORIES = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
@@ -103,7 +103,7 @@ function rowToAsset(row) {
     plaqueta: row.plaqueta?.trim() || undefined,
     description: row.description?.trim() || undefined,
     account: row.account?.trim() || undefined,
-    cost_center: row.cost_center?.trim() || undefined,
+    sector_id: row.sector_id?.trim() || undefined,
     useful_life_years: row.useful_life_years ? parseFloat(row.useful_life_years) : undefined,
     residual_value: row.residual_value ? parseFloat(row.residual_value) : undefined,
     depreciation_start_date: row.depreciation_start_date?.trim() || undefined,
