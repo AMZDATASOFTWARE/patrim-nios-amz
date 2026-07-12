@@ -44,6 +44,7 @@ import AcceptTransfer from '@/pages/AcceptTransfer';
 import CiapCredits from '@/pages/CiapCredits';
 import AccountingExport from '@/pages/AccountingExport';
 import Branches from '@/pages/Branches';
+import Help from '@/pages/Help';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -139,6 +140,7 @@ const WorkspaceRoutes = () => {
           <Route path="/SuperAdmin" element={<SuperAdmin />} />
           <Route path="/Assistant" element={<AssistantChat />} />
           <Route path="/AdminCredits" element={<AdminCredits />} />
+          <Route path="/Help" element={<Help />} />
         </Route>
         <Route path="*" element={<PageNotFound />} />
       </Routes>
