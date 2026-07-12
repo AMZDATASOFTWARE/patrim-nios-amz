@@ -73,7 +73,7 @@ export default function Suppliers() {
         {filtered.map(s => (
           <div key={s.id} className="bg-card border border-border rounded-xl shadow-sm overflow-hidden">
             <div
-              className="flex items-center justify-between p-4 cursor-pointer hover:bg-muted/30 transition-colors"
+              className="flex items-center justify-between p-3 sm:p-4 cursor-pointer hover:bg-muted/30 transition-colors"
               onClick={() => setExpanded(expanded === s.id ? null : s.id)}
             >
               <div className="flex items-center gap-4">
@@ -93,7 +93,7 @@ export default function Suppliers() {
             </div>
 
             {expanded === s.id && (
-              <div className="px-4 pb-4 border-t border-border pt-4">
+              <div className="px-3 sm:px-4 pb-3 sm:pb-4 border-t border-border pt-3 sm:pt-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                   {s.email && <div className="flex items-center gap-2 text-sm"><Mail className="h-4 w-4 text-muted-foreground" /><a href={`mailto:${s.email}`} className="text-primary hover:underline">{s.email}</a></div>}
                   {s.phone && <div className="flex items-center gap-2 text-sm"><Phone className="h-4 w-4 text-muted-foreground" /><span>{s.phone}</span></div>}
