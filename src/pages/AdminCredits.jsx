@@ -90,8 +90,8 @@ export default function AdminCredits() {
     <div className="space-y-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Créditos de IA</h1>
-          <p className="text-muted-foreground mt-1">Consumo, custo real (rateio do plano) e valor faturável por workspace</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Créditos de IA</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Consumo, custo real (rateio do plano) e valor faturável por workspace</p>
         </div>
         <Button variant="outline" onClick={loadReport} className="gap-2">
           <RefreshCw className="h-4 w-4" /> Atualizar
@@ -107,7 +107,7 @@ export default function AdminCredits() {
       </div>
 
       {/* Rateio proporcional ao plano */}
-      <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
         <h2 className="text-lg font-semibold text-card-foreground">Rateio do Plano & Precificação</h2>
         <p className="text-sm text-muted-foreground">
           O custo real de cada crédito é derivado do valor mensal do seu plano, rateado entre os dois tipos de crédito.
