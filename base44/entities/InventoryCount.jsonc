@@ -28,6 +28,10 @@
       "type": "string",
       "title": "Centro de Custo (filtro)"
     },
+    "scope_sector_id": {
+      "type": "string",
+      "title": "Setor (filtro)"
+    },
     "started_by": {
       "type": "string",
       "title": "Iniciado por"
