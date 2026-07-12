@@ -42,6 +42,7 @@ export default function Inventory() {
   const CountEntity = useWorkspaceEntity('InventoryCount');
   const ItemEntity = useWorkspaceEntity('InventoryItem');
   const AssetEntity = useWorkspaceEntity('Asset');
+  const SectorEntity = useWorkspaceEntity('Sector');
 
   const [counts, setCounts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -83,6 +84,7 @@ export default function Inventory() {
             AssetEntity={AssetEntity}
             CountEntity={CountEntity}
             ItemEntity={ItemEntity}
+            SectorEntity={SectorEntity}
             userEmail={user?.email}
             onCreated={(id) => setSelected(id)}
           />
