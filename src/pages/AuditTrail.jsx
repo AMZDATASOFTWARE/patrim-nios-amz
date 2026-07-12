@@ -56,8 +56,8 @@ export default function AuditTrail() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Log de Auditoria</h1>
-          <p className="text-muted-foreground mt-1 text-sm">
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Log de Auditoria</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
             {logs.length} registro{logs.length !== 1 ? 's' : ''} no total · {todayCount} hoje
           </p>
         </div>
