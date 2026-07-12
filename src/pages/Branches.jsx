@@ -5,14 +5,17 @@ import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { useWorkspace } from '@/lib/WorkspaceContext';
 import { useAuth } from '@/lib/AuthContext';
 import { usePermissions } from '@/lib/permissions';
+import { flattenBranchTree, getDescendantIds } from '@/lib/branchTree';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Building2, Plus, Trash2, Crown } from 'lucide-react';
+import { Building2, Plus, Trash2, Crown, Move } from 'lucide-react';
 import { toast } from 'sonner';
 
-const EMPTY = { name: '', code: '', cnpj: '', address: '', city: '', state: '', is_headquarters: false };
+const EMPTY = { name: '', code: '', cnpj: '', address: '', city: '', state: '', is_headquarters: false, parent_branch_id: '' };
+const ROOT_VALUE = '__root__';
 
 export default function Branches() {
   const { user } = useAuth();
@@ -20,14 +23,20 @@ export default function Branches() {
   const { can } = usePermissions(user);
   const canManage = can('manage_branches');
   const BranchEntity = useWorkspaceEntity('Branch');
+  const SectorEntity = useWorkspaceEntity('Sector');
+  const AssetEntity = useWorkspaceEntity('Asset');
 
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
+  const [moveTarget, setMoveTarget] = useState(null);
+  const [moveParentId, setMoveParentId] = useState(ROOT_VALUE);
+  const [moving, setMoving] = useState(false);
 
   const isEnterprise = workspace?.plan === 'enterprise';
+  const treeRows = flattenBranchTree(branches);
 
   useEffect(() => { load(); }, []);
 
@@ -42,7 +51,8 @@ export default function Branches() {
     if (!form.name.trim()) { toast.error('Informe o nome da filial.'); return; }
     setSaving(true);
     try {
-      const res = await base44.functions.invoke('createBranch', form);
+      const payload = { ...form, parent_branch_id: form.parent_branch_id === ROOT_VALUE ? '' : form.parent_branch_id };
+      const res = await base44.functions.invoke('createBranch', payload);
       if (!res?.data?.ok) throw new Error(res?.data?.error || 'Falha ao criar filial.');
       toast.success('Filial criada.');
       setForm(EMPTY);
@@ -54,10 +64,49 @@ export default function Branches() {
     setSaving(false);
   };
 
-  const handleDelete = async (id) => {
-    try { await BranchEntity.del(id); load(); }
+  const handleDelete = async (branch) => {
+    const childCount = branches.filter((b) => b.parent_branch_id === branch.id).length;
+    const [sectorCount, assetCount] = await Promise.all([
+      SectorEntity.count({ branch_id: branch.id }),
+      AssetEntity.count({ branch_id: branch.id }),
+    ]);
+    if (childCount + sectorCount + assetCount > 0) {
+      toast.error(`Esta filial possui ${childCount} sub-filial(is), ${sectorCount} setor(es) e ${assetCount} ativo(s) vinculados. Remova os vínculos antes de excluir.`);
+      return;
+    }
+    if (!confirm(`Excluir a filial "${branch.name}"? Esta ação não pode ser desfeita.`)) return;
+    try { await BranchEntity.del(branch.id); load(); }
     catch (e) { toast.error(e?.message || 'Não foi possível excluir.'); }
   };
+
+  const openMove = (branch) => {
+    setMoveTarget(branch);
+    setMoveParentId(branch.parent_branch_id || ROOT_VALUE);
+  };
+
+  const handleMove = async () => {
+    if (!moveTarget) return;
+    setMoving(true);
+    try {
+      const res = await base44.functions.invoke('moveBranch', {
+        branch_id: moveTarget.id,
+        parent_branch_id: moveParentId === ROOT_VALUE ? null : moveParentId,
+      });
+      if (!res?.data?.ok) throw new Error(res?.data?.error || 'Falha ao mover filial.');
+      toast.success('Filial movida.');
+      setMoveTarget(null);
+      load();
+    } catch (e) {
+      toast.error(e?.response?.data?.error || e?.message || 'Não foi possível mover a filial.');
+    }
+    setMoving(false);
+  };
+
+  // Filial em edição não pode virar pai de si mesma nem de nenhuma de suas descendentes (ciclo) --
+  // a validação real acontece server-side em moveBranch, isto é só UX (evita o erro óbvio na UI).
+  const moveParentOptions = moveTarget
+    ? treeRows.filter((b) => b.id !== moveTarget.id && !getDescendantIds(branches, moveTarget.id).has(b.id))
+    : [];
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
