@@ -30,6 +30,10 @@
       "type": "string",
       "title": "Departamento"
     },
+    "collaborator_sector_id": {
+      "type": "string",
+      "title": "Setor do Colaborador (referencia)"
+    },
     "collaborator_phone": {
       "type": "string",
       "title": "Telefone do Colaborador"
