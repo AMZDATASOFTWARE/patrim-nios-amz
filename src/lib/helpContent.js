@@ -18,7 +18,7 @@ export const FAQ_CATEGORIES = [
       },
       {
         q: 'Preciso cadastrar filiais antes de começar?',
-        a: 'Não. Filiais são opcionais e só aparecem no cadastro de ativos se você tiver criado alguma em Cadastros → Filiais (recurso do plano Enterprise). Sem filiais cadastradas, o sistema funciona normalmente com um único centro de custo.',
+        a: 'Não. Filiais são opcionais e só aparecem no cadastro de ativos se você tiver criado alguma em Cadastros → Filiais (recurso do plano Enterprise). Setores (Cadastros → Setores), por outro lado, são gratuitos em todos os planos e não dependem de nenhuma filial cadastrada.',
       },
       {
         q: 'Como configuro os dados da minha empresa (CNPJ, logo)?',
@@ -83,7 +83,7 @@ export const FAQ_CATEGORIES = [
       },
       {
         q: 'Como exporto os lançamentos contábeis para o meu ERP?',
-        a: 'Em Fiscal & Contábil → Exportação Contábil, configure as regras de conta débito/crédito por categoria e centro de custo. O sistema gera um CSV com os lançamentos de depreciação do período, pronto para importar em qualquer ERP.',
+        a: 'Em Fiscal & Contábil → Exportação Contábil, configure as regras de conta débito/crédito por categoria e setor. O sistema gera um CSV com os lançamentos de depreciação do período, pronto para importar em qualquer ERP.',
       },
     ],
   },
