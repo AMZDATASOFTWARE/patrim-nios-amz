@@ -92,12 +92,12 @@ export default function Billing() {
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Plano & Cobrança</h1>
-        <p className="text-muted-foreground mt-1">Gerencie sua assinatura e limites de uso</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Plano & Cobrança</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Gerencie sua assinatura e limites de uso</p>
       </div>
 
       {/* Current Plan Card */}
-      <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className={`h-12 w-12 rounded-xl flex items-center justify-center ${
@@ -258,7 +258,7 @@ function UsageCard({ icon: Icon, label, current, max, color }) {
   const isAtLimit = pct >= 100;
 
   return (
-    <div className="bg-card rounded-xl border border-border p-5 shadow-sm">
+    <div className="bg-card rounded-xl border border-border p-3 sm:p-5 shadow-sm">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <Icon className="h-5 w-5 text-muted-foreground" />
