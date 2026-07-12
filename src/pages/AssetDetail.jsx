@@ -17,6 +17,7 @@ import AssetStatusBadge from '@/components/assets/AssetStatusBadge';
 import AttachmentsSection from '@/components/assets/AttachmentsSection';
 import TransferSection from '@/components/assets/TransferSection';
 import RevaluationSection from '@/components/assets/RevaluationSection';
+import DisposalSection from '@/components/assets/DisposalSection';
 import MaintenanceSection from '@/components/assets/MaintenanceSection';
 import AssignmentSection from '@/components/assets/AssignmentSection';
 import LocationHistoryMini from '@/components/assets/LocationHistoryMini';
@@ -338,6 +339,9 @@ export default function AssetDetail() {
 
       {/* Reavaliações */}
       <RevaluationSection assetId={asset.id} canManage={can('manage_revaluations')} />
+
+      {/* Baixa / Alienação */}
+      <DisposalSection assetId={asset.id} canManage={can('manage_disposals')} />
 
       {/* Assignment / Responsibility Terms */}
       <AssignmentSection assetId={asset.id} assetName={asset.name} />
