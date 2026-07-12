@@ -122,7 +122,7 @@ export default function Branches() {
       ) : (
         <div className="bg-card rounded-xl border border-border shadow-sm divide-y divide-border">
           {branches.map((b) => (
-            <div key={b.id} className="flex items-center justify-between gap-3 p-4">
+            <div key={b.id} className="flex items-center justify-between gap-3 p-3 sm:p-4">
               <div className="flex items-center gap-3 min-w-0">
                 <Building2 className="h-5 w-5 text-muted-foreground shrink-0" />
                 <div className="min-w-0">
