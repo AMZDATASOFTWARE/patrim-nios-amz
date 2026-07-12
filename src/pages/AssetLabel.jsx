@@ -279,8 +279,8 @@ export default function AssetLabel() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Etiquetas & QR Codes</h1>
-          <p className="text-muted-foreground mt-1">Imprima etiquetas com QR Code. O scan registra a localização em tempo real.</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Etiquetas & QR Codes</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Imprima etiquetas com QR Code. O scan registra a localização em tempo real.</p>
         </div>
       </div>
 
