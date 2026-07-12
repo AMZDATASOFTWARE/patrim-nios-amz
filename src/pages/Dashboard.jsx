@@ -143,14 +143,14 @@ export default function Dashboard() {
   return (
     <div className="space-y-3 sm:space-y-4">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+      <div className="relative">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Dashboard</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Visão geral do patrimônio da sua empresa</p>
         </div>
         {updatedAt && (
-          <p className="text-xs text-muted-foreground">
-            Atualizado em {moment(updatedAt).format('DD/MM/YYYY [às] HH:mm')}
+          <p className="absolute top-0 right-0 text-[10px] leading-none text-muted-foreground">
+            Atualizado {moment(updatedAt).format('DD/MM HH:mm')}
           </p>
         )}
       </div>

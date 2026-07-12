@@ -101,12 +101,12 @@ export default function AccountingExport() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Exportação Contábil</h1>
-        <p className="text-muted-foreground mt-1">Gere os lançamentos de depreciação em CSV para importar em qualquer ERP contábil</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Exportação Contábil</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Gere os lançamentos de depreciação em CSV para importar em qualquer ERP contábil</p>
       </div>
 
       {/* Gerar export */}
-      <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-4">
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
         <h2 className="text-lg font-semibold text-card-foreground">Gerar lançamentos</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
           <div>
