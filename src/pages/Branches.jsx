@@ -129,6 +129,18 @@ export default function Branches() {
                   <div><Label>Cidade</Label><Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
                   <div><Label>UF</Label><Input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} maxLength={2} /></div>
                 </div>
+                <div>
+                  <Label>Filial pai (opcional)</Label>
+                  <Select value={form.parent_branch_id || ROOT_VALUE} onValueChange={(v) => setForm({ ...form, parent_branch_id: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={ROOT_VALUE}>Nenhuma (filial de primeiro nível)</SelectItem>
+                      {treeRows.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>{'—'.repeat(b.depth)} {b.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="flex items-center gap-2">
                   <input id="is_hq" type="checkbox" className="h-4 w-4" checked={form.is_headquarters} onChange={(e) => setForm({ ...form, is_headquarters: e.target.checked })} />
                   <Label htmlFor="is_hq" className="cursor-pointer">É a matriz</Label>
@@ -170,8 +182,8 @@ export default function Branches() {
         )
       ) : (
         <div className="bg-card rounded-xl border border-border shadow-sm divide-y divide-border">
-          {branches.map((b) => (
-            <div key={b.id} className="flex items-center justify-between gap-3 p-3 sm:p-4">
+          {treeRows.map((b) => (
+            <div key={b.id} className="flex items-center justify-between gap-3 p-3 sm:p-4" style={{ paddingLeft: `${12 + b.depth * 20}px` }}>
               <div className="flex items-center gap-3 min-w-0">
                 <Building2 className="h-5 w-5 text-muted-foreground shrink-0" />
                 <div className="min-w-0">
@@ -185,12 +197,41 @@ export default function Branches() {
                 </div>
               </div>
               {canManage && (
-                <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDelete(b.id)}><Trash2 className="h-4 w-4" /></Button>
+                <div className="flex gap-1 shrink-0">
+                  {!b.is_headquarters && (
+                    <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openMove(b)} title="Mover para outra filial pai"><Move className="h-4 w-4" /></Button>
+                  )}
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => handleDelete(b)}><Trash2 className="h-4 w-4" /></Button>
+                </div>
               )}
             </div>
           ))}
         </div>
       )}
+
+      <Dialog open={!!moveTarget} onOpenChange={(o) => !o && setMoveTarget(null)}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Mover "{moveTarget?.name}"</DialogTitle></DialogHeader>
+          <div className="space-y-3">
+            <div>
+              <Label>Nova filial pai</Label>
+              <Select value={moveParentId} onValueChange={setMoveParentId}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ROOT_VALUE}>Nenhuma (filial de primeiro nível)</SelectItem>
+                  {moveParentOptions.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>{'—'.repeat(b.depth)} {b.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setMoveTarget(null)}>Cancelar</Button>
+            <Button onClick={handleMove} disabled={moving}>{moving ? 'Movendo...' : 'Mover'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
