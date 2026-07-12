@@ -83,7 +83,7 @@ export default function AiBriefings() {
             <Newspaper className="h-6 w-6 text-primary" aria-hidden="true" />
           </div>
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Diário do Patrimônio</h1>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Diário do Patrimônio</h1>
             <p className="text-sm text-muted-foreground">6 supervisores de IA analisam seu sistema todo dia</p>
           </div>
         </div>
