@@ -18,7 +18,11 @@ export const FAQ_CATEGORIES = [
       },
       {
         q: 'Preciso cadastrar filiais antes de começar?',
-        a: 'Não. Filiais são opcionais e só aparecem no cadastro de ativos se você tiver criado alguma em Cadastros → Filiais (recurso do plano Enterprise). Setores (Cadastros → Setores), por outro lado, são gratuitos em todos os planos e não dependem de nenhuma filial cadastrada.',
+        a: 'Não. Filiais são opcionais e só aparecem no cadastro de ativos se você tiver criado alguma em Cadastros → Filiais (recurso do plano Enterprise, com suporte a sub-filiais em hierarquia). Setores (Cadastros → Setores) são gratuitos em todos os planos: podem ficar direto na Sede ou vinculados a uma filial específica, e não dependem de nenhuma filial cadastrada pra existir.',
+      },
+      {
+        q: 'Um colaborador pode estar em mais de uma filial ou setor?',
+        a: 'Sim. Em Cadastros → Colaboradores, cada colaborador pode ser vinculado a várias filiais e vários setores ao mesmo tempo (o segundo seletor mostra só os setores das filiais já selecionadas, além dos setores da Sede). Isso substitui o antigo campo “Departamento” de texto livre, que continua existindo apenas como histórico.',
       },
       {
         q: 'Como configuro os dados da minha empresa (CNPJ, logo)?',
