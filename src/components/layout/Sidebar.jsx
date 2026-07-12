@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Building2, ChevronDown, ChevronLeft, ChevronRight, LogOut } from 'lucide-react';
+import { Building2, ChevronDown, ChevronLeft, ChevronRight, HelpCircle, LogOut } from 'lucide-react';
 import { useAuth } from '@/lib/AuthContext';
 import { useWorkspace } from '@/lib/WorkspaceContext';
 import { base44 } from '@/api/base44Client';
@@ -240,6 +240,21 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
 
         {/* Footer */}
         <div className="border-t border-sidebar-border p-2 space-y-1">
+          {/* Ajuda — item fixo, fora de NAV_GROUPS por decisão de produto (sempre no final, mesmo padrão estrutural de "Sair") */}
+          <Link
+            to="/Help"
+            title={collapsed ? 'Ajuda' : undefined}
+            aria-current={isActive('/Help') ? 'page' : undefined}
+            className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all ${
+              isActive('/Help')
+                ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+            } ${collapsed ? 'justify-center px-2' : ''}`}
+          >
+            <HelpCircle className="h-5 w-5 flex-shrink-0" />
+            {!collapsed && <span>Ajuda</span>}
+          </Link>
+
           <button
             onClick={() => base44.auth.logout()}
             title={collapsed ? 'Sair' : undefined}
@@ -322,7 +337,21 @@ export default function Sidebar({ collapsed, onToggle, mobileOpen, onMobileClose
         </nav>
 
         {/* Footer */}
-        <div className="border-t border-sidebar-border p-2">
+        <div className="border-t border-sidebar-border p-2 space-y-1">
+          <Link
+            to="/Help"
+            onClick={onMobileClose}
+            aria-current={isActive('/Help') ? 'page' : undefined}
+            className={`flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium transition-all ${
+              isActive('/Help')
+                ? 'bg-sidebar-primary text-sidebar-primary-foreground'
+                : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground'
+            }`}
+          >
+            <HelpCircle className="h-5 w-5 flex-shrink-0" />
+            <span>Ajuda</span>
+          </Link>
+
           <button
             onClick={() => base44.auth.logout()}
             className="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-sm font-medium text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground transition-all"
