@@ -169,7 +169,7 @@ export default function CiapCredits() {
             const done = c.installments_appropriated || 0;
             const pct = total > 0 ? Math.round((done / total) * 100) : 0;
             return (
-              <div key={c.id} className="flex items-center justify-between gap-3 p-4 flex-wrap">
+              <div key={c.id} className="flex items-center justify-between gap-3 p-3 sm:p-4 flex-wrap">
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="font-medium text-card-foreground truncate">{c.asset_name || '—'}</p>
