@@ -89,8 +89,8 @@ export default function SuperAdmin() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Painel Super Admin</h1>
-          <p className="text-muted-foreground mt-1">Visão geral de todos os workspaces e clientes</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Painel Super Admin</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Visão geral de todos os workspaces e clientes</p>
         </div>
         <Button variant="outline" size="sm" onClick={load} className="gap-2">
           <RefreshCw className="h-4 w-4" /> Atualizar
@@ -106,7 +106,7 @@ export default function SuperAdmin() {
           { label: 'Suspensos', value: stats.suspended, color: 'text-red-600', icon: XCircle },
           { label: 'MRR Estimado', value: `R$ ${stats.mrr.toLocaleString('pt-BR')}`, color: 'text-primary', icon: Crown },
         ].map(s => (
-          <div key={s.label} className="bg-card rounded-xl border border-border p-4 shadow-sm">
+          <div key={s.label} className="bg-card rounded-xl border border-border p-3 sm:p-4 shadow-sm">
             <div className="flex items-center gap-2 mb-1">
               <s.icon className={`h-4 w-4 ${s.color}`} />
               <p className="text-xs text-muted-foreground">{s.label}</p>
