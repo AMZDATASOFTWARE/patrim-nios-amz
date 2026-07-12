@@ -61,7 +61,7 @@ function LabelCard({ asset, appUrl, workspace, selected, onToggle }) {
           <div class="category">${asset.category || 'Patrimônio'}</div>
           ${asset.location ? `<div class="detail">📍 <span>${asset.location}</span></div>` : ''}
           ${asset.serial_number ? `<div class="detail">S/N <span>${asset.serial_number}</span></div>` : ''}
-          ${asset.cost_center ? `<div class="detail">Setor <span>${asset.cost_center}</span></div>` : ''}
+          ${asset.sectorLabel ? `<div class="detail">Setor <span>${asset.sectorLabel}</span></div>` : ''}
         </div>
       </div>
       <div class="footer">
@@ -116,7 +116,7 @@ function LabelCard({ asset, appUrl, workspace, selected, onToggle }) {
             <div className="mt-2 space-y-0.5">
               {asset.location && <p className="text-[11px] text-muted-foreground truncate">📍 {asset.location}</p>}
               {asset.serial_number && <p className="text-[11px] text-muted-foreground">S/N {asset.serial_number}</p>}
-              {asset.cost_center && <p className="text-[11px] text-muted-foreground truncate">🏢 {asset.cost_center}</p>}
+              {asset.sectorLabel && <p className="text-[11px] text-muted-foreground truncate">🏢 {asset.sectorLabel}</p>}
             </div>
           </div>
         </div>
@@ -166,9 +166,17 @@ export default function AssetLabel() {
   const appUrl = window.location.origin;
   const { workspace } = useWorkspace();
   const AssetEntity = useWorkspaceEntity('Asset');
+  const SectorEntity = useWorkspaceEntity('Sector');
 
   useEffect(() => {
-    AssetEntity.list('-created_date', 200).then(d => { setAssets(d); setLoading(false); });
+    Promise.all([
+      AssetEntity.list('-created_date', 200),
+      SectorEntity.list('name', 500),
+    ]).then(([d, sectors]) => {
+      const sectorName = (id) => sectors.find((s) => s.id === id)?.name || '';
+      setAssets(d.map((a) => ({ ...a, sectorLabel: sectorName(a.sector_id) })));
+      setLoading(false);
+    });
   }, []);
 
   const filtered = assets.filter(a => {
@@ -225,7 +233,7 @@ export default function AssetLabel() {
               <div class="category">${asset.category || 'Patrimônio'}</div>
               ${asset.location ? `<div class="detail">📍 <span>${asset.location}</span></div>` : ''}
               ${asset.serial_number ? `<div class="detail">S/N <span>${asset.serial_number}</span></div>` : ''}
-              ${asset.cost_center ? `<div class="detail">Setor <span>${asset.cost_center}</span></div>` : ''}
+              ${asset.sectorLabel ? `<div class="detail">Setor <span>${asset.sectorLabel}</span></div>` : ''}
             </div>
           </div>
           <div class="footer">
