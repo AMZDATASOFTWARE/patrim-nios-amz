@@ -85,6 +85,10 @@ export default function TransferSection({ assetId, assetName, canManage }) {
                     <Input value={form.to_location} onChange={(e) => setForm({ ...form, to_location: e.target.value })} />
                   </div>
                   <div>
+                    <Label>Novo centro de custo (legado)</Label>
+                    <Input value={form.to_cost_center} onChange={(e) => setForm({ ...form, to_cost_center: e.target.value })} />
+                  </div>
+                  <div className="col-span-2">
                     <Label>Novo setor</Label>
                     <Select value={form.to_sector_id || 'none'} onValueChange={(v) => setForm({ ...form, to_sector_id: v === 'none' ? '' : v })}>
                       <SelectTrigger><SelectValue placeholder="Nenhum setor cadastrado" /></SelectTrigger>
