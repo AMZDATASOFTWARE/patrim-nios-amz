@@ -276,8 +276,8 @@ export default function ImportExport() {
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Importar / Exportar</h1>
-        <p className="text-muted-foreground mt-1">Importe ou exporte ativos via planilha CSV</p>
+        <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Importar / Exportar</h1>
+        <p className="text-sm text-muted-foreground mt-0.5">Importe ou exporte ativos via planilha CSV</p>
       </div>
 
       {/* Export section */}
