@@ -60,7 +60,7 @@ export const PLANS = {
       'Ativos ilimitados',
       'Tudo do Professional',
       'Múltiplas filiais / workspaces',
-      'API de integração',
+      'API de integração (em breve)',
       'Onboarding dedicado',
       'SLA garantido',
       'Gerente de conta exclusivo',
