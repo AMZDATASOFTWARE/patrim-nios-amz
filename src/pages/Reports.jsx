@@ -253,8 +253,8 @@ function ReportsView({
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Relatórios</h1>
-          <p className="text-muted-foreground mt-1">Exporte relatórios do patrimônio em PDF ou Excel</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Relatórios</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Exporte relatórios do patrimônio em PDF ou Excel</p>
         </div>
         <div className="flex flex-wrap gap-3">
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
@@ -277,7 +277,7 @@ function ReportsView({
         <button
           onClick={exportPDF}
           disabled={generating || rows.length === 0}
-          className="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition-all text-left group"
+          className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm hover:shadow-md transition-all text-left group"
         >
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-red-50 text-red-600 group-hover:bg-red-100 transition-colors">
@@ -293,7 +293,7 @@ function ReportsView({
         <button
           onClick={exportCSV}
           disabled={rows.length === 0}
-          className="bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition-all text-left group"
+          className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm hover:shadow-md transition-all text-left group"
         >
           <div className="flex items-center gap-4">
             <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600 group-hover:bg-emerald-100 transition-colors">
@@ -308,7 +308,7 @@ function ReportsView({
       </div>
 
       {/* Summary */}
-      <div className="bg-card rounded-xl border border-border p-6 shadow-sm">
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm">
         <h2 className="text-lg font-semibold text-card-foreground mb-4">Resumo - {categoryFilter}</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
           <div>
@@ -451,7 +451,7 @@ function ReportCatalogSection({ assets, catalogData, workspace }) {
   };
 
   return (
-    <div className="bg-card rounded-xl border border-border p-6 shadow-sm space-y-5">
+    <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-5">
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2">
           <LayoutGrid className="h-5 w-5 text-primary" />
@@ -527,7 +527,7 @@ const AUDIT_COLORS = {
 
 function AuditReportCard({ icon: Icon, color, title, description, count, onExport }) {
   return (
-    <div className="bg-card rounded-xl border border-border p-5 shadow-sm flex flex-col">
+    <div className="bg-card rounded-xl border border-border p-3 sm:p-5 shadow-sm flex flex-col">
       <div className="flex items-start gap-3">
         <div className={`flex h-10 w-10 items-center justify-center rounded-lg shrink-0 ${AUDIT_COLORS[color] || AUDIT_COLORS.slate}`}>
           <Icon className="h-5 w-5" />
