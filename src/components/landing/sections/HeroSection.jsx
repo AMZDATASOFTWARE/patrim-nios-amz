@@ -33,8 +33,8 @@ export default function HeroSection() {
           análise e KPIs de cada área — e um assistente executa pelo chat e pelo WhatsApp: cadastra ativos, agenda manutenções, consulta contratos.
         </p>
         <p style={{ fontSize: 16, color: dim, maxWidth: 720, margin: '0 auto 36px', lineHeight: 1.6 }}>
-          Enquanto isso, o sistema calcula a depreciação em dois livros, apropria créditos de CIAP automaticamente e avisa antes de garantias,
-          contratos e IPVA vencerem. A partir de <strong style={{ color: 'var(--landing-steam)' }}>R$ 97/mês</strong>.
+          O sistema ainda calcula depreciação em dois livros, apropria CIAP e avisa antes de
+          garantias, contratos e IPVA vencerem. A partir de <strong style={{ color: 'var(--landing-steam)' }}>R$ 97/mês</strong>.
         </p>
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, justifyContent: 'center' }}>
