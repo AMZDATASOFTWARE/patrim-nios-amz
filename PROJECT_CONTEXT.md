@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT — Patrimônios AMZ
 
-> Documento de contexto para futuras sessões. Última atualização: **2026-07-12** (compactação mobile — rollout completo: fundação + 7 telas de navegação + 24 páginas restantes, cards e fontes menores, inspirado em Uber/iFood/99).
+> Documento de contexto para futuras sessões. Última atualização: **2026-07-12** (refatoração estrutural — entidade Setor, hierarquia infinita de Filiais, N:N Colaborador↔Filial/Setor, corte de `Asset.cost_center` legado).
 > Mantenha este arquivo atualizado ao final de mudanças estruturais.
 
 ---
@@ -31,9 +31,11 @@
 - Papel sempre **combinado com tenant via `$and`** (nunca `role` sozinho como alternativa ao tenant).
 - Entidades sensíveis com create/write bloqueado no SDK (`is_platform_admin`) e escritas feitas por functions service-role.
 
-## 3. Entidades (29)
+## 3. Entidades (32)
 
-Tenant-owned (têm `workspace_id`, RLS escopada + papel): **Asset, Collaborator, AssetAssignment, AssetAttachment, AssetTransfer, Branch, Supplier, MaintenanceRecord, LocationHistory, InventoryCount, InventoryItem, Contract, DepreciationConfig, Notification, AuditLog, AlertDispatchLog, CiapCredit, CiapAppropriationLog, AccountMappingRule, PaymentRequest, AiBriefing, AssetRevaluation, AssetDisposal, AssetLoan**. Raiz do tenant: **Workspace**. Built-in: **User** (com FLS por campo em `role`/`workspace_id`/`is_platform_admin`). Plataforma (não-tenant, só platform-admin): **CreditUsage** (log de consumo de IA por workspace, read escopado ao próprio workspace), **PricingConfig** (singleton de rateio/precificação, só platform-admin lê/escreve).
+Tenant-owned (têm `workspace_id`, RLS escopada + papel): **Asset, Collaborator, AssetAssignment, AssetAttachment, AssetTransfer, Branch, Sector, CollaboratorBranchLink, CollaboratorSectorLink, Supplier, MaintenanceRecord, LocationHistory, InventoryCount, InventoryItem, Contract, DepreciationConfig, Notification, AuditLog, AlertDispatchLog, CiapCredit, CiapAppropriationLog, AccountMappingRule, PaymentRequest, AiBriefing, AssetRevaluation, AssetDisposal, AssetLoan**. Raiz do tenant: **Workspace**. Built-in: **User** (com FLS por campo em `role`/`workspace_id`/`is_platform_admin`). Plataforma (não-tenant, só platform-admin): **CreditUsage** (log de consumo de IA por workspace, read escopado ao próprio workspace), **PricingConfig** (singleton de rateio/precificação, só platform-admin lê/escreve).
+
+**Sector / CollaboratorBranchLink / CollaboratorSectorLink (2026-07-12) —** ver narrativa completa na seção 7.
 
 **AssetRevaluation / AssetDisposal / AssetLoan (2026-07-12, Onda 5 — paridade com PatPro/AdaSoft)** — três entidades novas, todas RLS `$and(workspace_id, role admin/manager write)` (mesmo padrão de `MaintenanceRecord`/`CiapCredit`, sem function backend — diferente de `AssetTransfer`, não há contraparte remota aceitando). `AssetRevaluation`: registra nova avaliação de valor com ganho/perda, preservando o estado anterior de depreciação; ao salvar, a tela `/Revaluations` também atualiza `Asset.acquisition_value`/`residual_value`/`useful_life_years`/`purchase_date` para o novo valor virar o ponto de partida do `getAssetDepreciation` (sem lógica nova no helper). `AssetDisposal`: `disposal_type` enum `baixa`|`alienacao` — baixa é descarte simples (motivo), alienação é venda com comprador/nota fiscal/valor/leilão; ao salvar, atualiza `Asset.status` para `Inativo`/`Alienado`. `AssetLoan`: empréstimo **temporário** (diferente de `AssetTransfer`, que é permanente com aceite) — `status` `emprestado`|`devolvido`|`atrasado`, com `expected_return_date`; `dispatchExpiryAlerts` foi estendida com um novo `source_type: 'loan'` (mesmos marcos T-30/15/7/1 já usados para garantia/contrato/IPVA).
 
