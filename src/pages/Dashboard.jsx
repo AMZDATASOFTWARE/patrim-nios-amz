@@ -243,7 +243,7 @@ export default function Dashboard() {
         {/* Cadastros: estrutural, consultado ocasionalmente */}
         <TabsContent value="cadastros" className="space-y-3 sm:space-y-4">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4">
-            <KpiSectionCard title="Cadastros & Estrutura" subtitle="Filiais, fornecedores e colaboradores" icon={Building} kpis={registriesKpis} />
+            <KpiSectionCard title="Cadastros & Estrutura" subtitle="Filiais, setores, fornecedores e colaboradores" icon={Building} kpis={registriesKpis} />
             <KpiSectionCard title="Atividade do Sistema" subtitle="Movimentações registradas hoje" icon={Activity} kpis={activityKpis} />
           </div>
         </TabsContent>
