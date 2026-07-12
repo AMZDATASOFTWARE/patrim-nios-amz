@@ -11,10 +11,12 @@ const SEVERITY = {
 
 // 3 tamanhos por importância. 'lg' é usado por seções sozinhas numa aba (mais
 // espaço pra respirar); 'sm' é reservado para casos bem enxutos.
+// Mobile-first: valor compacto (<640px) primeiro, valor de desktop via `sm:`
+// — breakpoint >=640px fica idêntico ao de antes.
 const SIZE = {
-  lg: { pad: 'p-6', headerIcon: 'h-9 w-9', headerIconSvg: 'h-5 w-5', title: 'text-base', value: 'text-2xl', grid: 'grid-cols-2 sm:grid-cols-4', tile: 'px-3 py-3' },
-  md: { pad: 'p-6', headerIcon: 'h-9 w-9', headerIconSvg: 'h-5 w-5', title: 'text-base', value: 'text-xl', grid: 'grid-cols-2 sm:grid-cols-3', tile: 'px-3 py-2.5' },
-  sm: { pad: 'p-4', headerIcon: 'h-7 w-7', headerIconSvg: 'h-4 w-4', title: 'text-sm', value: 'text-base', grid: 'grid-cols-2 sm:grid-cols-3', tile: 'px-2.5 py-2' },
+  lg: { pad: 'p-4 sm:p-6', headerIcon: 'h-8 w-8 sm:h-9 sm:w-9', headerIconSvg: 'h-4 w-4 sm:h-5 sm:w-5', title: 'text-sm sm:text-base', value: 'text-xl sm:text-2xl', grid: 'grid-cols-2 sm:grid-cols-4', tile: 'px-2.5 py-2 sm:px-3 sm:py-3' },
+  md: { pad: 'p-4 sm:p-6', headerIcon: 'h-8 w-8 sm:h-9 sm:w-9', headerIconSvg: 'h-4 w-4 sm:h-5 sm:w-5', title: 'text-sm sm:text-base', value: 'text-lg sm:text-xl', grid: 'grid-cols-2 sm:grid-cols-3', tile: 'px-2.5 py-2 sm:px-3 sm:py-2.5' },
+  sm: { pad: 'p-3 sm:p-4', headerIcon: 'h-7 w-7', headerIconSvg: 'h-4 w-4', title: 'text-sm', value: 'text-base', grid: 'grid-cols-2 sm:grid-cols-3', tile: 'px-2.5 py-2' },
 };
 
 export default function KpiSectionCard({ title, subtitle, icon: Icon, kpis = [], className, size = 'md' }) {
