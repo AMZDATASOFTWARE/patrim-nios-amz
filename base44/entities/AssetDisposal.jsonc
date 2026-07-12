@@ -1,0 +1,125 @@
+{
+  "name": "AssetDisposal",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "asset_id": {
+      "type": "string",
+      "title": "ID do Ativo"
+    },
+    "asset_name": {
+      "type": "string",
+      "title": "Ativo"
+    },
+    "disposal_type": {
+      "type": "string",
+      "title": "Tipo de Saida",
+      "enum": [
+        "baixa",
+        "alienacao"
+      ]
+    },
+    "disposal_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data"
+    },
+    "reason": {
+      "type": "string",
+      "title": "Motivo (baixa)"
+    },
+    "buyer_name": {
+      "type": "string",
+      "title": "Comprador (alienacao)"
+    },
+    "buyer_document": {
+      "type": "string",
+      "title": "CNPJ/CPF do Comprador"
+    },
+    "sale_value": {
+      "type": "number",
+      "title": "Valor de Venda (R$)"
+    },
+    "invoice_number": {
+      "type": "string",
+      "title": "Nota Fiscal de Saida"
+    },
+    "auction_reference": {
+      "type": "string",
+      "title": "Referencia do Leilao"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observacoes"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "asset_id",
+    "disposal_type",
+    "disposal_date"
+  ],
+  "rls": {
+    "//": "Tenant + papel: admin/manager registram baixa/alienacao; viewer/user somente leitura. Delete restrito a admin (registro fiscal/contabil, mesmo padrao de AssetTransfer/CiapCredit).",
+    "create": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "delete": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
