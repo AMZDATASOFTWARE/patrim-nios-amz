@@ -12,7 +12,7 @@ import { getAssetDepreciation, formatCurrency } from '@/lib/depreciation';
 import { toast } from 'sonner';
 import moment from 'moment';
 
-const MATCH_LABELS = { categoria: 'Categoria', centro_custo: 'Centro de custo', todos: 'Todos os ativos' };
+const MATCH_LABELS = { categoria: 'Categoria', centro_custo: 'Centro de custo (legado)', setor: 'Setor', todos: 'Todos os ativos' };
 const EMPTY = { match_type: 'categoria', match_value: '', debit_account: '', credit_account: '', cost_center_code: '', history_template: 'Depreciacao mensal', notes: '' };
 
 export default function AccountingExport() {
@@ -21,9 +21,11 @@ export default function AccountingExport() {
   const canManage = can('manage_accounting_export');
   const RuleEntity = useWorkspaceEntity('AccountMappingRule');
   const AssetEntity = useWorkspaceEntity('Asset');
+  const SectorEntity = useWorkspaceEntity('Sector');
 
   const [rules, setRules] = useState([]);
   const [assets, setAssets] = useState([]);
+  const [sectors, setSectors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState(EMPTY);
@@ -35,9 +37,10 @@ export default function AccountingExport() {
 
   const load = async () => {
     setLoading(true);
-    const [r, a] = await Promise.all([RuleEntity.list('-created_date', 200), AssetEntity.list('-created_date', 5000)]);
+    const [r, a, s] = await Promise.all([RuleEntity.list('-created_date', 200), AssetEntity.list('-created_date', 5000), SectorEntity.list('name', 500)]);
     setRules(r);
     setAssets(a);
+    setSectors(s);
     setLoading(false);
   };
 
@@ -63,10 +66,13 @@ export default function AccountingExport() {
   // Resolve a conta para um ativo: primeiro regra por categoria, depois por centro de custo, depois "todos".
   const ruleFor = (asset) => {
     return rules.find((r) => r.match_type === 'categoria' && r.match_value === asset.category)
+      || rules.find((r) => r.match_type === 'setor' && r.match_value === (asset.sector_id || ''))
       || rules.find((r) => r.match_type === 'centro_custo' && r.match_value === (asset.cost_center || ''))
       || rules.find((r) => r.match_type === 'todos')
       || null;
   };
+
+  const sectorLabelFor = (id) => sectors.find((s) => s.id === id)?.name || 'Setor removido';
 
   const generate = () => {
     if (rules.length === 0) { toast.error('Configure ao menos uma regra de mapeamento antes de exportar.'); return; }
@@ -142,19 +148,37 @@ export default function AccountingExport() {
                 <div className="space-y-3">
                   <div>
                     <Label>Aplica-se a</Label>
-                    <Select value={form.match_type} onValueChange={(v) => setForm({ ...form, match_type: v })}>
+                    <Select value={form.match_type} onValueChange={(v) => setForm({ ...form, match_type: v, match_value: '' })}>
                       <SelectTrigger><SelectValue /></SelectTrigger>
                       <SelectContent>
                         <SelectItem value="categoria">Categoria</SelectItem>
-                        <SelectItem value="centro_custo">Centro de custo</SelectItem>
+                        <SelectItem value="setor">Setor</SelectItem>
                         <SelectItem value="todos">Todos os ativos (padrão)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                  {form.match_type !== 'todos' && (
+                  {form.match_type === 'categoria' && (
                     <div>
-                      <Label>{form.match_type === 'categoria' ? 'Categoria' : 'Centro de custo'}</Label>
-                      <Input value={form.match_value} onChange={(e) => setForm({ ...form, match_value: e.target.value })} placeholder={form.match_type === 'categoria' ? 'Ex: Veículos' : 'Ex: Produção'} />
+                      <Label>Categoria</Label>
+                      <Input value={form.match_value} onChange={(e) => setForm({ ...form, match_value: e.target.value })} placeholder="Ex: Veículos" />
+                    </div>
+                  )}
+                  {form.match_type === 'setor' && (
+                    <div>
+                      <Label>Setor</Label>
+                      <Select
+                        value={form.match_value || 'none'}
+                        onValueChange={(v) => {
+                          const sector = sectors.find((s) => s.id === v);
+                          setForm({ ...form, match_value: v === 'none' ? '' : v, cost_center_code: sector?.accounting_code || form.cost_center_code });
+                        }}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Selecione o setor" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="none">Selecione o setor</SelectItem>
+                          {sectors.map((s) => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
                     </div>
                   )}
                   <div className="grid grid-cols-2 gap-3">
@@ -185,7 +209,7 @@ export default function AccountingExport() {
               <div key={r.id} className="flex items-center justify-between gap-3 p-4">
                 <div className="min-w-0">
                   <p className="font-medium text-card-foreground">
-                    {MATCH_LABELS[r.match_type]}{r.match_value ? `: ${r.match_value}` : ''}
+                    {MATCH_LABELS[r.match_type]}{r.match_value ? `: ${r.match_type === 'setor' ? sectorLabelFor(r.match_value) : r.match_value}` : ''}
                   </p>
                   <p className="text-xs text-muted-foreground">Débito {r.debit_account} • Crédito {r.credit_account}{r.cost_center_code ? ` • CC ${r.cost_center_code}` : ''}</p>
                 </div>
