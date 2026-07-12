@@ -12,6 +12,7 @@ export const PLANS = {
       '3 usuários inclusos',
       'Até 100 ativos cadastrados',
       'Depreciação automática',
+      'Organização por setores',
       'Etiquetas QR Code',
       'Relatórios em PDF e CSV',
       'Suporte por e-mail',
