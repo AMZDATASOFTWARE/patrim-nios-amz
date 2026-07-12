@@ -27,6 +27,9 @@ export const ROUTE_PERMISSIONS = {
   '/Settings': 'view_settings',
   '/CompanyProfile': 'view_company',
   '/Branches': 'view_branches',
+  '/Revaluations': 'view_revaluations',
+  '/Disposals': 'view_disposals',
+  '/Loans': 'view_loans',
   '/Billing': 'view_billing',
 };
 
