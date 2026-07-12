@@ -1,0 +1,99 @@
+{
+  "name": "Sector",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "name": {
+      "type": "string",
+      "title": "Nome do Setor"
+    },
+    "branch_id": {
+      "type": "string",
+      "title": "Filial (vazio = Sede / Matriz)"
+    },
+    "accounting_code": {
+      "type": "string",
+      "title": "Codigo Contabil (Centro de Custo)"
+    },
+    "description": {
+      "type": "string",
+      "title": "Descricao"
+    },
+    "status": {
+      "type": "string",
+      "title": "Situacao",
+      "enum": [
+        "ativo",
+        "inativo"
+      ],
+      "default": "ativo"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "name"
+  ],
+  "rls": {
+    "//": "Sem contraparte remota, mesmo padrao direto de AssetRevaluation/AssetDisposal/AssetLoan. Setor e gratuito em todos os planos (sem gate Enterprise, diferente de Branch) - admin/manager gerenciam, leitura tenant qualquer papel, delete restrito a admin (acao estrutural).",
+    "create": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "$or": [
+            {
+              "user_condition": {
+                "role": "admin"
+              }
+            },
+            {
+              "user_condition": {
+                "role": "manager"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    "delete": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
