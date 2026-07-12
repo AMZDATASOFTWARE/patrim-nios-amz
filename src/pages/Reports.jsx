@@ -26,6 +26,7 @@ export default function Reports() {
   const LoanEntity = useWorkspaceEntity('AssetLoan');
   const AssignmentEntity = useWorkspaceEntity('AssetAssignment');
   const BranchEntity = useWorkspaceEntity('Branch');
+  const SectorEntity = useWorkspaceEntity('Sector');
   const InventoryItemEntity = useWorkspaceEntity('InventoryItem');
   const { workspace } = useWorkspace();
   const { workspaceId } = AssetEntity;
@@ -34,7 +35,7 @@ export default function Reports() {
 
   // Dataset do catálogo de relatórios — carregado uma vez, reaproveitado por todos os cards.
   const [catalogData, setCatalogData] = useState({
-    revaluations: [], disposals: [], loans: [], assignments: [], branches: [], inventoryItems: [],
+    revaluations: [], disposals: [], loans: [], assignments: [], branches: [], sectors: [], inventoryItems: [],
   });
 
   useEffect(() => {
@@ -65,9 +66,10 @@ export default function Reports() {
       LoanEntity.list('-loan_date', 2000).catch(() => []),
       AssignmentEntity.list('-assignment_date', 2000).catch(() => []),
       BranchEntity.list('-created_date', 200).catch(() => []),
+      SectorEntity.list('name', 500).catch(() => []),
       InventoryItemEntity.list('-counted_at', 5000).catch(() => []),
-    ]).then(([revaluations, disposals, loans, assignments, branches, inventoryItems]) => {
-      setCatalogData({ revaluations, disposals, loans, assignments, branches, inventoryItems });
+    ]).then(([revaluations, disposals, loans, assignments, branches, sectors, inventoryItems]) => {
+      setCatalogData({ revaluations, disposals, loans, assignments, branches, sectors, inventoryItems });
     });
   }, [workspaceId]);
 
