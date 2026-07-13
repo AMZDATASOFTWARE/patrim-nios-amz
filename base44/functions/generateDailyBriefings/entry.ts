@@ -206,7 +206,7 @@ async function computeWorkspace(svc: any, wsId: string): Promise<DomainBriefing[
   }).length;
   const fieldKpis: Kpi[] = [
     { label: 'Transferências pendentes', value: pendingTransfers.length, formatted: String(pendingTransfers.length), severity: oldestPendingDays > 7 ? 'alert' : pendingTransfers.length ? 'info' : 'ok' },
-    { label: 'Tempo médio de aceite', value: avgAcceptDays, formatted: `${avgAcceptDays} dia(s)`, severity: avgAcceptDays > 5 ? 'warn' : 'ok' },
+    { label: 'Acurácia de inventário', value: inventoryAccuracy, formatted: `${inventoryAccuracy}%`, severity: inventoryAccuracy < 80 ? 'warn' : 'ok' },
     { label: 'Termos assinados', value: signedTerms, formatted: `${signedTerms}/${assignments.length}`, severity: assignments.length && pct(signedTerms, assignments.length) < 50 ? 'warn' : 'ok' },
   ];
 
