@@ -15,7 +15,7 @@
     },
     {
       "function_name": "createAsset",
-      "description": "Cadastra um ou mais ativos no patrim\u00f4nio do workspace do usu\u00e1rio, validando o limite de ativos do plano contratado antes de gravar. Use quando o usu\u00e1rio pedir para registrar ou cadastrar um novo bem (im\u00f3vel, ve\u00edculo, equipamento etc.)."
+      "description": "Cadastra um ou mais ativos no patrim\u00f4nio do workspace do usu\u00e1rio, validando o limite de ativos do plano contratado antes de gravar. Use quando o usu\u00e1rio pedir para registrar ou cadastrar um novo bem (im\u00f3vel, ve\u00edculo, equipamento etc.). Se o usuario pedir para cadastrar VARIOS itens de uma vez (ex: 'cadastre 50 notebooks'), envie todos no MESMO array assets (ate 200 por chamada) em uma unica chamada desta ferramenta, em vez de uma chamada por item."
     },
     {
       "entity_name": "AssetAttachment",
