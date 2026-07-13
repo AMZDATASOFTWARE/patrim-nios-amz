@@ -172,6 +172,9 @@ async function computeWorkspace(svc: any, wsId: string): Promise<DomainBriefing[
     { label: 'Sem foto/nota', value: undocumented, formatted: `${undocumented} (${pct(undocumented, assets.length)}%)`, severity: pct(undocumented, assets.length) > 20 ? 'warn' : 'ok' },
     { label: 'Depreciados em uso', value: fullyDepInUse, formatted: String(fullyDepInUse), severity: fullyDepInUse > 0 ? 'warn' : 'ok' },
   ];
+  const monthStart = new Date(new Date().getUTCFullYear(), new Date().getUTCMonth(), 1).getTime();
+  const disposalsThisMonth = disposals.filter((d) => { const t = parseMs(d.disposal_date); return t && t >= monthStart; }).length;
+  const revaluationsThisMonth = revaluations.filter((r) => { const t = parseMs(r.revaluation_date); return t && t >= monthStart; }).length;
 
   // ---------- 2. field_ops ----------
   const pendingTransfers = transfers.filter((t) => t.status === 'pendente');
