@@ -15,7 +15,8 @@
         "maintenance_contracts",
         "fiscal_accounting",
         "registries_structure",
-        "governance_admin"
+        "governance_admin",
+        "org_structure"
       ]
     },
     "agent_name": {
