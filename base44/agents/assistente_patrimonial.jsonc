@@ -165,6 +165,42 @@
       "allowed_operations": [
         "read"
       ]
+    },
+    {
+      "entity_name": "AssetDisposal",
+      "allowed_operations": [
+        "read"
+      ]
+    },
+    {
+      "entity_name": "AssetLoan",
+      "allowed_operations": [
+        "read"
+      ]
+    },
+    {
+      "entity_name": "AssetRevaluation",
+      "allowed_operations": [
+        "read"
+      ]
+    },
+    {
+      "entity_name": "CollaboratorBranchLink",
+      "allowed_operations": [
+        "read"
+      ]
+    },
+    {
+      "entity_name": "CollaboratorSectorLink",
+      "allowed_operations": [
+        "read"
+      ]
+    },
+    {
+      "entity_name": "Sector",
+      "allowed_operations": [
+        "read"
+      ]
     }
   ],
   "context_files": [
