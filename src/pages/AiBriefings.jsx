@@ -36,7 +36,7 @@ export default function AiBriefings() {
   useEffect(() => {
     if (!workspaceId) return;
     setLoading(true);
-    // Pull the latest rows (6 domains × a few days of history is small); keep the
+    // Pull the latest rows (7 domains × a few days of history is small); keep the
     // most recent per domain below. 60 is a comfortable ceiling.
     BriefingEntity.list('-computed_at', 60).then((data) => {
       setBriefings(data);
