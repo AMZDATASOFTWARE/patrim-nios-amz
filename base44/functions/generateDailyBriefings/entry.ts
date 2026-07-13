@@ -462,7 +462,9 @@ Deno.serve(async (req) => {
         } catch (_) { /* non-critical, continue */ }
       }
 
-      // Credit accounting: 6 LLM generations per workspace, same pool as the chat.
+      // Credit accounting: 1 LLM generation per domain per workspace, same pool as the chat.
+      // credits_used is derived from briefings.length (not hardcoded) so it tracks the domain
+      // count automatically if a supervisor is added/removed.
       if (!dryRun) {
         try {
           await svc.entities.CreditUsage.create({
@@ -471,7 +473,7 @@ Deno.serve(async (req) => {
             agent_name: 'supervisores_diarios',
             event_type: 'briefing_diario',
             credit_type: 'message',
-            credits_used: 6,
+            credits_used: briefings.length,
           });
         } catch (_) { /* non-critical */ }
       }
