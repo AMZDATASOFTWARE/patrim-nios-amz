@@ -135,6 +135,9 @@ Deno.serve(async (req) => {
     const assets = Array.isArray(body.assets) ? body.assets.slice(0, 200) : [];
     if (assets.length === 0) return json({ error: 'Nenhum ativo para cadastrar.' }, 400);
 
+    const plaquetaPrefix = typeof body.plaqueta_prefix === 'string' ? body.plaqueta_prefix.trim().substring(0, 50) : '';
+    let plaquetaSeq = plaquetaPrefix ? await nextPlaquetaSeq(svc, ws.id, plaquetaPrefix) : 0;
+
     const limit = PLAN_ASSET_LIMITS[ws.plan as string] ?? PLAN_ASSET_LIMITS.starter;
     let remaining = Infinity;
     if (limit !== null) {
