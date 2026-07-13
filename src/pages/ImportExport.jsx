@@ -197,7 +197,17 @@ export default function ImportExport() {
 
   // ── Exportar ativos existentes ──────────────────────────────────
   const exportAssets = async () => {
-    const assets = await AssetEntity.list('-created_date', 1000);
+    // Pagina em blocos de 1000 (via filter/skip) até esgotar — evita truncar
+    // silenciosamente workspaces com mais de 1000 ativos.
+    const BATCH = 1000;
+    let assets = [];
+    let offset = 0;
+    while (true) {
+      const page = await AssetEntity.filter({}, '-created_date', BATCH, offset);
+      assets = assets.concat(page);
+      if (page.length < BATCH) break;
+      offset += BATCH;
+    }
     const header = ALL_COLS.map(c => COL_LABELS[c]).join(';');
     const rows = assets.map(a =>
       ALL_COLS.map(col => {
