@@ -138,7 +138,7 @@ Deno.serve(async (req) => {
     const plaquetaPrefix = typeof body.plaqueta_prefix === 'string' ? body.plaqueta_prefix.trim().substring(0, 50) : '';
     let plaquetaSeq = plaquetaPrefix ? await nextPlaquetaSeq(svc, ws.id, plaquetaPrefix) : 0;
 
-    // OJO: nao usar `??` aqui -- PLAN_ASSET_LIMITS.enterprise e' literalmente `null`
+    // ATENCAO: nao usar `??` aqui -- PLAN_ASSET_LIMITS.enterprise e' literalmente `null`
     // (nosso sentinela pra "sem limite"), e `??` trata null como ausente, colapsando
     // Enterprise pro fallback do starter. Checar a chave explicitamente preserva o null.
     const planKey = ws.plan as string;
