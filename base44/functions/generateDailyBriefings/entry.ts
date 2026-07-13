@@ -279,10 +279,14 @@ async function computeWorkspace(svc: any, wsId: string): Promise<DomainBriefing[
       topBranchName = bid === '__none__' ? 'Sem filial' : ((branches.find((b) => b.id === bid)?.name as string) || 'Filial');
     }
   }
+  const custodianUnsignedEmails = new Set(
+    assignments.filter((x) => (x.status === 'Ativo' || x.status === 'Atrasado') && !x.signed && x.collaborator_email).map((x) => x.collaborator_email)
+  );
+  const collabWithAssetUnsigned = custodianUnsignedEmails.size;
   const regKpis: Kpi[] = [
     { label: 'Filiais ativas', value: activeBranches, formatted: String(activeBranches), severity: 'info' },
     { label: 'Fornecedores bloqueados/inativos', value: blockedSuppliers, formatted: String(blockedSuppliers), severity: blockedSuppliers > 0 ? 'info' : 'ok' },
-    { label: 'Colaboradores sem ativo', value: collabWithoutAsset, formatted: String(collabWithoutAsset), severity: 'ok' },
+    { label: 'Sem termo assinado', value: collabWithAssetUnsigned, formatted: String(collabWithAssetUnsigned), severity: collabWithAssetUnsigned > 0 ? 'warn' : 'ok' },
   ];
 
   // ---------- 6. governance_admin ----------
