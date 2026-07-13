@@ -10,14 +10,18 @@ import moment from 'moment';
 const REQUIRED_COLS = ['name', 'category', 'acquisition_value', 'purchase_date', 'depreciation_rate'];
 const ALL_COLS = [
   'name', 'category', 'acquisition_value', 'purchase_date', 'depreciation_rate',
-  'plaqueta', 'description', 'account', 'sector_id', 'useful_life_years',
+  'plaqueta', 'description', 'account', 'branch_id', 'sector_id', 'useful_life_years',
   'residual_value', 'depreciation_start_date', 'location', 'status',
-  'conservation_state', 'serial_number', 'fiscal_document', 'warranty_expiry_date',
-  'next_review_date', 'supplier_name',
+  'conservation_state', 'serial_number', 'rfid_tag_id', 'fiscal_document', 'warranty_expiry_date',
+  'next_review_date', 'supplier_id', 'supplier_name',
   'property_registration_number', 'property_registry_office', 'property_iptu_number',
   'property_area_m2', 'property_registration_type',
   'vehicle_plate', 'vehicle_renavam', 'vehicle_chassis', 'vehicle_ipva_due_date',
   'vehicle_fuel_type', 'vehicle_model_year',
+  'ownership_type', 'real_owner_name', 'real_owner_document',
+  'is_construction_in_progress', 'construction_completion_date',
+  'fiscal_depreciation_rate', 'fiscal_useful_life_years', 'fiscal_residual_value', 'fiscal_depreciation_start_date',
+  'external_link', 'registry_link', 'photo_url', 'invoice_url',
   'notes'
 ];
 
@@ -30,7 +34,8 @@ const COL_LABELS = {
   plaqueta: 'Plaqueta / Código',
   description: 'Detalhes Adicionais',
   account: 'Conta Contábil',
-  sector_id: 'ID do Setor (ver em Cadastros → Setores)',
+  branch_id: 'ID da Filial (ver em Cadastros → Filiais)',
+  sector_id: 'ID do Setor — abra Cadastros → Setores, clique no setor e copie o ID da URL/linha',
   useful_life_years: 'Vida Útil (anos)',
   residual_value: 'Valor Residual (R$)',
   depreciation_start_date: 'Início da Depreciação (AAAA-MM-DD)',
@@ -38,9 +43,11 @@ const COL_LABELS = {
   status: 'Status',
   conservation_state: 'Estado de Conservação',
   serial_number: 'Número de Série',
+  rfid_tag_id: 'Tag RFID',
   fiscal_document: 'Número da Nota Fiscal',
   warranty_expiry_date: 'Vencimento da Garantia (AAAA-MM-DD)',
   next_review_date: 'Data da Próxima Revisão (AAAA-MM-DD)',
+  supplier_id: 'ID do Fornecedor (ver em Cadastros → Fornecedores)',
   supplier_name: 'Fornecedor',
   property_registration_number: 'Número de Matrícula (Imóvel)',
   property_registry_office: 'Cartório de Registro (Imóvel)',
@@ -53,17 +60,31 @@ const COL_LABELS = {
   vehicle_ipva_due_date: 'Vencimento IPVA (AAAA-MM-DD) (Veículo)',
   vehicle_fuel_type: 'Combustível (Veículo)',
   vehicle_model_year: 'Ano/Modelo (Veículo)',
+  ownership_type: 'Tipo de Titularidade (proprio/terceiros/locado/comodato)',
+  real_owner_name: 'Proprietário Real (se não for próprio)',
+  real_owner_document: 'CNPJ/CPF do Proprietário Real',
+  is_construction_in_progress: 'Obra em Andamento (sim/não)',
+  construction_completion_date: 'Previsão de Conclusão da Obra (AAAA-MM-DD)',
+  fiscal_depreciation_rate: 'Taxa de Depreciação Fiscal Anual (%)',
+  fiscal_useful_life_years: 'Vida Útil Fiscal (anos)',
+  fiscal_residual_value: 'Valor Residual Fiscal (R$)',
+  fiscal_depreciation_start_date: 'Início da Depreciação Fiscal (AAAA-MM-DD)',
+  external_link: 'Link Externo (Consulta de Valor)',
+  registry_link: 'Link do Registro (Cartório/Corretora)',
+  photo_url: 'URL da Foto',
+  invoice_url: 'URL da Nota Fiscal (Arquivo)',
   notes: 'Observações',
 };
 
 const SAMPLE_ROWS = [
-  ['Notebook Dell Inspiron 15', 'Equipamentos', '4500', '2023-06-01', '20', 'PAT-001', 'Uso administrativo', '', '', '5', '450', '2023-06-01', 'Escritório Central', 'Ativo', 'Bom', 'SN-12345', 'NF-001', '2025-06-01', '', 'Dell Brasil', '', '', '', '', '', '', '', '', '', '', '', ''],
-  ['Veículo Toyota Corolla', 'Veículos', '95000', '2022-03-15', '20', 'PAT-002', 'Uso da diretoria', '', '', '5', '9500', '2022-03-15', 'Garagem', 'Ativo', 'Ótimo', '', 'NF-002', '', '', '', '', '', '', '', '', 'ABC1D234', '', '', '', 'Flex', '2022/2023', ''],
+  ['Notebook Dell Inspiron 15', 'Equipamentos', '4500', '2023-06-01', '20', 'PAT-001', 'Uso administrativo', '', '', '', '5', '450', '2023-06-01', 'Escritório Central', 'Ativo', 'Bom', 'SN-12345', '', 'NF-001', '2025-06-01', '', '', 'Dell Brasil', '', '', '', '', '', '', '', '', '', '', '', 'proprio', '', '', 'não', '', '', '', '', '', '', '', '', '', ''],
+  ['Veículo Toyota Corolla', 'Veículos', '95000', '2022-03-15', '20', 'PAT-002', 'Uso da diretoria', '', '', '', '5', '9500', '2022-03-15', 'Garagem', 'Ativo', 'Ótimo', '', '', 'NF-002', '', '', '', '', '', '', '', '', '', 'ABC1D234', '', '', '', 'Flex', '2022/2023', 'proprio', '', '', 'não', '', '', '', '', '', '', '', '', '', ''],
 ];
 
 const VALID_CATEGORIES = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
 const VALID_STATUSES = ['Ativo', 'Em Manutenção', 'Inativo', 'Alienado'];
 const VALID_STATES = ['Novo', 'Ótimo', 'Bom', 'Regular', 'Ruim'];
+const VALID_OWNERSHIP = ['proprio', 'terceiros', 'locado', 'comodato'];
 
 function parseCSV(text) {
   const lines = text.trim().split('\n').map(l => l.replace(/\r$/, ''));
