@@ -310,6 +310,22 @@ async function computeWorkspace(svc: any, wsId: string): Promise<DomainBriefing[
     { label: 'Usuários ativos hoje', value: Object.keys(actorCount).length, formatted: String(Object.keys(actorCount).length), severity: 'ok' },
   ];
 
+  // ---------- 7. org_structure ----------
+  const activeSectors = sectors.filter((s) => s.status !== 'inativo');
+  const branchesWithParent = branches.filter((b) => !!b.parent_branch_id).length;
+  const linkedCollabIds = new Set([
+    ...collabBranchLinks.map((l) => l.collaborator_id),
+    ...collabSectorLinks.map((l) => l.collaborator_id),
+  ]);
+  const collabWithoutStructureLink = activeCollab.filter((c) => !linkedCollabIds.has(c.id)).length;
+  const sectorIdsWithCollab = new Set(collabSectorLinks.map((l) => l.sector_id));
+  const orphanSectors = activeSectors.filter((s) => !sectorIdsWithCollab.has(s.id)).length;
+  const structureKpis: Kpi[] = [
+    { label: 'Setores ativos', value: activeSectors.length, formatted: String(activeSectors.length), severity: 'info' },
+    { label: 'Filiais em hierarquia', value: branchesWithParent, formatted: String(branchesWithParent), severity: 'info' },
+    { label: 'Colaboradores sem vinculo', value: collabWithoutStructureLink, formatted: String(collabWithoutStructureLink), severity: collabWithoutStructureLink > 0 ? 'warn' : 'ok' },
+  ];
+
   return [
     { domain: 'assets_docs', agent_name: AGENT_BY_DOMAIN.assets_docs, kpis: assetsKpis, facts: { total_ativos: assets.length, patrimonio_total: Math.round(totalSocCurrent), valor_aquisicao: Math.round(totalAcq), depreciacao_acumulada: Math.round(totalSocAcc), sem_documentacao: undocumented, pct_sem_documentacao: pct(undocumented, assets.length), totalmente_depreciados_em_uso: fullyDepInUse, obras_em_andamento: cip } },
     { domain: 'field_ops', agent_name: AGENT_BY_DOMAIN.field_ops, kpis: fieldKpis, facts: { transferencias_pendentes: pendingTransfers.length, pendente_mais_antiga_dias: oldestPendingDays, tempo_medio_aceite_dias: avgAcceptDays, termos_assinados: signedTerms, termos_total: assignments.length, atribuicoes_atrasadas: lateAssignments, sobras_pendentes: surplusPending, itens_conferidos: counted.length, divergencias: divergent } },
