@@ -254,8 +254,8 @@ async function computeWorkspace(svc: any, wsId: string): Promise<DomainBriefing[
   };
   const assetsWithoutMappingRule = assets.filter((a) => a.status !== 'Alienado' && a.status !== 'Inativo' && !ruleFor(a)).length;
   const fiscalKpis: Kpi[] = [
-    { label: 'Diferença societária×fiscal', value: Math.round(socFisDiff), formatted: brl(socFisDiff), severity: Math.abs(socFisDiff) > 0 ? 'info' : 'ok' },
     { label: 'CIAP mensal', value: Math.round(ciapMonthly), formatted: brl(ciapMonthly), severity: 'info' },
+    { label: 'Crédito PIS/COFINS potencial', value: Math.round(pisCofinsPotential), formatted: brl(pisCofinsPotential), severity: pisCofinsPotential > 0 ? 'info' : 'ok' },
     { label: 'Sem regra contábil', value: assetsWithoutMappingRule, formatted: String(assetsWithoutMappingRule), severity: assetsWithoutMappingRule > 0 ? 'warn' : 'ok' },
   ];
 
