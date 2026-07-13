@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.35';
 
 // Scheduled daily job that builds the "newspaper front page" of AI supervisor
-// briefings — one AiBriefing row per (workspace, domain), 6 domains per workspace.
+// briefings — one AiBriefing row per (workspace, domain), 7 domains per workspace.
 //
 // ISOLATION MODEL (the whole point of this design):
 // The job runs via service-role (asServiceRole) because a cron has no logged-in
@@ -11,7 +11,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.35';
 // already-isolated JSON. The model receives numbers, never a data tool. This is
 // the same service-role-scoped-per-tenant pattern as dispatchExpiryAlerts.
 //
-// The 6 supervisor agents (base44/agents/supervisor_*.jsonc) exist as real Base44
+// The 7 supervisor agents (base44/agents/supervisor_*.jsonc) exist as real Base44
 // resources carrying the persona/contract (and are ready for a future in-app chat
 // where the logged-in user's RLS applies). For this batch job the text is produced
 // via svc.integrations.Core.InvokeLLM — the integration path already proven in this
@@ -123,8 +123,11 @@ async function fetchAll(svc: any, entity: string, wsId: string): Promise<Record<
 // deno-lint-ignore no-explicit-any
 async function computeWorkspace(svc: any, wsId: string): Promise<DomainBriefing[]> {
   const today = todayUTC();
-  const [assets, attachments, transfers, invItems, assignments, maintenance, contracts, ciap, branches, suppliers, collaborators, audit] =
-    await Promise.all([
+  const [
+    assets, attachments, transfers, invItems, assignments, maintenance, contracts, ciap,
+    branches, suppliers, collaborators, audit,
+    disposals, revaluations, loans, sectors, mappingRules, collabBranchLinks, collabSectorLinks,
+  ] = await Promise.all([
       fetchAll(svc, 'Asset', wsId),
       fetchAll(svc, 'AssetAttachment', wsId),
       fetchAll(svc, 'AssetTransfer', wsId),
@@ -137,6 +140,13 @@ async function computeWorkspace(svc: any, wsId: string): Promise<DomainBriefing[
       fetchAll(svc, 'Supplier', wsId),
       fetchAll(svc, 'Collaborator', wsId),
       fetchAll(svc, 'AuditLog', wsId),
+      fetchAll(svc, 'AssetDisposal', wsId),
+      fetchAll(svc, 'AssetRevaluation', wsId),
+      fetchAll(svc, 'AssetLoan', wsId),
+      fetchAll(svc, 'Sector', wsId),
+      fetchAll(svc, 'AccountMappingRule', wsId),
+      fetchAll(svc, 'CollaboratorBranchLink', wsId),
+      fetchAll(svc, 'CollaboratorSectorLink', wsId),
     ]);
 
   // ---------- 1. assets_docs ----------
