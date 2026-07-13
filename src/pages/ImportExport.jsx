@@ -110,8 +110,14 @@ function validateRow(row, index) {
   if (!row.depreciation_rate || isNaN(parseFloat(row.depreciation_rate))) errors.push('Taxa de depreciação inválida');
   if (row.status && !VALID_STATUSES.includes(row.status)) errors.push(`Status inválido: "${row.status}"`);
   if (row.conservation_state && !VALID_STATES.includes(row.conservation_state)) errors.push(`Estado inválido: "${row.conservation_state}"`);
+  if (row.ownership_type && !VALID_OWNERSHIP.includes(row.ownership_type)) errors.push(`Tipo de titularidade inválido: "${row.ownership_type}". Use: ${VALID_OWNERSHIP.join(', ')}`);
 
   return errors;
+}
+
+function toBool(v) {
+  const s = String(v || '').trim().toLowerCase();
+  return s === 'sim' || s === 'true' || s === '1';
 }
 
 function rowToAsset(row) {
@@ -124,6 +130,7 @@ function rowToAsset(row) {
     plaqueta: row.plaqueta?.trim() || undefined,
     description: row.description?.trim() || undefined,
     account: row.account?.trim() || undefined,
+    branch_id: row.branch_id?.trim() || undefined,
     sector_id: row.sector_id?.trim() || undefined,
     useful_life_years: row.useful_life_years ? parseFloat(row.useful_life_years) : undefined,
     residual_value: row.residual_value ? parseFloat(row.residual_value) : undefined,
@@ -132,9 +139,11 @@ function rowToAsset(row) {
     status: row.status?.trim() || 'Ativo',
     conservation_state: row.conservation_state?.trim() || undefined,
     serial_number: row.serial_number?.trim() || undefined,
+    rfid_tag_id: row.rfid_tag_id?.trim() || undefined,
     fiscal_document: row.fiscal_document?.trim() || undefined,
     warranty_expiry_date: row.warranty_expiry_date?.trim() || undefined,
     next_review_date: row.next_review_date?.trim() || undefined,
+    supplier_id: row.supplier_id?.trim() || undefined,
     supplier_name: row.supplier_name?.trim() || undefined,
     property_registration_number: row.property_registration_number?.trim() || undefined,
     property_registry_office: row.property_registry_office?.trim() || undefined,
@@ -147,6 +156,19 @@ function rowToAsset(row) {
     vehicle_ipva_due_date: row.vehicle_ipva_due_date?.trim() || undefined,
     vehicle_fuel_type: row.vehicle_fuel_type?.trim() || undefined,
     vehicle_model_year: row.vehicle_model_year?.trim() || undefined,
+    ownership_type: VALID_OWNERSHIP.includes(row.ownership_type?.trim()) ? row.ownership_type.trim() : 'proprio',
+    real_owner_name: row.real_owner_name?.trim() || undefined,
+    real_owner_document: row.real_owner_document?.trim() || undefined,
+    is_construction_in_progress: toBool(row.is_construction_in_progress),
+    construction_completion_date: row.construction_completion_date?.trim() || undefined,
+    fiscal_depreciation_rate: row.fiscal_depreciation_rate ? parseFloat(row.fiscal_depreciation_rate) : undefined,
+    fiscal_useful_life_years: row.fiscal_useful_life_years ? parseFloat(row.fiscal_useful_life_years) : undefined,
+    fiscal_residual_value: row.fiscal_residual_value ? parseFloat(row.fiscal_residual_value) : undefined,
+    fiscal_depreciation_start_date: row.fiscal_depreciation_start_date?.trim() || undefined,
+    external_link: row.external_link?.trim() || undefined,
+    registry_link: row.registry_link?.trim() || undefined,
+    photo_url: row.photo_url?.trim() || undefined,
+    invoice_url: row.invoice_url?.trim() || undefined,
     notes: row.notes?.trim() || undefined,
   };
 }
