@@ -388,6 +388,7 @@ export default function ImportExport() {
             <p>{REQUIRED_COLS.map(k => COL_LABELS[k].replace(' *', '')).join(' • ')}</p>
             <p className="mt-1">Categorias válidas: {VALID_CATEGORIES.join(', ')}</p>
             <p>Datas no formato: <strong>AAAA-MM-DD</strong> (ex: 2024-03-15)</p>
+            <p>Setor/Filial/Fornecedor: use o ID (abra o cadastro correspondente e copie o ID da linha/URL) — opcional.</p>
           </div>
         </div>
 
