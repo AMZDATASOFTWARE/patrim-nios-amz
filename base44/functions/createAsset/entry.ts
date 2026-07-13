@@ -6,7 +6,10 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.35';
 // status and asset limit, and stamps workspace_id from the session (never from
 // the request body).
 // Input:  { assets: [ { name, category, acquisition_value, purchase_date,
-//                       depreciation_rate, ...optional fields } ] }  (1..200)
+//                       depreciation_rate, ...optional fields } ], plaqueta_prefix?: string }  (1..200)
+// plaqueta_prefix: when set, any item WITHOUT its own `plaqueta` gets one auto-assigned
+// as `${prefix}-${seq}`, continuing after the highest existing sequence for that prefix
+// in the workspace (batch-create / duplicate-asset flows in AssetForm.jsx / AssetDetail.jsx).
 // Output: { ok: true, created, failed, ids, limit_reached }
 
 const cors = {
