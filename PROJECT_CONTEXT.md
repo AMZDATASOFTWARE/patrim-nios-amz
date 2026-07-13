@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT — Patrimônios AMZ
 
-> Documento de contexto para futuras sessões. Última atualização: **2026-07-13** (Importar/Exportar — correção de drift de template/export — ver seção 7).
+> Documento de contexto para futuras sessões. Última atualização: **2026-07-13** (Assistente Patrimonial — auditoria de cobertura de entidades/RLS + correção de instruções — ver seção 6.3).
 > Mantenha este arquivo atualizado ao final de mudanças estruturais.
 
 ---
@@ -169,6 +169,24 @@ Usuário pediu para verificar quantos agentes seriam necessários para cobertura
 - **Lição de encoding confirmada de novo:** `.jsonc` de agente tem o mesmo problema de `\uXXXX` já documentado — `edit_file` com `old_text` acentuado falhava mesmo com o acento idêntico ao do arquivo (confirmado via `grep`, que encontrava a mesma string sem problema); resolvido ancorando em blocos puro-ASCII ao redor do ponto de inserção. Arquivos `.ts` (não-`.jsonc`) não têm esse problema — edições com acento funcionaram normalmente em `generateDailyBriefings/entry.ts`.
 - Checkpoints: `6a5449eb41e4a180436e8b3e` (Onda 1 — schema/agentes), `6a544d33086b356d640b384a` (Onda 2 — lógica da function + frontend). `npm run lint`/`npm run build` verdes nas duas ondas (10 erros pré-existentes, zero novo).
 - **Verificação real (rodar a function de fato, ver os 7 cards no mosaico, conferir se os textos gerados pela IA fazem sentido) continua sendo etapa do usuário** — só roda via o cron já configurado no dashboard Base44, ou uma chamada manual de platform-admin; não há como autenticar e testar por aqui.
+
+### 6.3 Auditoria do Assistente Patrimonial (`/Assistant`) — cobertura de entidades + RLS (2026-07-13)
+
+Usuário pediu para verificar se `assistente_patrimonial.jsonc` (o agente único da tela "Assistente IA", distinto dos 7 supervisores do Diário — ver 6.1) tem acesso a tudo que deveria (entidades, relatórios, telas, campos) sem violar RLS/multi-tenant. Auditoria com 1 agente Explore + **verificação manual minha da íntegra do arquivo**, necessária porque o relatório do Explore continha um achado impreciso (registrado abaixo como lição).
+
+**RLS/multi-tenant: correto, sem mudança.** As 27 entidades tenant-owned no `tool_configs` herdam o escopo do workspace da sessão do usuário logado. `CreditUsage` (telemetria de custo de IA) segue corretamente ausente (decisão de 2026-07-11, ver 6). `PricingConfig` está presente com `read` — decisão consciente documentada aqui mesmo, não uma falha. `User` segue ausente por decisão do usuário nesta rodada (identidade/autenticação, não dado de negócio).
+
+**Achado real, mais estreito do que o Explore relatou:** o parágrafo "1. PESQUISADOR" das `instructions` já citava por nome a esmagadora maioria das entidades (inclusive "Alienação de Ativos"=AssetDisposal, AssetLoan, AssetRevaluation, "Setor", CollaboratorBranchLink/SectorLink, "Ramo"=Branch) — o relatório do subagente Explore de que essas áreas "nunca eram mencionadas" estava **incorreto**, corrigido por leitura direta do arquivo antes de planejar a correção. **Lição registrada:** relatório de subagente Explore não é fato até verificado — reler o arquivo-fonte antes de aceitar um achado que vai virar plano de ação, mesmo quando o achado "soa plausível".
+
+O gap real era menor: 3 entidades presentes em `tool_configs` mas ausentes da lista do Pesquisador (`AccountMappingRule`, `Workspace`, `AiBriefing`), e a descrição pública do agente (`description` + `whatsapp_greeting`) estava estreita ("ativos, valores, depreciação e manutenções"), sem citar Setor/Filiais, Empréstimos, Baixa/Alienação, Reavaliações.
+
+**Entregue** (só texto/instrução, zero mudança em `tool_configs`/RLS):
+- `description`: ampliada pra citar estrutura organizacional, empréstimos, baixas/alienações, reavaliações, contratos.
+- `instructions`, passo 1 (Pesquisador): lista de entidades ganhou `AccountMappingRule`, `Workspace`, `AiBriefing`.
+- `instructions`: novo passo **1.5 RECURSOS COMPLEMENTARES** — instrui o agente a mencionar por nome a Central de Ajuda (`/Help`) ou um relatório do Catálogo de Relatórios (`/Reports`) quando a pergunta do usuário combinar com um deles, deixando claro que ele não lê o conteúdo dessas telas diretamente (são client-side, sem entidade/function — não há tool para isso).
+- `whatsapp_greeting`: ganhou uma frase extra citando setores/filiais/empréstimos/baixas.
+- Checkpoint `6a552942157e095948ba27c1`. Sem `npm run build`/`lint` aplicável (arquivo de configuração de agente).
+- **Teste real (perguntar ao Assistente sobre Setor/Empréstimo, ou pedir indicação de relatório, e conferir a resposta) continua sendo etapa do usuário.**
 
 ## 7. Frontend
 
