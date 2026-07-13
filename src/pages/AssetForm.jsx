@@ -26,6 +26,8 @@ export default function AssetForm() {
   const editId = urlParams.get('id');
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(!!editId);
+  const [quantity, setQuantity] = useState(1);
+  const [plaquetaPrefix, setPlaquetaPrefix] = useState('');
   const originalAssetRef = useRef(null);
   const AssetEntity = useWorkspaceEntity('Asset');
   const BranchEntity = useWorkspaceEntity('Branch');
@@ -181,12 +183,13 @@ export default function AssetForm() {
     e.preventDefault();
 
     // Aplica o limite de ativos do plano na criação (edição não conta).
+    const qty = editId ? 1 : Math.min(50, Math.max(1, parseInt(quantity, 10) || 1));
     if (!editId) {
       const limit = getPlan(workspace?.plan).limits.assets;
       if (Number.isFinite(limit)) {
         const existing = await AssetEntity.list('-created_date', limit + 1);
-        if (existing.length >= limit) {
-          toast.error(`Seu plano permite até ${limit} ativos. Faça upgrade em Plano & Cobrança para cadastrar mais.`);
+        if (existing.length + qty > limit) {
+          toast.error(`Seu plano permite até ${limit} ativos (${Math.max(0, limit - existing.length)} restante(s)). Faça upgrade em Plano & Cobrança ou reduza a quantidade.`);
           return;
         }
       }
@@ -220,15 +223,28 @@ export default function AssetForm() {
       } else {
         // Criação passa pela function createAsset — o limite do plano e o status
         // de pagamento são validados no servidor (RLS bloqueia create pelo SDK).
-        const res = await base44.functions.invoke('createAsset', { assets: [data] });
+        // qty > 1: cadastro em lote — cada cópia recebe sufixo no nome e tem os
+        // campos de identificação única (serial, placa, matrícula, plaqueta sem
+        // prefixo, anexos) limpos, mantidos só no primeiro item digitado.
+        const assets = buildBatch(data, qty, plaquetaPrefix.trim());
+        const res = await base44.functions.invoke('createAsset', {
+          assets,
+          ...(plaquetaPrefix.trim() ? { plaqueta_prefix: plaquetaPrefix.trim() } : {}),
+        });
         if (!res?.data?.ok || !res.data.created) {
           throw new Error(res?.data?.error || 'Não foi possível salvar o ativo.');
         }
         await logAudit({
           action: 'created', entity_type: 'Asset', entity_id: res.data.ids?.[0] || '',
-          entity_label: data.name, summary: `Cadastrou o ativo "${data.name}"`,
+          entity_label: data.name,
+          summary: qty > 1 ? `Cadastrou ${res.data.created} ativos em lote a partir de "${data.name}"` : `Cadastrou o ativo "${data.name}"`,
           new_data: data,
         });
+        if (res.data.limit_reached || res.data.failed > 0) {
+          toast.warning(`${res.data.created} de ${qty} ativos criados — limite do plano atingido ou item inválido.`);
+        } else if (qty > 1) {
+          toast.success(`${res.data.created} ativos cadastrados com sucesso.`);
+        }
       }
       navigate('/Assets');
     } catch (err) {
