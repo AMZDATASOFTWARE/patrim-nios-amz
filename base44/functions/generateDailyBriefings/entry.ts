@@ -243,10 +243,20 @@ async function computeWorkspace(svc: any, wsId: string): Promise<DomainBriefing[
     const rate = (Number(c.pis_rate) || 0) + (Number(c.cofins_rate) || 0);
     return acc + base * (rate / 100);
   }, 0);
+  // Mesma logica de casamento (categoria/setor/centro_custo/todos) usada em
+  // src/pages/AccountingExport.jsx `ruleFor()`, portada aqui sem importar o front.
+  const ruleFor = (asset: Record<string, unknown>) => {
+    return mappingRules.find((r) => r.match_type === 'categoria' && r.match_value === asset.category)
+      || mappingRules.find((r) => r.match_type === 'setor' && r.match_value === (asset.sector_id || ''))
+      || mappingRules.find((r) => r.match_type === 'centro_custo' && r.match_value === (asset.cost_center || ''))
+      || mappingRules.find((r) => r.match_type === 'todos')
+      || null;
+  };
+  const assetsWithoutMappingRule = assets.filter((a) => a.status !== 'Alienado' && a.status !== 'Inativo' && !ruleFor(a)).length;
   const fiscalKpis: Kpi[] = [
     { label: 'Diferença societária×fiscal', value: Math.round(socFisDiff), formatted: brl(socFisDiff), severity: Math.abs(socFisDiff) > 0 ? 'info' : 'ok' },
     { label: 'CIAP mensal', value: Math.round(ciapMonthly), formatted: brl(ciapMonthly), severity: 'info' },
-    { label: 'Crédito PIS/COFINS potencial', value: Math.round(pisCofinsPotential), formatted: brl(pisCofinsPotential), severity: pisCofinsPotential > 0 ? 'info' : 'ok' },
+    { label: 'Sem regra contábil', value: assetsWithoutMappingRule, formatted: String(assetsWithoutMappingRule), severity: assetsWithoutMappingRule > 0 ? 'warn' : 'ok' },
   ];
 
   // ---------- 5. registries_structure ----------
