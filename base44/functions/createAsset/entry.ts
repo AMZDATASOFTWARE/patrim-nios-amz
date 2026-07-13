@@ -161,6 +161,10 @@ Deno.serve(async (req) => {
       if (created >= remaining) { limitReached = true; failed++; continue; }
       const { data, error } = sanitizeAsset(raw || {});
       if (error || !data) { failed++; continue; }
+      if (plaquetaPrefix && !data.plaqueta) {
+        data.plaqueta = `${plaquetaPrefix}-${String(plaquetaSeq).padStart(Math.max(3, String(plaquetaSeq).length), '0')}`;
+        plaquetaSeq++;
+      }
       try {
         // public_scan_token: opaque, unguessable identifier for the /scan QR code —
         // never the row's own id (security audit A3: an internal id is enumerable).
