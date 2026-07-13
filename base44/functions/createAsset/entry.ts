@@ -72,6 +72,21 @@ function sanitizeAsset(raw: Record<string, unknown>): { data?: Record<string, un
   return { data };
 }
 
+// Resolves the next free sequence number for a plaqueta prefix, scanning existing
+// plaquetas in the workspace so repeated batches/duplications never collide.
+async function nextPlaquetaSeq(svc: any, workspaceId: string, prefix: string): Promise<number> {
+  const rows = await svc.entities.Asset.filter({ workspace_id: workspaceId }, '-created_date', 5000, 0, ['plaqueta']);
+  const marker = `${prefix}-`;
+  let max = 0;
+  for (const row of rows) {
+    const p = String(row?.plaqueta || '');
+    if (!p.startsWith(marker)) continue;
+    const n = Number(p.slice(marker.length));
+    if (Number.isFinite(n) && n > max) max = n;
+  }
+  return max + 1;
+}
+
 // Fail-closed plan gate (mirrors PaymentGate.jsx, but on the server).
 function planBlocksWrites(ws: Record<string, unknown>): string | null {
   const status = ws.plan_status as string;
