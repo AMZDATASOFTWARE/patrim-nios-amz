@@ -197,6 +197,13 @@ async function computeWorkspace(svc: any, wsId: string): Promise<DomainBriefing[
   const surplusPending = invItems.filter((i) => i.is_surplus && i.resolution === 'pendente_resolucao').length;
   const counted = invItems.filter((i) => i.status !== 'pendente');
   const divergent = invItems.filter((i) => i.status === 'divergente' || i.status === 'nao_encontrado').length;
+  const inventoryAccuracy = counted.length ? pct(counted.length - divergent, counted.length) : 100;
+  const loansActive = loans.filter((l) => l.status === 'emprestado').length;
+  const loansOverdue = loans.filter((l) => {
+    if (l.status !== 'emprestado') return false;
+    const d = parseMs(l.expected_return_date);
+    return d && d < today;
+  }).length;
   const fieldKpis: Kpi[] = [
     { label: 'Transferências pendentes', value: pendingTransfers.length, formatted: String(pendingTransfers.length), severity: oldestPendingDays > 7 ? 'alert' : pendingTransfers.length ? 'info' : 'ok' },
     { label: 'Tempo médio de aceite', value: avgAcceptDays, formatted: `${avgAcceptDays} dia(s)`, severity: avgAcceptDays > 5 ? 'warn' : 'ok' },
