@@ -22,6 +22,24 @@ export function useWorkspaceEntity(entityName) {
   const del = (id) =>
     base44.entities[entityName].delete(id);
 
+  // Busca TODOS os registros do workspace, paginando em lotes de 1000 —
+  // evita o corte silencioso que distorcia os KPIs quando havia 1000+ registros.
+  const listAll = async (sort = '-created_date') => {
+    if (!workspaceId) return [];
+    const BATCH = 1000;
+    const all = [];
+    let skip = 0;
+    for (;;) {
+      const batch = await base44.entities[entityName].filter(
+        { workspace_id: workspaceId }, sort, BATCH, skip
+      );
+      all.push(...batch);
+      if (batch.length < BATCH) break;
+      skip += BATCH;
+    }
+    return all;
+  };
+
   const filter = (query, sort = '-created_date', limit = 200, skip = 0) => {
     if (!workspaceId) return Promise.resolve([]);
     return base44.entities[entityName].filter({ ...query, workspace_id: workspaceId }, sort, limit, skip);
@@ -36,5 +54,5 @@ export function useWorkspaceEntity(entityName) {
     return rows.length;
   };
 
-  return { list, create, update, del, filter, count, workspaceId };
+  return { list, listAll, create, update, del, filter, count, workspaceId };
 }

@@ -35,7 +35,6 @@ import {
 // de conteúdo nesses dois casos vem inteiramente da RLS já existente, não de
 // nenhuma checagem nova aqui. CreditUsage/PricingConfig (dados de dono de
 // plataforma) nunca são buscados nesta tela.
-const ENTITY_LIMIT = 1000;
 
 // Mapeia cada chave da AttentionStrip para ícone/label/rota (camada de UI).
 const ATTENTION_META = {
@@ -66,22 +65,23 @@ export default function Dashboard() {
 
   const { workspaceId } = AssetEntity;
 
-  useEffect(() => {
+  const loadData = (showSpinner = true) => {
     if (!workspaceId) return;
-    setLoading(true);
+    if (showSpinner) setLoading(true);
+    // listAll pagina em lotes de 1000 até trazer tudo — sem corte silencioso nos KPIs.
     Promise.all([
-      AssetEntity.list('-created_date', ENTITY_LIMIT),
-      AttachmentEntity.list('-created_date', ENTITY_LIMIT),
-      TransferEntity.list('-created_date', ENTITY_LIMIT),
-      AssignmentEntity.list('-created_date', ENTITY_LIMIT),
-      MaintenanceEntity.list('-created_date', ENTITY_LIMIT),
-      ContractEntity.list('-created_date', ENTITY_LIMIT),
-      CiapEntity.list('-created_date', ENTITY_LIMIT),
-      InventoryItemEntity.list('-created_date', ENTITY_LIMIT),
-      BranchEntity.list('-created_date', ENTITY_LIMIT),
-      SupplierEntity.list('-created_date', ENTITY_LIMIT),
-      CollaboratorEntity.list('-created_date', ENTITY_LIMIT),
-      AuditLogEntity.list('-created_date', ENTITY_LIMIT),
+      AssetEntity.listAll(),
+      AttachmentEntity.listAll(),
+      TransferEntity.listAll(),
+      AssignmentEntity.listAll(),
+      MaintenanceEntity.listAll(),
+      ContractEntity.listAll(),
+      CiapEntity.listAll(),
+      InventoryItemEntity.listAll(),
+      BranchEntity.listAll(),
+      SupplierEntity.listAll(),
+      CollaboratorEntity.listAll(),
+      AuditLogEntity.listAll(),
     ]).then(([
       assets, attachments, transfers, assignments, maintenanceRecords,
       contracts, ciapCredits, inventoryItems, branches, suppliers,
@@ -95,6 +95,19 @@ export default function Dashboard() {
       setUpdatedAt(new Date());
       setLoading(false);
     });
+  };
+
+  useEffect(() => {
+    loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [workspaceId]);
+
+  // Recarrega em segundo plano quando o usuário volta para a aba/tela —
+  // mantém o Dashboard atualizado após mudanças feitas em outras páginas.
+  useEffect(() => {
+    const onFocus = () => loadData(false);
+    window.addEventListener('focus', onFocus);
+    return () => window.removeEventListener('focus', onFocus);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [workspaceId]);
 
