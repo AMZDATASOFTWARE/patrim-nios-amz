@@ -21,6 +21,7 @@ import DisposalSection from '@/components/assets/DisposalSection';
 import MaintenanceSection from '@/components/assets/MaintenanceSection';
 import AssignmentSection from '@/components/assets/AssignmentSection';
 import LocationHistoryMini from '@/components/assets/LocationHistoryMini';
+import DuplicateAssetDialog from '@/components/assets/DuplicateAssetDialog';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { useWorkspace } from '@/lib/WorkspaceContext';
 import { useAuth } from '@/lib/AuthContext';
@@ -125,6 +126,9 @@ export default function AssetDetail() {
               <Edit className="h-4 w-4" /> Editar
             </Button>
           </Link>
+          {can('create_asset') && (
+            <DuplicateAssetDialog asset={asset} onDuplicated={() => navigate('/Assets')} />
+          )}
           <AlertDialog>
             <AlertDialogTrigger asChild>
               <Button variant="destructive" className="gap-2">
