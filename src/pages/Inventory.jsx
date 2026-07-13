@@ -204,6 +204,7 @@ function NewInventoryDialog({ AssetEntity, CountEntity, ItemEntity, SectorEntity
           asset_name: a.name || '',
           plaqueta: a.plaqueta || '',
           rfid_tag_id: a.rfid_tag_id || '',
+          public_scan_token: a.public_scan_token || '',
           expected_location: a.location || '',
           status: 'pendente',
         });
