@@ -4,9 +4,9 @@ import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { useAuth } from '@/lib/AuthContext';
 import { usePermissions } from '@/lib/permissions';
 import BriefingCard from '@/components/briefings/BriefingCard';
-import { Newspaper, Package, ClipboardList, Wrench, Calculator, FolderOpen, ShieldCheck } from 'lucide-react';
+import { Newspaper, Package, ClipboardList, Wrench, Calculator, FolderOpen, ShieldCheck, Network } from 'lucide-react';
 
-// Domain catalog: the 6 supervisors, in reading order. Mirrors the enum in
+// Domain catalog: the 7 supervisors, in reading order. Mirrors the enum in
 // AiBriefing.jsonc and AGENT_BY_DOMAIN in generateDailyBriefings.
 // `permission` gates each card to the same role that could open the underlying
 // screen — so the governance card (audit-derived: most-active user, deletions)
@@ -20,8 +20,9 @@ const DOMAINS = [
   { key: 'field_ops', label: 'Operação de Campo', icon: ClipboardList, permission: 'view_inventory' },
   { key: 'maintenance_contracts', label: 'Manutenção & Contratos', icon: Wrench, permission: 'view_maintenance' },
   { key: 'fiscal_accounting', label: 'Fiscal & Contábil', icon: Calculator, permission: 'view_depreciation' },
-  { key: 'registries_structure', label: 'Cadastros & Estrutura', icon: FolderOpen, permission: 'view_suppliers' },
+  { key: 'registries_structure', label: 'Cadastros', icon: FolderOpen, permission: 'view_suppliers' },
   { key: 'governance_admin', label: 'Administração & Governança', icon: ShieldCheck, permission: 'view_audit' },
+  { key: 'org_structure', label: 'Estrutura Organizacional', icon: Network, permission: 'view_sectors' },
 ];
 
 export default function AiBriefings() {
@@ -84,7 +85,7 @@ export default function AiBriefings() {
           </div>
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Diário do Patrimônio</h1>
-            <p className="text-sm text-muted-foreground">6 supervisores de IA analisam seu sistema todo dia</p>
+            <p className="text-sm text-muted-foreground">7 supervisores de IA analisam seu sistema todo dia</p>
           </div>
         </div>
         <p className="text-xs text-muted-foreground">
