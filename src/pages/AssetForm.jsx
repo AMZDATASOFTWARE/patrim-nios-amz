@@ -244,7 +244,7 @@ export default function AssetForm() {
         // qty > 1: cadastro em lote — cada cópia recebe sufixo no nome e tem os
         // campos de identificação única (serial, placa, matrícula, plaqueta sem
         // prefixo, anexos) limpos, mantidos só no primeiro item digitado.
-        const assets = buildBatch(data, qty, plaquetaPrefix.trim());
+        const assets = buildBatch(data, qty);
         const res = await base44.functions.invoke('createAsset', {
           assets,
           ...(plaquetaPrefix.trim() ? { plaqueta_prefix: plaquetaPrefix.trim() } : {}),
