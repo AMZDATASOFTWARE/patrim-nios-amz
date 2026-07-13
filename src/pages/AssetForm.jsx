@@ -20,6 +20,24 @@ import { logAudit } from '@/lib/audit';
 const categories = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
 const statuses = ['Ativo', 'Em Manutenção', 'Inativo', 'Alienado'];
 
+// Campos de identificação única: não fazem sentido replicados em cópias do
+// mesmo lote/duplicação — ficam em branco (exceto plaqueta, que pode ganhar
+// numeração sequencial via prefixo, resolvida no backend).
+const UNIQUE_FIELDS = [
+  'plaqueta', 'serial_number', 'rfid_tag_id', 'vehicle_plate', 'vehicle_renavam',
+  'vehicle_chassis', 'property_registration_number', 'property_iptu_number',
+  'fiscal_document', 'photo_url', 'invoice_url',
+];
+
+function buildBatch(baseData, qty) {
+  if (qty <= 1) return [baseData];
+  return Array.from({ length: qty }, (_, idx) => {
+    const item = { ...baseData, name: `${baseData.name} (${idx + 1}/${qty})` };
+    if (idx > 0) UNIQUE_FIELDS.forEach((f) => { item[f] = ''; });
+    return item;
+  });
+}
+
 export default function AssetForm() {
   const navigate = useNavigate();
   const urlParams = new URLSearchParams(window.location.search);
