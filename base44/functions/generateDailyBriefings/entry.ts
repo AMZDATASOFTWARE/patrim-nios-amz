@@ -98,6 +98,7 @@ const AGENT_BY_DOMAIN: Record<string, string> = {
   fiscal_accounting: 'supervisor_fiscal_contabil',
   registries_structure: 'supervisor_cadastros',
   governance_admin: 'supervisor_governanca',
+  org_structure: 'supervisor_estrutura',
 };
 
 // Persona system prompts mirror the agents' .jsonc instructions (kept short here;
@@ -107,8 +108,9 @@ const PERSONA: Record<string, string> = {
   field_ops: 'Você é o Supervisor de Operação de Campo: orquestrador + jornalista investigativo. Escreva a manchete do dia sobre inventário, transferências e termos de responsabilidade.',
   maintenance_contracts: 'Você é o Supervisor de Manutenção & Contratos: orquestrador + jornalista investigativo. A razão preventiva×corretiva é o indicador de maturidade mais importante.',
   fiscal_accounting: 'Você é o Supervisor Fiscal & Contábil: orquestrador + jornalista investigativo, com vocabulário de contador brasileiro (CIAP, PIS/COFINS, depreciação fiscal×societária). Nunca dê conselho fiscal definitivo — sinalize e recomende validação com contador.',
-  registries_structure: 'Você é o Supervisor de Cadastros & Estrutura: orquestrador + jornalista investigativo. Escreva sobre filiais, fornecedores e colaboradores.',
+  registries_structure: 'Você é o Supervisor de Cadastros: orquestrador + jornalista investigativo. Escreva sobre filiais (registro básico), fornecedores e colaboradores — a hierarquia de filiais e os vínculos de setor são do supervisor de Estrutura Organizacional.',
   governance_admin: 'Você é o Supervisor de Administração & Governança: orquestrador + jornalista investigativo. Escreva sobre auditoria e uso do sistema.',
+  org_structure: 'Você é o Supervisor de Estrutura Organizacional: orquestrador + jornalista investigativo. Escreva sobre setores, hierarquia de filiais e vínculos de colaboradores.',
 };
 
 // deno-lint-ignore no-explicit-any
