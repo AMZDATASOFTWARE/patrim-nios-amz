@@ -307,6 +307,31 @@ export default function AssetForm() {
               <Input id="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required placeholder="Ex: Caminhão Mercedes-Benz Atego 1719" />
             </div>
 
+            {!editId && (
+              <div>
+                <Label htmlFor="quantity">Quantidade a cadastrar</Label>
+                <Input
+                  id="quantity" type="number" min={1} max={50} value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Cria vários ativos idênticos de uma vez (máx. 50).</p>
+              </div>
+            )}
+
+            {!editId && Number(quantity) > 1 && (
+              <div>
+                <Label htmlFor="plaqueta_prefix">Prefixo da Plaqueta (opcional)</Label>
+                <Input
+                  id="plaqueta_prefix" value={plaquetaPrefix}
+                  onChange={(e) => setPlaquetaPrefix(e.target.value)}
+                  placeholder="Ex: NB"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Cada ativo receberá {plaquetaPrefix ? plaquetaPrefix.trim() || 'PREFIXO' : 'PREFIXO'}-001, -002... Deixe em branco para preencher a Plaqueta manualmente depois.
+                </p>
+              </div>
+            )}
+
             <div>
               <Label htmlFor="plaqueta">Plaqueta / Código Patrimonial</Label>
               <Input id="plaqueta" value={form.plaqueta} onChange={(e) => setForm({ ...form, plaqueta: e.target.value })} placeholder="Ex: PAT-00123" />
