@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT — Patrimônios AMZ
 
-> Documento de contexto para futuras sessões. Última atualização: **2026-07-12** (refatoração estrutural — entidade Setor, hierarquia infinita de Filiais, N:N Colaborador↔Filial/Setor, corte de `Asset.cost_center` legado).
+> Documento de contexto para futuras sessões. Última atualização: **2026-07-12** (Diário do Patrimônio — 7º supervisor de Estrutura Organizacional + 3 KPIs prometidos-e-nunca-entregues corrigidos).
 > Mantenha este arquivo atualizado ao final de mudanças estruturais.
 
 ---
@@ -144,12 +144,31 @@ Relatório completo: `AUDIT_REPORT.md`. 3 ALTO + 6 MÉDIO corrigidos de imediato
 - **Custo de IA (observabilidade interna, não é limite por cliente):** `CreditUsage`/`PricingConfig` + functions `logCreditConsumption`/`creditReport` + página `src/pages/AdminCredits.jsx` (`/AdminCredits`, só platform-admin) fazem o rateio do custo do plano Base44 da própria AMZ e projetam margem por workspace.
   - **Gap conhecido:** `logCreditConsumption` só é chamado pelo chat in-app (`AssistantChat.jsx`); mensagens via WhatsApp não são contabilizadas em `CreditUsage` (não há webhook/evento documentado de "mensagem recebida no canal" para instrumentar). O relatório de margem subestima o custo real conforme o uso via WhatsApp cresce. Reavaliar se a Base44 documentar esse hook no futuro.
 
-### 6.1 Supervisores de IA — "Diário do Patrimônio" (2026-07-10)
+### 6.1 Supervisores de IA — "Diário do Patrimônio" (2026-07-10, ver 6.2 para a auditoria/expansão de 2026-07-12)
 
-- **6 agentes consultivos** (`base44/agents/supervisor_*.jsonc`: ativos, operacao_campo, manutencao_contratos, fiscal_contabil, cadastros, governanca), um por domínio de negócio (espelham os grupos do menu). Persona = "orquestrador + jornalista investigativo": recebem KPIs prontos e escrevem `headline` (manchete) + `summary` (parágrafo investigativo). `allow_anonymous_access: false`, `memory_config.enabled: false`.
+- **7 agentes consultivos** (`base44/agents/supervisor_*.jsonc`: ativos, operacao_campo, manutencao_contratos, fiscal_contabil, cadastros, governanca, **estrutura** — este último adicionado em 2026-07-12, ver 6.2), um por domínio de negócio (espelham os grupos do menu). Persona = "orquestrador + jornalista investigativo": recebem KPIs prontos e escrevem `headline` (manchete) + `summary` (parágrafo investigativo). `allow_anonymous_access: false`, `memory_config.enabled: false`.
 - **Decisão de isolamento (crítica):** os 6 têm **`tool_configs: []`** — não leem nenhuma entidade. Diferente do `assistente_patrimonial` (que herda a RLS do usuário na conversa), a geração roda num **cron sem usuário logado**; se os agentes lessem entidades sob service-role, veriam TODOS os workspaces. Por isso quem lê e isola os dados é a function `generateDailyBriefings` (escopo explícito por `workspace_id` a cada query), e o agente/LLM só recebe o JSON já isolado. Ver seção 4.
 - **Fase 1 = só o card diário** (mosaico read-only). Sem chat por agente. **Fase futura:** botão "Perguntar ao supervisor" reaproveitando `AssistantChat.jsx` — aí sim os agentes podem ganhar `tool_configs` de leitura, porque a conversa seria criada pelo usuário logado (RLS da sessão aplica, sem o risco do cron).
 - **Nota de implementação:** o texto é gerado por `svc.integrations.Core.InvokeLLM` (integração já comprovada em service-role neste projeto), **não** por `base44.agents.createConversation` dentro da function — criar conversa de agente sem sessão de usuário é caminho não verificado neste projeto e arriscado num job em lote. Os `.jsonc` de agente existem como recurso real (persona/contrato, prontos para a Fase 2 de chat).
+
+### 6.2 Auditoria de cobertura + 7º supervisor "Estrutura Organizacional" (2026-07-12)
+
+Usuário pediu para verificar quantos agentes seriam necessários para cobertura completa do sistema e se os agentes já configurados estavam de fato recebendo os dados prometidos. Auditoria feita com 3 agentes Explore em paralelo (config dos 6 agentes, leitura linha-a-linha de `generateDailyBriefings/entry.ts`, inventário completo de áreas/permissões do app) — achou 2 problemas reais:
+
+- **Áreas inteiras invisíveis para os supervisores:** grep zero em `sector_id`/`Sector`/`parent_branch_id`/`CollaboratorSectorLink`/`CollaboratorBranchLink` no arquivo inteiro — a refatoração de Setor/hierarquia de Filiais (seção 3) nunca foi conectada ao Diário. `Empréstimos`/`Baixa-Alienação`/`Reavaliações` (Onda 5) também nunca eram consultados por nenhum domínio.
+- **3 KPIs que os próprios agentes prometem nas instruções nunca eram calculados** — a função simplesmente não os gerava: "acurácia acumulada de inventário" (`supervisor_operacao_campo`), "ativos sem regra de mapeamento contábil" (`supervisor_fiscal_contabil` — `AccountMappingRule` nunca era consultada), "colaboradores com ativos sem termo assinado" (`supervisor_cadastros`).
+
+**Decisão do usuário:** criar um **7º supervisor** (`supervisor_estrutura`, domínio `org_structure`) dedicado a Setor + hierarquia de Filiais + vínculos N:N, em vez de sobrecarregar o `supervisor_cadastros` existente — e fechar cobertura completa (não só os 3 KPIs prometidos).
+
+**Entregue:**
+- `base44/entities/AiBriefing.jsonc`: enum `domain` ganhou `"org_structure"`.
+- `base44/agents/supervisor_estrutura.jsonc` (novo): mesmo esqueleto dos outros 6 (`tool_configs: []` — nunca lê entidade nenhuma, só recebe JSON já isolado, mesmo motivo de isolamento da seção 6.1). KPIs: setores ativos, filiais em hierarquia (sub-filiais), colaboradores sem nenhum vínculo de filial/setor, setores órfãos (sem colaborador vinculado).
+- `supervisor_cadastros.jsonc` reescrito pra não reivindicar mais hierarquia (isso é do novo agente); `supervisor_operacao_campo.jsonc` e `supervisor_ativos.jsonc` ganharam menção às novas áreas (Empréstimos; Baixas/Alienações e Reavaliações) nas instruções.
+- `generateDailyBriefings/entry.ts`: 7 novos `fetchAll` (`Sector`, `CollaboratorSectorLink`, `CollaboratorBranchLink`, `AssetLoan`, `AssetDisposal`, `AssetRevaluation`, `AccountMappingRule`), novo bloco 7 de cálculo, e os 3 KPIs prometidos finalmente calculados: `inventoryAccuracy` (field_ops), `assetsWithoutMappingRule` (fiscal_accounting — reaproveita a mesma lógica de casamento categoria/setor/centro_custo/todos de `AccountingExport.jsx`'s `ruleFor()`, portada pro Deno), `collabWithAssetUnsigned` (registries_structure). `credits_used` deixou de ser hardcoded `6` e virou `briefings.length` — evita o mesmo tipo de drift que motivou esta auditoria.
+- `src/pages/AiBriefings.jsx`: 7ª entrada em `DOMAINS` (ícone `Network`, permissão `view_sectors`), textos "6 supervisores" → "7 supervisores". `BriefingCard.jsx` não mudou — já é genérico por `domain` prop.
+- **Lição de encoding confirmada de novo:** `.jsonc` de agente tem o mesmo problema de `\uXXXX` já documentado — `edit_file` com `old_text` acentuado falhava mesmo com o acento idêntico ao do arquivo (confirmado via `grep`, que encontrava a mesma string sem problema); resolvido ancorando em blocos puro-ASCII ao redor do ponto de inserção. Arquivos `.ts` (não-`.jsonc`) não têm esse problema — edições com acento funcionaram normalmente em `generateDailyBriefings/entry.ts`.
+- Checkpoints: `6a5449eb41e4a180436e8b3e` (Onda 1 — schema/agentes), `6a544d33086b356d640b384a` (Onda 2 — lógica da function + frontend). `npm run lint`/`npm run build` verdes nas duas ondas (10 erros pré-existentes, zero novo).
+- **Verificação real (rodar a function de fato, ver os 7 cards no mosaico, conferir se os textos gerados pela IA fazem sentido) continua sendo etapa do usuário** — só roda via o cron já configurado no dashboard Base44, ou uma chamada manual de platform-admin; não há como autenticar e testar por aqui.
 
 ## 7. Frontend
 
