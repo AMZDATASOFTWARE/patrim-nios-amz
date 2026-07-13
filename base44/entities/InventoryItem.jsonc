@@ -26,6 +26,10 @@
       "type": "string",
       "title": "Tag RFID"
     },
+    "public_scan_token": {
+      "type": "string",
+      "title": "Token de scan do ativo (espelha Asset.public_scan_token, usado para casar a leitura do QR code)"
+    },
     "expected_location": {
       "type": "string",
       "title": "Localiza\u00e7\u00e3o esperada"
