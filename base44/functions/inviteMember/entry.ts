@@ -45,7 +45,11 @@ Deno.serve(async (req) => {
     }
 
     // Real plan-limit enforcement: owner (1) + invited members must fit the plan.
-    const limit = PLAN_USER_LIMITS[workspace.plan] ?? PLAN_USER_LIMITS.starter;
+    // ATENCAO: nao usar `??` aqui -- PLAN_USER_LIMITS.enterprise e' literalmente `null`
+    // (sentinela pra "sem limite"), e `??` trata null como ausente, colapsando Enterprise
+    // pro fallback do starter. Checar a chave explicitamente preserva o null.
+    const planKey = workspace.plan;
+    const limit = planKey in PLAN_USER_LIMITS ? PLAN_USER_LIMITS[planKey] : PLAN_USER_LIMITS.starter;
     const currentUsers = 1 + (workspace.member_emails || []).length;
     if (limit !== null && currentUsers >= limit) {
       return Response.json(
