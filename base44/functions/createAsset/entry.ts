@@ -138,7 +138,11 @@ Deno.serve(async (req) => {
     const plaquetaPrefix = typeof body.plaqueta_prefix === 'string' ? body.plaqueta_prefix.trim().substring(0, 50) : '';
     let plaquetaSeq = plaquetaPrefix ? await nextPlaquetaSeq(svc, ws.id, plaquetaPrefix) : 0;
 
-    const limit = PLAN_ASSET_LIMITS[ws.plan as string] ?? PLAN_ASSET_LIMITS.starter;
+    // OJO: nao usar `??` aqui -- PLAN_ASSET_LIMITS.enterprise e' literalmente `null`
+    // (nosso sentinela pra "sem limite"), e `??` trata null como ausente, colapsando
+    // Enterprise pro fallback do starter. Checar a chave explicitamente preserva o null.
+    const planKey = ws.plan as string;
+    const limit = planKey in PLAN_ASSET_LIMITS ? PLAN_ASSET_LIMITS[planKey] : PLAN_ASSET_LIMITS.starter;
     let remaining = Infinity;
     if (limit !== null) {
       const existing = await svc.entities.Asset.filter(
