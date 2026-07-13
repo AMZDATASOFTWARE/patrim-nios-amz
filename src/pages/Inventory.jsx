@@ -429,10 +429,20 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
   };
 
   const findByCode = (raw) => {
-    const code = (raw || '').trim().toLowerCase();
-    if (!code) return null;
+    const trimmed = (raw || '').trim();
+    if (!trimmed) return null;
+    const code = trimmed.toLowerCase();
+    // Etiquetas impressas (AssetLabel.jsx) codificam a URL completa do /scan
+    // com ?token=<public_scan_token> (nunca o id interno do ativo). Extrai o
+    // token quando o texto lido for essa URL; digitação manual de plaqueta
+    // continua funcionando via o fallback no texto bruto abaixo.
+    let token = '';
+    try {
+      token = new URL(trimmed).searchParams.get('token')?.toLowerCase() || '';
+    } catch { /* não é uma URL — segue com o texto bruto */ }
     return items.find(
-      (i) => (i.plaqueta || '').toLowerCase() === code
+      (i) => (token && (i.public_scan_token || '').toLowerCase() === token)
+        || (i.plaqueta || '').toLowerCase() === code
         || (i.found_plaqueta || '').toLowerCase() === code
         || (i.rfid_tag_id || '').toLowerCase() === code
         || (i.asset_name || '').toLowerCase() === code
