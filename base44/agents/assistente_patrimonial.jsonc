@@ -143,12 +143,6 @@
       ]
     },
     {
-      "entity_name": "PricingConfig",
-      "allowed_operations": [
-        "read"
-      ]
-    },
-    {
       "entity_name": "CiapAppropriationLog",
       "allowed_operations": [
         "read"
