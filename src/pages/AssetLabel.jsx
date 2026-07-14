@@ -5,6 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { QrCode, Search, Printer, Download, CheckSquare, Square, FileDown } from 'lucide-react';
+import ViewToggle from '@/components/assets/ViewToggle';
+import LabelListItem from '@/components/assets/LabelListItem';
 
 function LabelCard({ asset, appUrl, workspace, selected, onToggle }) {
   // Uses the opaque public_scan_token (security audit A3), never the asset's own
@@ -163,6 +165,7 @@ export default function AssetLabel() {
   const [categoryFilter, setCategoryFilter] = useState('Todas');
   const [selected, setSelected] = useState(new Set());
   const [printingBatch, setPrintingBatch] = useState(false);
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('labels_view_mode') || 'card');
   const appUrl = window.location.origin;
   const { workspace } = useWorkspace();
   const AssetEntity = useWorkspaceEntity('Asset');
@@ -202,8 +205,13 @@ export default function AssetLabel() {
     }
   };
 
-  const printBatch = () => {
-    const selectedAssets = assets.filter(a => selected.has(a.id));
+  const changeViewMode = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('labels_view_mode', mode);
+  };
+
+  // Imprime uma lista de ativos (usada tanto pelo lote quanto pela linha da lista).
+  const printAssets = (selectedAssets) => {
     if (selectedAssets.length === 0) return;
 
     setPrintingBatch(true);
@@ -275,6 +283,8 @@ export default function AssetLabel() {
     setPrintingBatch(false);
   };
 
+  const printBatch = () => printAssets(assets.filter(a => selected.has(a.id)));
+
   if (loading) return (
     <div className="flex items-center justify-center h-64">
       <div className="w-8 h-8 border-4 border-primary/30 border-t-primary rounded-full animate-spin" />
@@ -303,6 +313,7 @@ export default function AssetLabel() {
             {['Todas','Imóveis','Veículos','Equipamentos','Investimentos','Intangíveis'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
           </SelectContent>
         </Select>
+        <ViewToggle mode={viewMode} onChange={changeViewMode} />
       </div>
 
       {/* Batch toolbar */}
@@ -335,18 +346,33 @@ export default function AssetLabel() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {filtered.map(asset => (
-          <LabelCard
-            key={asset.id}
-            asset={asset}
-            appUrl={appUrl}
-            workspace={workspace}
-            selected={selected.has(asset.id)}
-            onToggle={() => toggleSelect(asset.id)}
-          />
-        ))}
-      </div>
+      {viewMode === 'card' ? (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          {filtered.map(asset => (
+            <LabelCard
+              key={asset.id}
+              asset={asset}
+              appUrl={appUrl}
+              workspace={workspace}
+              selected={selected.has(asset.id)}
+              onToggle={() => toggleSelect(asset.id)}
+            />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {filtered.map(asset => (
+            <LabelListItem
+              key={asset.id}
+              asset={asset}
+              appUrl={appUrl}
+              selected={selected.has(asset.id)}
+              onToggle={() => toggleSelect(asset.id)}
+              onPrint={() => printAssets([asset])}
+            />
+          ))}
+        </div>
+      )}
 
       {filtered.length === 0 && (
         <div className="text-center py-12 text-muted-foreground">

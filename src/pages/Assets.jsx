@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AssetCard from '@/components/assets/AssetCard';
+import AssetListItem from '@/components/assets/AssetListItem';
+import ViewToggle from '@/components/assets/ViewToggle';
 
 const categories = ['Todas', 'Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
 const statuses = ['Todos', 'Ativo', 'Em Manutenção', 'Inativo', 'Alienado'];
@@ -19,6 +21,7 @@ export default function Assets() {
   const [categoryFilter, setCategoryFilter] = useState('Todas');
   const [statusFilter, setStatusFilter] = useState('Todos');
   const [page, setPage] = useState(0);
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('assets_view_mode') || 'card');
   const [total, setTotal] = useState(0);
   const AssetEntity = useWorkspaceEntity('Asset');
   const { workspaceId } = AssetEntity;
@@ -75,6 +78,11 @@ export default function Assets() {
     return () => { active = false; };
   }, [workspaceId, page, debouncedSearch, categoryFilter, statusFilter, buildQuery]);
 
+  const changeViewMode = (mode) => {
+    setViewMode(mode);
+    localStorage.setItem('assets_view_mode', mode);
+  };
+
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const from = total === 0 ? 0 : page * PAGE_SIZE + 1;
   const to = Math.min(total, page * PAGE_SIZE + assets.length);
@@ -126,6 +134,7 @@ export default function Assets() {
             ))}
           </SelectContent>
         </Select>
+        <ViewToggle mode={viewMode} onChange={changeViewMode} />
       </div>
 
       {loading ? (
@@ -139,11 +148,19 @@ export default function Assets() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-            {assets.map((asset) => (
-              <AssetCard key={asset.id} asset={asset} />
-            ))}
-          </div>
+          {viewMode === 'card' ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+              {assets.map((asset) => (
+                <AssetCard key={asset.id} asset={asset} />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {assets.map((asset) => (
+                <AssetListItem key={asset.id} asset={asset} />
+              ))}
+            </div>
+          )}
 
           {/* Paginação */}
           <div className="flex items-center justify-between pt-2">
