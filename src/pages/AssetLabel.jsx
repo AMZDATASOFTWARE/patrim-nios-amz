@@ -307,13 +307,15 @@ export default function AssetLabel() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input placeholder="Buscar por nome ou plaqueta..." value={search} onChange={e => setSearch(e.target.value)} className="pl-10" />
         </div>
-        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-          <SelectTrigger className="w-44"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {['Todas','Imóveis','Veículos','Equipamentos','Investimentos','Intangíveis'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <ViewToggle mode={viewMode} onChange={changeViewMode} />
+        <div className="flex items-center gap-3">
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-auto gap-2 sm:w-44"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {['Todas','Imóveis','Veículos','Equipamentos','Investimentos','Intangíveis'].map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <ViewToggle mode={viewMode} onChange={changeViewMode} />
+        </div>
       </div>
 
       {/* Batch toolbar */}
