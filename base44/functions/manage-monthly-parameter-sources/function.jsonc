@@ -1,0 +1,4 @@
+{
+  "name": "manage-monthly-parameter-sources",
+  "entry": "index.ts"
+}

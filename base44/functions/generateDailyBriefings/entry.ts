@@ -122,13 +122,79 @@ async function fetchAll(svc: any, entity: string, wsId: string): Promise<Record<
   }
 }
 
+function currentCompetenceMonth(): string {
+  return new Date().toISOString().slice(0, 7);
+}
+
+function summarizeMonthlyParameters(
+  rows: Record<string, unknown>[],
+  competenceMonth: string,
+): Record<string, unknown> {
+  const active = rows.filter((row) =>
+    row.competence_month === competenceMonth && row.status === 'active'
+  );
+
+  if (!active.length) {
+    return {
+      competencia: competenceMonth,
+      snapshots_ativos: 0,
+      dominios: {},
+      campos: {},
+      destaques: [],
+    };
+  }
+
+  const confidenceRank: Record<string, number> = { high: 3, medium: 2, low: 1 };
+  const domains: Record<string, number> = {};
+  const fields: Record<string, number> = {};
+
+  for (const row of active) {
+    const domain = typeof row.domain === 'string' ? row.domain : 'unknown';
+    const field = typeof row.field_name === 'string' ? row.field_name : 'unknown';
+    domains[domain] = (domains[domain] || 0) + 1;
+    fields[field] = (fields[field] || 0) + 1;
+  }
+
+  const highlights = active
+    .slice()
+    .sort((a, b) => {
+      const confidenceDiff =
+        (confidenceRank[String(b.confidence_level || 'medium')] || 0) -
+        (confidenceRank[String(a.confidence_level || 'medium')] || 0);
+      if (confidenceDiff !== 0) return confidenceDiff;
+      return String(b.retrieved_at || '').localeCompare(String(a.retrieved_at || ''));
+    })
+    .slice(0, 5)
+    .map((row) => ({
+      parameter_key: row.parameter_key,
+      domain: row.domain,
+      field_name: row.field_name,
+      scope_key: row.scope_key,
+      value: row.value,
+      unit: row.unit || '',
+      source_name: row.source_name || '',
+      confidence_level: row.confidence_level || 'medium',
+      notes: row.notes || '',
+    }));
+
+  return {
+    competencia: competenceMonth,
+    snapshots_ativos: active.length,
+    dominios: domains,
+    campos: fields,
+    destaques: highlights,
+  };
+}
+
 // deno-lint-ignore no-explicit-any
 async function computeWorkspace(svc: any, wsId: string): Promise<DomainBriefing[]> {
   const today = todayUTC();
+  const competenceMonth = currentCompetenceMonth();
   const [
     assets, attachments, transfers, invItems, assignments, maintenance, contracts, ciap,
     branches, suppliers, collaborators, audit,
     disposals, revaluations, loans, sectors, mappingRules, collabBranchLinks, collabSectorLinks,
+    monthlyParameterSnapshots,
   ] = await Promise.all([
       fetchAll(svc, 'Asset', wsId),
       fetchAll(svc, 'AssetAttachment', wsId),
@@ -149,7 +215,9 @@ async function computeWorkspace(svc: any, wsId: string): Promise<DomainBriefing[
       fetchAll(svc, 'AccountMappingRule', wsId),
       fetchAll(svc, 'CollaboratorBranchLink', wsId),
       fetchAll(svc, 'CollaboratorSectorLink', wsId),
+      fetchAll(svc, 'MonthlyParameterSnapshot', wsId),
     ]);
+  const monthlyParameterSummary = summarizeMonthlyParameters(monthlyParameterSnapshots, competenceMonth);
 
   // ---------- 1. assets_docs ----------
   const assetIdsWithAttachment = new Set(attachments.map((x) => x.asset_id));
@@ -330,7 +398,7 @@ async function computeWorkspace(svc: any, wsId: string): Promise<DomainBriefing[
     { domain: 'assets_docs', agent_name: AGENT_BY_DOMAIN.assets_docs, kpis: assetsKpis, facts: { total_ativos: assets.length, patrimonio_total: Math.round(totalSocCurrent), valor_aquisicao: Math.round(totalAcq), depreciacao_acumulada: Math.round(totalSocAcc), sem_documentacao: undocumented, pct_sem_documentacao: pct(undocumented, assets.length), totalmente_depreciados_em_uso: fullyDepInUse, obras_em_andamento: cip, baixas_alienacoes_no_mes: disposalsThisMonth, reavaliacoes_no_mes: revaluationsThisMonth } },
     { domain: 'field_ops', agent_name: AGENT_BY_DOMAIN.field_ops, kpis: fieldKpis, facts: { transferencias_pendentes: pendingTransfers.length, pendente_mais_antiga_dias: oldestPendingDays, tempo_medio_aceite_dias: avgAcceptDays, termos_assinados: signedTerms, termos_total: assignments.length, atribuicoes_atrasadas: lateAssignments, sobras_pendentes: surplusPending, itens_conferidos: counted.length, divergencias: divergent, acuracia_inventario_pct: inventoryAccuracy, emprestimos_ativos: loansActive, emprestimos_atrasados: loansOverdue } },
     { domain: 'maintenance_contracts', agent_name: AGENT_BY_DOMAIN.maintenance_contracts, kpis: maintKpis, facts: { preventivas: preventive, corretivas: corrective, razao_prev_corr: prevCorrRatio, manutencoes_atrasadas: overdueMaint, custo_total_manutencao: Math.round(maintCost), contratos_vencendo_30d: contractsExpiring, valor_sob_contrato_vigente: Math.round(contractValue) } },
-    { domain: 'fiscal_accounting', agent_name: AGENT_BY_DOMAIN.fiscal_accounting, kpis: fiscalKpis, facts: { diferenca_societaria_fiscal: Math.round(socFisDiff), ciap_total_icms: Math.round(ciapTotal), ciap_mensal_em_apropriacao: Math.round(ciapMonthly), credito_pis_cofins_potencial: Math.round(pisCofinsPotential), ativos_sem_regra_contabil: assetsWithoutMappingRule } },
+    { domain: 'fiscal_accounting', agent_name: AGENT_BY_DOMAIN.fiscal_accounting, kpis: fiscalKpis, facts: { diferenca_societaria_fiscal: Math.round(socFisDiff), ciap_total_icms: Math.round(ciapTotal), ciap_mensal_em_apropriacao: Math.round(ciapMonthly), credito_pis_cofins_potencial: Math.round(pisCofinsPotential), ativos_sem_regra_contabil: assetsWithoutMappingRule, parametros_mensais: monthlyParameterSummary } },
     { domain: 'registries_structure', agent_name: AGENT_BY_DOMAIN.registries_structure, kpis: regKpis, facts: { filiais_ativas: activeBranches, filial_maior_patrimonio: topBranchName, filial_maior_patrimonio_valor: Math.round(topBranchValue), fornecedores_bloqueados_inativos: blockedSuppliers, colaboradores_ativos: activeCollab.length, colaboradores_sem_ativo: collabWithoutAsset, colaboradores_com_ativo_sem_termo: collabWithAssetUnsigned } },
     { domain: 'governance_admin', agent_name: AGENT_BY_DOMAIN.governance_admin, kpis: govKpis, facts: { acoes_hoje: auditToday.length, exclusoes_hoje: deletionsToday, usuario_mais_ativo: topActor, usuario_mais_ativo_acoes: topActorCount, usuarios_ativos_hoje: Object.keys(actorCount).length } },
     { domain: 'org_structure', agent_name: AGENT_BY_DOMAIN.org_structure, kpis: structureKpis, facts: { setores_ativos: activeSectors.length, filiais_em_hierarquia: branchesWithParent, colaboradores_sem_vinculo: collabWithoutStructureLink, setores_orfaos: orphanSectors } },

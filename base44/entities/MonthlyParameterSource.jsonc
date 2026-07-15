@@ -1,0 +1,121 @@
+{
+  "name": "MonthlyParameterSource",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "parameter_key": {
+      "type": "string",
+      "title": "Chave do Parametro"
+    },
+    "domain": {
+      "type": "string",
+      "title": "Dominio",
+      "enum": [
+        "depreciation",
+        "fiscal",
+        "ciap",
+        "vehicle",
+        "fipe",
+        "revaluation",
+        "market_reference"
+      ]
+    },
+    "source_type": {
+      "type": "string",
+      "title": "Tipo de Fonte",
+      "enum": [
+        "api",
+        "official_page",
+        "manual_table",
+        "internal_rule",
+        "ai_research"
+      ]
+    },
+    "source_name": {
+      "type": "string",
+      "title": "Nome da Fonte"
+    },
+    "source_url": {
+      "type": "string",
+      "title": "URL da Fonte"
+    },
+    "is_active": {
+      "type": "boolean",
+      "title": "Ativa",
+      "default": true
+    },
+    "priority": {
+      "type": "number",
+      "title": "Prioridade",
+      "default": 100
+    },
+    "parser_config_json": {
+      "type": "object",
+      "title": "Configuracao do Parser"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observacoes"
+    },
+    "created_by": {
+      "type": "string",
+      "title": "Criado por"
+    },
+    "updated_by": {
+      "type": "string",
+      "title": "Atualizado por"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "parameter_key",
+    "domain",
+    "source_type",
+    "source_name"
+  ],
+  "rls": {
+    "//": "Catalogo controlado de fontes mensais por workspace. Leitura pelo tenant; escrita apenas por admin. A function mensal so consulta fontes ativas deste workspace.",
+    "create": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}
