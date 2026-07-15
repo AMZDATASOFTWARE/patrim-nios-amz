@@ -46,6 +46,7 @@ import {
 import { toast } from 'sonner';
 import {
   approveMonthlyParameterSnapshot,
+  canManageMonthlyParameters,
   createMonthlyParameterSource,
   currentCompetenceMonth,
   deactivateMonthlyParameterSource,
@@ -106,6 +107,103 @@ const SOURCE_TYPE_OPTIONS = [
   { value: 'ai_research', label: 'Pesquisa assistida por IA' },
 ];
 
+const PREDEFINED_OFFICIAL_SOURCES = [
+  {
+    id: 'cpc27',
+    label: 'CPC 27 - Ativo Imobilizado',
+    parameter_key: 'depreciation.cpc27.policy_reference',
+    domain: 'depreciation',
+    entity_type: 'DepreciationConfig',
+    source_name: 'CPC 27 - Ativo Imobilizado',
+    source_url: 'https://www.cpc.org.br/CPC/Documentos-Emitidos/Pronunciamentos/Pronunciamento?Id=58',
+    scope_key: 'policy:cpc27',
+    field_name: 'depreciation_policy_reference',
+    prompt: 'Resuma pontos sobre ativo imobilizado, depreciacao, vida util, valor residual e revisao de estimativas. Nao invente taxas.',
+    notes: 'Fonte oficial predefinida. Usar como referencia normativa; snapshots devem ser revisados antes de aprovacao.',
+  },
+  {
+    id: 'cpc23',
+    label: 'CPC 23 - Mudanca de Estimativa',
+    parameter_key: 'depreciation.cpc23.estimate_change_reference',
+    domain: 'depreciation',
+    entity_type: 'DepreciationConfig',
+    source_name: 'CPC 23 - Mudanca de Estimativa',
+    source_url: 'https://www.cpc.org.br/CPC/Documentos-Emitidos/Pronunciamentos/Pronunciamento?Id=54',
+    scope_key: 'policy:cpc23',
+    field_name: 'depreciation_estimate_change_reference',
+    prompt: 'Resuma regras sobre mudanca de estimativa, vida util, residual e revisao prospectiva. Nao invente valores.',
+    notes: 'Fonte oficial predefinida. Usar como referencia normativa; snapshots devem ser revisados antes de aprovacao.',
+  },
+  {
+    id: 'cpc46',
+    label: 'CPC 46 - Valor Justo',
+    parameter_key: 'revaluation.cpc46.fair_value_reference',
+    domain: 'revaluation',
+    entity_type: 'AssetRevaluation',
+    source_name: 'CPC 46 - Valor Justo',
+    source_url: 'https://www.cpc.org.br/CPC/Documentos-Emitidos/Pronunciamentos/Pronunciamento?Id=78',
+    scope_key: 'policy:cpc46',
+    field_name: 'fair_value_policy_reference',
+    prompt: 'Resuma criterios de valor justo e limitacoes para referencia de mercado. Nao sugira reavaliacao automatica.',
+    notes: 'Fonte oficial predefinida. Referencia para governanca; nao cria reavaliacao automatica.',
+  },
+  {
+    id: 'ciap-ajuste-sinief-03-01',
+    label: 'CONFAZ Ajuste SINIEF 03/01 - CIAP',
+    parameter_key: 'ciap.ajuste_sinief_03_01.reference',
+    domain: 'ciap',
+    entity_type: 'CiapCredit',
+    source_name: 'CONFAZ Ajuste SINIEF 03/01 - CIAP',
+    source_url: 'https://www.confaz.fazenda.gov.br/legislacao/ajustes/2001/AJ_003_01',
+    allowed_domain: 'www.confaz.fazenda.gov.br',
+    scope_key: 'policy:ciap-ajuste-sinief-03-01',
+    field_name: 'ciap_policy_reference',
+    prompt: 'Resuma fracao 1/48, coeficiente de creditamento e necessidade de saidas tributadas/exportacao/total. Nao calcule sem dados da competencia.',
+    notes: 'Fonte oficial predefinida para referencia CIAP. Validar com responsavel fiscal antes de aprovar snapshots.',
+  },
+  {
+    id: 'sped-efd-icms-ipi',
+    label: 'SPED EFD ICMS/IPI',
+    parameter_key: 'fiscal.sped_efd_icms_ipi.reference',
+    domain: 'fiscal',
+    entity_type: 'Asset',
+    source_name: 'SPED EFD ICMS/IPI',
+    source_url: 'https://sped.rfb.gov.br/item/show/1573',
+    allowed_domain: 'sped.rfb.gov.br',
+    scope_key: 'policy:sped-efd-icms-ipi',
+    field_name: 'sped_efd_icms_ipi_reference',
+    prompt: 'Resuma apenas pontos de escrituracao relacionados a ICMS/IPI e CIAP. Nao invente aliquotas.',
+    notes: 'Fonte oficial predefinida para referencia de escrituracao. Nao substitui validacao fiscal.',
+  },
+  {
+    id: 'sped-efd-contribuicoes',
+    label: 'SPED EFD Contribuicoes',
+    parameter_key: 'fiscal.sped_efd_contribuicoes.reference',
+    domain: 'fiscal',
+    entity_type: 'Asset',
+    source_name: 'SPED EFD Contribuicoes',
+    source_url: 'https://sped.rfb.gov.br/item/show/4263',
+    allowed_domain: 'sped.rfb.gov.br',
+    scope_key: 'policy:sped-efd-contribuicoes',
+    field_name: 'sped_efd_contribuicoes_reference',
+    prompt: 'Resuma pontos de PIS/COFINS e escrituracao. Nao invente aliquotas.',
+    notes: 'Fonte oficial predefinida para referencia fiscal. Nao substitui validacao fiscal.',
+  },
+  {
+    id: 'fipe-vehicles',
+    label: 'FIPE Veiculos',
+    parameter_key: 'fipe.vehicles.market_reference_policy',
+    domain: 'fipe',
+    entity_type: 'Asset',
+    source_name: 'FIPE Veiculos',
+    source_url: 'https://www.fipe.org.br/pt-br/indices/veiculos',
+    scope_key: 'policy:fipe-vehicles',
+    field_name: 'market_reference_policy',
+    prompt: 'Resuma limitacoes da Tabela FIPE como referencia de mercado. Nao trate como valor contabil automatico.',
+    notes: 'Fonte oficial predefinida para referencia de mercado. FIPE nao altera valor contabil automaticamente.',
+  },
+];
+
 function createEmptySourceForm() {
   return {
     parameter_key: '',
@@ -131,6 +229,46 @@ function sourceToForm(source) {
     is_active: source?.is_active !== false,
     parser_config_json: JSON.stringify(source?.parser_config_json || {}, null, 2),
     notes: source?.notes || '',
+  };
+}
+
+function hostFromUrl(url) {
+  try {
+    return new URL(url).hostname;
+  } catch {
+    return '';
+  }
+}
+
+function predefinedSourceToForm(source) {
+  const allowedDomain = source.allowed_domain || hostFromUrl(source.source_url);
+  const parserConfig = {
+    url: source.source_url,
+    allowed_domain: allowedDomain,
+    parameter_key: source.parameter_key,
+    domain: source.domain,
+    entity_type: source.entity_type || 'Asset',
+    field_name: source.field_name,
+    scope_key: source.scope_key,
+    extraction_mode: 'summary',
+    expected_value_type: 'text',
+    confidence_level: 'medium',
+    requires_review: true,
+    requires_manual_review: true,
+    default_snapshot_status: 'pending_review',
+    prompt: source.prompt,
+  };
+
+  return {
+    parameter_key: source.parameter_key,
+    domain: source.domain,
+    source_type: 'official_page',
+    source_name: source.source_name,
+    source_url: source.source_url,
+    priority: '80',
+    is_active: true,
+    parser_config_json: JSON.stringify(parserConfig, null, 2),
+    notes: source.notes,
   };
 }
 
@@ -376,7 +514,7 @@ export default function Settings() {
   const RunEntity = useWorkspaceEntity('MonthlyParameterRun');
   const SnapshotEntity = useWorkspaceEntity('MonthlyParameterSnapshot');
 
-  const canManageSources = user?.is_platform_admin === true;
+  const canManageSources = canManageMonthlyParameters(user);
 
   useEffect(() => {
     ConfigEntity.list().then((data) => {
@@ -556,6 +694,15 @@ export default function Settings() {
     setSourceForm(createEmptySourceForm());
     setSourceDialogTestResult(null);
     setSourceDialogOpen(true);
+  };
+
+  const applyPredefinedSource = (sourceId) => {
+    const selected = PREDEFINED_OFFICIAL_SOURCES.find((source) => source.id === sourceId);
+    if (!selected) return;
+    setEditingSource(null);
+    setSourceForm(predefinedSourceToForm(selected));
+    setSourceDialogTestResult(null);
+    toast.info('Fonte predefinida carregada. Revise antes de salvar.');
   };
 
   const openEditSourceDialog = (source) => {
@@ -829,15 +976,26 @@ export default function Settings() {
 
           <div className="flex flex-wrap gap-2">
             {canManageSources && (
-              <Button
-                type="button"
-                variant="outline"
-                className="gap-2"
-                onClick={openCreateSourceDialog}
-              >
-                <Plus className="h-4 w-4" />
-                Nova fonte
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={openCreateSourceDialog}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Usar fonte predefinida
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="gap-2"
+                  onClick={openCreateSourceDialog}
+                >
+                  <Plus className="h-4 w-4" />
+                  Nova fonte
+                </Button>
+              </>
             )}
             <Button
               type="button"
@@ -1524,6 +1682,27 @@ export default function Settings() {
           </DialogHeader>
 
           <div className="space-y-4">
+            {!editingSource && (
+              <div className="rounded-lg border border-border px-3 py-3">
+                <Label>Usar fonte predefinida</Label>
+                <Select onValueChange={applyPredefinedSource}>
+                  <SelectTrigger className="mt-2">
+                    <SelectValue placeholder="Selecionar modelo oficial" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {PREDEFINED_OFFICIAL_SOURCES.map((source) => (
+                      <SelectItem key={source.id} value={source.id}>
+                        {source.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  O modelo apenas preenche o formulario. Revise os campos e clique em salvar para cadastrar.
+                </p>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
               <div>
                 <Label>Chave do parâmetro</Label>

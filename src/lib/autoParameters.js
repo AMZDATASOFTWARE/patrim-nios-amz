@@ -51,6 +51,10 @@ export function currentCompetenceMonth() {
   return new Date().toISOString().slice(0, 7);
 }
 
+export function canManageMonthlyParameters(user) {
+  return user?.is_platform_admin === true || user?.role === 'admin';
+}
+
 export function normalizeParameterValue(value, valueType = 'text') {
   if (valueType === 'json') {
     try {

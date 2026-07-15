@@ -8,6 +8,10 @@ const cors = {
 
 type AuditAction = 'updated';
 
+function canManageMonthlyParameters(user: Record<string, unknown> | null | undefined): boolean {
+  return user?.is_platform_admin === true || normalizeText(user?.role) === 'admin';
+}
+
 function currentIso() {
   return new Date().toISOString();
 }
@@ -91,7 +95,7 @@ async function requirePlatformAdmin(base44: any) {
 
   const svc = base44.asServiceRole;
   const me = (await svc.entities.User.filter({ id: user.id }))[0];
-  if (!me?.is_platform_admin) {
+  if (!canManageMonthlyParameters(me)) {
     return {
       error: {
         status: 403,
