@@ -1,0 +1,18 @@
+{
+  "name": "refresh-monthly-parameters",
+  "entry": "index.ts",
+  "automations": [
+    {
+      "name": "refresh-monthly-parameters-monthly",
+      "description": "Atualiza a base mensal de parametros no primeiro dia de cada mes. Confirme o timezone efetivo da Base44 antes do deploy.",
+      "type": "scheduled",
+      "schedule_mode": "recurring",
+      "schedule_type": "cron",
+      "cron_expression": "0 8 1 * *",
+      "is_active": true,
+      "function_args": {
+        "trigger_type": "monthly_automation"
+      }
+    }
+  ]
+}

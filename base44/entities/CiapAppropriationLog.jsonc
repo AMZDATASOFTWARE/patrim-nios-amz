@@ -45,7 +45,7 @@
     "//": "Trilha mensal de apropriacao CIAP. Somente leitura por tenant; escrita exclusiva do service-role (appropriateCiapCredits) \u2014 mesmo padrao de AuditLog/AlertDispatchLog.",
     "create": {
       "user_condition": {
-        "is_platform_admin": true
+        "role": "admin"
       }
     },
     "read": {
@@ -53,12 +53,12 @@
     },
     "update": {
       "user_condition": {
-        "is_platform_admin": true
+        "role": "admin"
       }
     },
     "delete": {
       "user_condition": {
-        "is_platform_admin": true
+        "role": "admin"
       }
     }
   }

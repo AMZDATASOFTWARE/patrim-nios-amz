@@ -11,6 +11,8 @@ import { ArrowLeft, Upload, Save } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getDefaultDepreciationRate, getUsefulLifeFromRate } from '@/lib/depreciation';
 import SupplierSelect from '@/components/assets/SupplierSelect';
+import AutoParameterSuggestion from '@/components/auto-parameters/AutoParameterSuggestion';
+import FipeMarketReference from '@/components/auto-parameters/FipeMarketReference';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useWorkspace } from '@/lib/WorkspaceContext';
@@ -36,6 +38,45 @@ function buildBatch(baseData, qty) {
     if (idx > 0) UNIQUE_FIELDS.forEach((f) => { item[f] = ''; });
     return item;
   });
+}
+
+function stringifySuggestedValue(value) {
+  if (value === null || value === undefined) return '';
+  return String(value);
+}
+
+function buildAutoSuggestionPatch(fieldName, nextValue) {
+  const numericValue = parseFloat(nextValue);
+
+  if (fieldName === 'depreciation_rate') {
+    return {
+      depreciation_rate: nextValue,
+      useful_life_years: numericValue > 0 ? (100 / numericValue).toFixed(1) : 0,
+    };
+  }
+
+  if (fieldName === 'useful_life_years') {
+    return {
+      useful_life_years: nextValue,
+      depreciation_rate: numericValue > 0 ? (100 / numericValue).toFixed(1) : 0,
+    };
+  }
+
+  if (fieldName === 'fiscal_depreciation_rate') {
+    return {
+      fiscal_depreciation_rate: nextValue,
+      fiscal_useful_life_years: numericValue > 0 ? (100 / numericValue).toFixed(1) : '',
+    };
+  }
+
+  if (fieldName === 'fiscal_useful_life_years') {
+    return {
+      fiscal_useful_life_years: nextValue,
+      fiscal_depreciation_rate: numericValue > 0 ? (100 / numericValue).toFixed(1) : '',
+    };
+  }
+
+  return { [fieldName]: nextValue };
 }
 
 export default function AssetForm() {
@@ -104,6 +145,22 @@ export default function AssetForm() {
     fiscal_depreciation_start_date: '',
     notes: '',
   });
+
+  const autoParameterContext = {
+    category: form.category,
+    asset_type: form.asset_type || '',
+    uf: form.uf || '',
+    regime_fiscal: form.regime_fiscal || '',
+  };
+
+  const fipeReferenceContext = {
+    plate: form.vehicle_plate,
+    renavam: form.vehicle_renavam,
+    chassis: form.vehicle_chassis,
+    model_year: form.vehicle_model_year,
+    fuel: form.vehicle_fuel_type,
+    asset_name: form.name,
+  };
 
   useEffect(() => {
     BranchEntity.list('-created_date', 200).then(setBranches).catch(() => {});
@@ -195,6 +252,39 @@ export default function AssetForm() {
     if (!file) return;
     const { file_url } = await base44.integrations.Core.UploadFile({ file });
     setForm({ ...form, [field]: file_url });
+  };
+
+  const handleApplyAutoSuggestion = async (fieldName, suggestion) => {
+    const nextValue = stringifySuggestedValue(suggestion?.value);
+    const previousValue = stringifySuggestedValue(form[fieldName]);
+    const patch = buildAutoSuggestionPatch(fieldName, nextValue);
+
+    setForm((prev) => ({
+      ...prev,
+      ...patch,
+    }));
+
+    await logAudit({
+      action: 'updated',
+      entity_type: 'Asset',
+      entity_id: editId || '',
+      entity_label: form.name || 'Formulario de ativo',
+      summary: `Aplicou indicacao automatica no campo "${fieldName}"`,
+      old_data: {
+        field_name: fieldName,
+        previous_value: previousValue,
+      },
+      new_data: {
+        field_name: fieldName,
+        suggested_value: nextValue,
+        applied_patch: patch,
+        source_name: suggestion?.source_name || '',
+        snapshot_id: suggestion?.snapshot_id || '',
+        competence_month: suggestion?.competence_month || '',
+      },
+    });
+
+    toast.success('Sugestao aplicada ao campo. Revise antes de salvar.');
   };
 
   const handleSubmit = async (e) => {
@@ -489,6 +579,7 @@ export default function AssetForm() {
                 <Label htmlFor="vehicle_ipva_due_date">Vencimento do IPVA</Label>
                 <Input id="vehicle_ipva_due_date" type="date" value={form.vehicle_ipva_due_date} onChange={(e) => setForm({ ...form, vehicle_ipva_due_date: e.target.value })} />
               </div>
+              <FipeMarketReference context={fipeReferenceContext} />
             </div>
           </div>
         )}
@@ -546,6 +637,12 @@ export default function AssetForm() {
                 })}
                 placeholder="10"
               />
+              <AutoParameterSuggestion
+                fieldName="depreciation_rate"
+                domain="depreciation"
+                context={autoParameterContext}
+                onApply={(suggestion) => handleApplyAutoSuggestion('depreciation_rate', suggestion)}
+              />
             </div>
             
             <div>
@@ -562,6 +659,12 @@ export default function AssetForm() {
                 })}
                 placeholder="10"
               />
+              <AutoParameterSuggestion
+                fieldName="useful_life_years"
+                domain="depreciation"
+                context={autoParameterContext}
+                onApply={(suggestion) => handleApplyAutoSuggestion('useful_life_years', suggestion)}
+              />
             </div>
             
             <div>
@@ -573,6 +676,12 @@ export default function AssetForm() {
                 value={form.residual_value}
                 onChange={(e) => setForm({ ...form, residual_value: e.target.value })}
                 placeholder="0,00"
+              />
+              <AutoParameterSuggestion
+                fieldName="residual_value"
+                domain="depreciation"
+                context={autoParameterContext}
+                onApply={(suggestion) => handleApplyAutoSuggestion('residual_value', suggestion)}
               />
             </div>
           </div>
@@ -615,11 +724,23 @@ export default function AssetForm() {
               <Label htmlFor="fiscal_depreciation_rate">Taxa Fiscal Anual (%)</Label>
               <Input id="fiscal_depreciation_rate" type="number" step="0.1" value={form.fiscal_depreciation_rate}
                 onChange={(e) => setForm({ ...form, fiscal_depreciation_rate: e.target.value, fiscal_useful_life_years: e.target.value > 0 ? (100 / parseFloat(e.target.value)).toFixed(1) : '' })} placeholder="Ex: 25" />
+              <AutoParameterSuggestion
+                fieldName="fiscal_depreciation_rate"
+                domain="fiscal"
+                context={autoParameterContext}
+                onApply={(suggestion) => handleApplyAutoSuggestion('fiscal_depreciation_rate', suggestion)}
+              />
             </div>
             <div>
               <Label htmlFor="fiscal_useful_life_years">Vida Útil Fiscal (anos)</Label>
               <Input id="fiscal_useful_life_years" type="number" step="0.1" value={form.fiscal_useful_life_years}
                 onChange={(e) => setForm({ ...form, fiscal_useful_life_years: e.target.value, fiscal_depreciation_rate: e.target.value > 0 ? (100 / parseFloat(e.target.value)).toFixed(1) : '' })} placeholder="Ex: 4" />
+              <AutoParameterSuggestion
+                fieldName="fiscal_useful_life_years"
+                domain="fiscal"
+                context={autoParameterContext}
+                onApply={(suggestion) => handleApplyAutoSuggestion('fiscal_useful_life_years', suggestion)}
+              />
             </div>
             <div>
               <Label htmlFor="fiscal_residual_value">Valor Residual Fiscal (R$)</Label>

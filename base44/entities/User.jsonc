@@ -15,7 +15,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "is_platform_admin": true
+            "role": "admin"
           }
         }
       }
@@ -26,7 +26,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "is_platform_admin": true
+            "role": "admin"
           }
         }
       }
@@ -38,7 +38,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "is_platform_admin": true
+            "role": "admin"
           }
         }
       }
@@ -51,7 +51,7 @@
     "//": "role/workspace_id/is_platform_admin s\u00e3o gravados apenas por functions com service-role (createWorkspace, acceptWorkspaceInvite, inviteMember, setMemberRole). Nenhum fluxo do cliente cria/edita User via SDK, ent\u00e3o create/update/delete ficam restritos a platform-admin \u2014 bloqueia auto-escalonamento de privil\u00e9gio e troca de tenant.",
     "create": {
       "user_condition": {
-        "is_platform_admin": true
+        "role": "admin"
       }
     },
     "read": {
@@ -59,12 +59,12 @@
     },
     "update": {
       "user_condition": {
-        "is_platform_admin": true
+        "role": "admin"
       }
     },
     "delete": {
       "user_condition": {
-        "is_platform_admin": true
+        "role": "admin"
       }
     }
   }

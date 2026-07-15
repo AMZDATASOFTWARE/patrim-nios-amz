@@ -1,0 +1,201 @@
+{
+  "name": "MonthlyParameterSnapshot",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "competence_month": {
+      "type": "string",
+      "title": "Competencia (AAAA-MM)"
+    },
+    "parameter_key": {
+      "type": "string",
+      "title": "Chave do Parametro"
+    },
+    "domain": {
+      "type": "string",
+      "title": "Dominio",
+      "enum": [
+        "depreciation",
+        "fiscal",
+        "ciap",
+        "vehicle",
+        "fipe",
+        "revaluation",
+        "market_reference"
+      ]
+    },
+    "entity_type": {
+      "type": "string",
+      "title": "Tipo da Entidade"
+    },
+    "field_name": {
+      "type": "string",
+      "title": "Campo"
+    },
+    "scope_key": {
+      "type": "string",
+      "title": "Chave do Escopo"
+    },
+    "category": {
+      "type": "string",
+      "title": "Categoria"
+    },
+    "asset_type": {
+      "type": "string",
+      "title": "Tipo de Ativo"
+    },
+    "uf": {
+      "type": "string",
+      "title": "UF"
+    },
+    "regime_fiscal": {
+      "type": "string",
+      "title": "Regime Fiscal"
+    },
+    "value": {
+      "type": "string",
+      "title": "Valor"
+    },
+    "value_type": {
+      "type": "string",
+      "title": "Tipo do Valor",
+      "enum": [
+        "percent",
+        "currency",
+        "integer",
+        "decimal",
+        "text",
+        "json"
+      ]
+    },
+    "unit": {
+      "type": "string",
+      "title": "Unidade"
+    },
+    "source_name": {
+      "type": "string",
+      "title": "Nome da Fonte"
+    },
+    "source_url": {
+      "type": "string",
+      "title": "URL da Fonte"
+    },
+    "source_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Data da Fonte"
+    },
+    "retrieved_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Obtido em"
+    },
+    "effective_start_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Inicio da Vigencia"
+    },
+    "effective_end_date": {
+      "type": "string",
+      "format": "date",
+      "title": "Fim da Vigencia"
+    },
+    "version": {
+      "type": "number",
+      "title": "Versao",
+      "default": 1
+    },
+    "confidence_level": {
+      "type": "string",
+      "title": "Confianca",
+      "enum": [
+        "low",
+        "medium",
+        "high"
+      ],
+      "default": "medium"
+    },
+    "status": {
+      "type": "string",
+      "title": "Status",
+      "enum": [
+        "draft",
+        "pending_review",
+        "active",
+        "rejected",
+        "expired",
+        "error"
+      ],
+      "default": "draft"
+    },
+    "update_run_id": {
+      "type": "string",
+      "title": "Execucao de Atualizacao"
+    },
+    "raw_payload": {
+      "type": "object",
+      "title": "Carga Bruta"
+    },
+    "warnings": {
+      "type": "array",
+      "title": "Avisos",
+      "items": {
+        "type": "string"
+      }
+    },
+    "created_by_ai": {
+      "type": "boolean",
+      "title": "Criado por IA",
+      "default": false
+    },
+    "approved_by": {
+      "type": "string",
+      "title": "Aprovado por"
+    },
+    "approved_at": {
+      "type": "string",
+      "format": "date-time",
+      "title": "Aprovado em"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observacoes"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "competence_month",
+    "parameter_key",
+    "domain",
+    "field_name",
+    "scope_key",
+    "value",
+    "value_type",
+    "retrieved_at",
+    "status"
+  ],
+  "rls": {
+    "//": "Snapshot mensal versionado gerado pela function refresh-monthly-parameters. Leitura pelo tenant; escrita apenas por service-role/platform-admin.",
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
