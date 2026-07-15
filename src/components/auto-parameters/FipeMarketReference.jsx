@@ -74,7 +74,7 @@ export default function FipeMarketReference({ context }) {
     const result = await getParameterSuggestion(payload);
     if (!result?.ok || !result?.found) {
       setStatus('error');
-      setError(result?.error || 'Nenhuma referencia FIPE vigente encontrada para este veiculo.');
+      setError(result?.error || 'Nao encontrei uma fonte FIPE suficiente para sugerir referencia deste veiculo com seguranca.');
       return;
     }
 

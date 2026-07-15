@@ -1,13 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.35';
 import {
   buildSuggestionLabel,
-  isEffectiveForDate,
   normalizeCompetenceMonth,
   normalizeSnapshotValue,
   normalizeText,
-  parseSnapshotValue,
-  snapshotScore,
-  type MonthlyParameterSnapshotRecord,
   type SnapshotValueType,
 } from './monthlyParameters.ts';
 
@@ -26,6 +22,9 @@ const SETTINGS_DEPRECIATION_CATEGORIES = new Set([
 ]);
 const ASSET_DEPRECIATION_FIELDS = new Set(['depreciation_rate', 'useful_life_years', 'residual_value']);
 const ASSET_FISCAL_FIELDS = new Set(['fiscal_depreciation_rate', 'fiscal_useful_life_years', 'fiscal_residual_value']);
+const SOURCE_READ_TIMEOUT_MS = 8000;
+const SOURCE_READ_MAX_BYTES = 60_000;
+const SOURCE_EXCERPT_MAX_CHARS = 6000;
 
 interface MonthlyParameterSourceRecord {
   id?: string;
@@ -54,6 +53,7 @@ const DEFAULT_OFFICIAL_SOURCES: MonthlyParameterSourceRecord[] = [
     priority: 120,
     parser_config_json: {
       system_default: true,
+      allowed_domain: 'normas.receita.fazenda.gov.br',
       expected_fields: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
       confidence_level: 'medium',
       official_reference_summary: 'Referencia fiscal federal para consulta de normas de depreciacao. Use apenas como apoio; classificacao fiscal/tabela aplicavel deve ser validada.',
@@ -73,6 +73,7 @@ const DEFAULT_OFFICIAL_SOURCES: MonthlyParameterSourceRecord[] = [
     priority: 125,
     parser_config_json: {
       system_default: true,
+      allowed_domain: 'www.cpc.org.br',
       expected_fields: ['depreciation_rate', 'useful_life_years', 'residual_value'],
       confidence_level: 'medium',
       official_reference_summary: 'Referencia normativa contabil para vida util economica, valor residual e revisao de estimativas. Nao e tabela numerica universal.',
@@ -92,6 +93,7 @@ const DEFAULT_OFFICIAL_SOURCES: MonthlyParameterSourceRecord[] = [
     priority: 130,
     parser_config_json: {
       system_default: true,
+      allowed_domain: 'conteudo.cvm.gov.br',
       expected_fields: ['depreciation_rate', 'useful_life_years', 'residual_value'],
       confidence_level: 'medium',
       official_reference_summary: 'Referencia CVM/CPC 27 para ativo imobilizado, vida util, valor residual e revisao periodica.',
@@ -130,6 +132,7 @@ const DEFAULT_OFFICIAL_SOURCES: MonthlyParameterSourceRecord[] = [
     priority: 140,
     parser_config_json: {
       system_default: true,
+      allowed_domain: 'veiculos.fipe.org.br',
       expected_fields: ['market_reference_value', 'residual_value'],
       allowed_categories: ['Veículos'],
       confidence_level: 'medium',
@@ -254,37 +257,37 @@ function suggestionBasis(domain: string): 'societaria_gerencial' | 'fiscal' | 'f
   return 'societaria_gerencial';
 }
 
-function genericCategoryScope(row: MonthlyParameterSnapshotRecord): boolean {
-  const scope = normalizeSearchText(row.scope_key);
-  return scope.startsWith('category:') && !normalizeText(row.asset_type);
-}
-
-function snapshotCompatibleWithDomain(row: MonthlyParameterSnapshotRecord, domain: string, fieldName: string): boolean {
-  const rowDomain = normalizeText(row.domain);
-  if (!domain || rowDomain === domain) return true;
-  if (domain === 'fiscal') {
-    return rowDomain === 'depreciation' && fieldName.startsWith('fiscal_');
-  }
-  return false;
-}
-
-function snapshotText(row: MonthlyParameterSnapshotRecord): string {
-  return normalizeSearchText([
-    row.parameter_key,
-    row.scope_key,
-    row.category,
-    row.asset_type,
-    row.notes,
-    row.source_name,
-    Array.isArray(row.warnings) ? row.warnings.join(' ') : '',
-    row.raw_payload ? JSON.stringify(row.raw_payload) : '',
+function isVehicleRequest(category: string, assetType: string, context: Record<string, unknown>): boolean {
+  const text = normalizeSearchText([
+    category,
+    assetType,
+    contextValue(context, 'asset_type'),
+    contextValue(context, 'vehicle_plate'),
+    contextValue(context, 'vehicle_renavam'),
+    contextValue(context, 'vehicle_chassis'),
+    contextValue(context, 'vehicle_model_year'),
+    contextValue(context, 'vehicle_fuel_type'),
+    contextValue(context, 'asset_name'),
+    contextValue(context, 'description'),
   ].join(' '));
+  return (
+    text.includes('veiculo') ||
+    text.includes('vehicle') ||
+    text.includes('caminhao') ||
+    text.includes('carro') ||
+    text.includes('automovel') ||
+    text.includes('moto')
+  );
 }
 
-function matchesAssetClassification(row: MonthlyParameterSnapshotRecord, profile: ReturnType<typeof identifyAssetClassification>): boolean {
-  if (genericCategoryScope(row)) return false;
-  const text = snapshotText(row);
-  return profile.tokens.some((token) => token.length >= 4 && text.includes(token));
+function buildSuggestionProfile(entityType: string, context: Record<string, unknown>, category: string) {
+  if (entityType === 'Asset') return identifyAssetClassification(context, category);
+  const label = normalizeText(context?.specific_classification || context?.asset_description || category || 'Configuracao padrao');
+  return {
+    identified_classification: label,
+    tokens: label.split(/\s+/).map(normalizeSearchText).filter((token) => token.length >= 4).slice(0, 8),
+    hasSpecificContext: true,
+  };
 }
 
 function expectedValueType(fieldName: string): SnapshotValueType {
@@ -415,7 +418,186 @@ function defaultOfficialSourcesFor(query: {
     }));
 }
 
-function sourceSummary(source: MonthlyParameterSourceRecord) {
+function normalizeHostname(value: unknown): string {
+  return normalizeText(value).toLowerCase().replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
+}
+
+function hostnameMatchesAllowed(hostname: string, allowedDomain: string): boolean {
+  const host = normalizeHostname(hostname);
+  const allowed = normalizeHostname(allowedDomain);
+  return !!allowed && (host === allowed || host.endsWith(`.${allowed}`));
+}
+
+function isPrivateOrLocalHost(hostname: string): boolean {
+  const host = normalizeHostname(hostname);
+  if (!host || host === 'localhost' || host.endsWith('.localhost')) return true;
+  if (host === '::1' || host.startsWith('fc') || host.startsWith('fd') || host.startsWith('fe80')) return true;
+
+  const parts = host.split('.').map((part) => Number(part));
+  if (parts.length !== 4 || parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)) return false;
+  const [a, b] = parts;
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168) ||
+    (a === 100 && b >= 64 && b <= 127) ||
+    a >= 224
+  );
+}
+
+function sourceConfiguredUrl(source: MonthlyParameterSourceRecord): string {
+  const config = parseConfig(source.parser_config_json);
+  return normalizeText(config.url || source.source_url);
+}
+
+function sourceAllowedDomain(source: MonthlyParameterSourceRecord): string {
+  const config = parseConfig(source.parser_config_json);
+  return normalizeHostname(config.allowed_domain);
+}
+
+function validateReadableSourceUrl(source: MonthlyParameterSourceRecord): { url: URL; allowedDomain: string } | null {
+  const rawUrl = sourceConfiguredUrl(source);
+  if (!rawUrl) return null;
+
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new Error('URL da fonte invalida.');
+  }
+
+  if (url.protocol !== 'https:') throw new Error('Fonte deve usar HTTPS para leitura automatica.');
+  if (url.username || url.password) throw new Error('Fonte nao pode conter credenciais embutidas.');
+  if (isPrivateOrLocalHost(url.hostname)) throw new Error('Fonte nao pode apontar para localhost ou host privado.');
+
+  const allowedDomain = sourceAllowedDomain(source);
+  if (!allowedDomain) throw new Error('allowed_domain e obrigatorio para leitura automatica da fonte.');
+  if (!hostnameMatchesAllowed(url.hostname, allowedDomain)) {
+    throw new Error('URL da fonte nao pertence ao allowed_domain cadastrado.');
+  }
+
+  return { url, allowedDomain };
+}
+
+function htmlToReadableText(value: string): string {
+  return value
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function readLimitedText(response: Response, maxBytes: number): Promise<{ text: string; truncated: boolean }> {
+  if (!response.body) {
+    const text = await response.text();
+    return { text: text.slice(0, maxBytes), truncated: text.length > maxBytes };
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  let truncated = false;
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    if (!value) continue;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      const remaining = Math.max(0, maxBytes - (total - value.byteLength));
+      if (remaining > 0) chunks.push(value.slice(0, remaining));
+      truncated = true;
+      break;
+    }
+    chunks.push(value);
+  }
+
+  try { await reader.cancel(); } catch (_) {}
+  const bytes = new Uint8Array(chunks.reduce((sum, chunk) => sum + chunk.byteLength, 0));
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return { text: new TextDecoder().decode(bytes), truncated };
+}
+
+async function fetchSourceExcerpt(source: MonthlyParameterSourceRecord): Promise<{ excerpt: string; url: string; warnings: string[] }> {
+  const config = parseConfig(source.parser_config_json);
+  if (normalizeText(source.source_type) !== 'official_page' && !isDefaultOfficialSource(source)) {
+    return { excerpt: '', url: sourceConfiguredUrl(source), warnings: [] };
+  }
+
+  const target = validateReadableSourceUrl(source);
+  if (!target) return { excerpt: '', url: '', warnings: ['Fonte sem URL para leitura automatica; usando apenas metadados cadastrados.'] };
+
+  let currentUrl = target.url;
+  const warnings: string[] = [];
+  const timeoutMs = Math.min(Math.max(Number(config.timeout_ms) || SOURCE_READ_TIMEOUT_MS, 1000), SOURCE_READ_TIMEOUT_MS);
+  const maxBytes = Math.min(Math.max(Number(config.max_response_bytes) || SOURCE_READ_MAX_BYTES, 8000), SOURCE_READ_MAX_BYTES);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    for (let redirectCount = 0; redirectCount <= 2; redirectCount += 1) {
+      const response = await fetch(currentUrl, {
+        method: 'GET',
+        redirect: 'manual',
+        signal: controller.signal,
+        headers: {
+          Accept: 'text/html,text/plain,application/xhtml+xml',
+          'User-Agent': 'AMZ-Patrimonios-SourceReader/1.0',
+        },
+      });
+
+      if ([301, 302, 303, 307, 308].includes(response.status)) {
+        const location = response.headers.get('location');
+        if (!location) throw new Error('Redirect sem location.');
+        const nextUrl = new URL(location, currentUrl);
+        if (nextUrl.protocol !== 'https:' || isPrivateOrLocalHost(nextUrl.hostname) || !hostnameMatchesAllowed(nextUrl.hostname, target.allowedDomain)) {
+          throw new Error('Redirect saiu do dominio permitido.');
+        }
+        currentUrl = nextUrl;
+        continue;
+      }
+
+      if (!response.ok) throw new Error(`Fonte retornou HTTP ${response.status}.`);
+      const contentType = normalizeText(response.headers.get('content-type')).toLowerCase();
+      if (contentType.includes('application/pdf')) {
+        throw new Error('PDF ainda nao e lido automaticamente neste fluxo; use metadados/resumo cadastrado.');
+      }
+      if (contentType && !contentType.includes('text/html') && !contentType.includes('text/plain') && !contentType.includes('application/xhtml')) {
+        throw new Error('Fonte deve retornar HTML ou texto para leitura automatica.');
+      }
+
+      const body = await readLimitedText(response, maxBytes);
+      if (body.truncated) warnings.push('Conteudo da fonte foi truncado para respeitar o limite de tamanho.');
+      const excerpt = htmlToReadableText(body.text).slice(0, SOURCE_EXCERPT_MAX_CHARS);
+      return { excerpt, url: currentUrl.toString(), warnings };
+    }
+    throw new Error('Limite de redirects excedido.');
+  } catch (error) {
+    return {
+      excerpt: '',
+      url: currentUrl.toString(),
+      warnings: [`Nao foi possivel ler a fonte automaticamente: ${String(error?.message || error)}`],
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function sourceSummary(source: MonthlyParameterSourceRecord, evidence: { excerpt?: string; url?: string; warnings?: string[] } = {}) {
   const config = parseConfig(source.parser_config_json);
   return {
     id: source.id || '',
@@ -423,16 +605,32 @@ function sourceSummary(source: MonthlyParameterSourceRecord) {
     domain: normalizeText(source.domain),
     source_type: normalizeText(source.source_type),
     source_name: normalizeText(source.source_name),
-    source_url: normalizeText(source.source_url),
+    source_url: normalizeText(evidence.url || sourceConfiguredUrl(source)),
     notes: normalizeText(source.notes),
     expected_fields: listFromUnknown(config.expected_fields),
     allowed_categories: listFromUnknown(config.allowed_categories),
     prompt: normalizeText(config.prompt),
     reference_summary: normalizeText(config.official_reference_summary || config.reference_summary || source.notes),
+    content_excerpt: normalizeText(evidence.excerpt),
+    content_warnings: Array.isArray(evidence.warnings) ? evidence.warnings : [],
     system_default: isDefaultOfficialSource(source),
     web_search_available: false,
+    source_read_available: !!evidence.excerpt,
     confidence_level: normalizeText(config.confidence_level || 'medium'),
   };
+}
+
+async function prepareSourceSummaries(sources: MonthlyParameterSourceRecord[]) {
+  const summaries = [];
+  const warnings: string[] = [];
+
+  for (const source of sources.slice(0, 6)) {
+    const evidence = await fetchSourceExcerpt(source);
+    warnings.push(...evidence.warnings.map((warning) => `${normalizeText(source.source_name) || 'Fonte'}: ${warning}`));
+    summaries.push(sourceSummary(source, evidence));
+  }
+
+  return { summaries, warnings };
 }
 
 async function generateSuggestionFromSources(
@@ -450,10 +648,11 @@ async function generateSuggestionFromSources(
   const valueType = expectedValueType(input.fieldName);
   const unit = defaultUnit(input.fieldName);
   const basis = suggestionBasis(input.domain);
-  const sources = input.sources.slice(0, 6).map(sourceSummary);
+  const preparedSources = await prepareSourceSummaries(input.sources);
+  const sources = preparedSources.summaries;
   const prompt = [
-    'A integracao atual desta function nao fornece navegacao web nem busca aberta. Nao simule pesquisa na internet.',
-    'Use fontes cadastradas/aprovadas do workspace como prioridade e fontes oficiais padrao do sistema como apoio controlado.',
+    'A integracao atual desta function nao faz busca aberta na internet. Ela pode ler somente URLs aprovadas/cadastradas quando a URL for segura e o conteudo for HTML/texto.',
+    'Use fontes cadastradas/aprovadas do workspace como prioridade e fontes oficiais padrao do sistema como apoio controlado. Use content_excerpt quando existir; quando nao existir, use apenas metadados, notas e resumo da fonte.',
     'Nao use regra fixa por categoria nem tabela padrao inventada. O grupo de patrimonio e apenas uma pista, nunca a unica base.',
     'Separe obrigatoriamente as bases: fiscal usa Receita/normas fiscais; societaria/gerencial usa CPC/CVM/politica contabil; FIPE usa apenas veiculos e apenas mercado/residual.',
     'Se as fontes ou o contexto nao sustentarem um valor numerico com seguranca, responda found=false e explique em warning.',
@@ -471,6 +670,7 @@ async function generateSuggestionFromSources(
     `Competência: ${input.competenceMonth}`,
     `Contexto do ativo: ${JSON.stringify(input.context)}`,
     `Fontes aprovadas: ${JSON.stringify(sources)}`,
+    `Avisos de leitura das fontes: ${JSON.stringify(preparedSources.warnings)}`,
   ].join('\n\n');
 
   const response = await svc.integrations.Core.InvokeLLM({
@@ -519,6 +719,7 @@ async function generateSuggestionFromSources(
   const selectedSourceRecord = input.sources.find((source) => normalizeText(source.id) === selectedSource.id) || input.sources[0];
   const usedSpecificSource = input.assetProfile ? sourceMatchesClassification(selectedSourceRecord, input.assetProfile) : false;
   const warnings = [
+    ...preparedSources.warnings,
     normalizeText(response.warning),
     !usedSpecificSource ? 'Esta sugestão usa uma fonte geral aprovada. Revise antes de aplicar.' : '',
   ].filter(Boolean);
@@ -566,13 +767,9 @@ Deno.serve(async (req) => {
     const fieldName = normalizeText(body?.field_name);
     const category = normalizeText(body?.category);
     const assetType = normalizeText(body?.asset_type);
-    const uf = normalizeText(body?.uf);
-    const regimeFiscal = normalizeText(body?.regime_fiscal);
-    const scopeKey = normalizeText(body?.scope_key);
     const context = (typeof body?.context === 'object' && body?.context ? body.context : {}) as Record<string, unknown>;
-    const targetDate = normalizeText(body?.effective_date || `${competenceMonth}-01`);
     const isFipeRequest = domain === 'fipe';
-    const assetProfile = entityType === 'Asset' ? identifyAssetClassification(context, category) : null;
+    const assetProfile = buildSuggestionProfile(entityType, context, category);
 
     if (entityType === 'DepreciationConfig') {
       if (
@@ -622,56 +819,31 @@ Deno.serve(async (req) => {
       }
     }
 
-    if (isFipeRequest && !scopeKey) {
+    if (isFipeRequest && !isVehicleRequest(category, assetType, context)) {
       return json(
         {
           found: false,
-          error: 'Referencia FIPE exige identificador especifico do veiculo, como codigo FIPE/ano. Nenhuma referencia generica foi aplicada.',
-          requires_user_confirmation: true,
-        },
-        404,
-      );
-    }
-
-    if (
-      isFipeRequest &&
-      !scopeKey.startsWith('fipe_code:') &&
-      !scopeKey.startsWith('vehicle:')
-    ) {
-      return json(
-        {
-          found: false,
-          error: 'Referencia FIPE exige scope_key especifico no formato fipe_code:<codigo>:year:<ano> ou vehicle:<marca>:<modelo>:<ano>:<combustivel>.',
+          error: 'Referencia FIPE e usada somente para veiculos e valor de mercado/residual. Nenhuma referencia generica foi aplicada.',
           requires_user_confirmation: true,
         },
         400,
       );
     }
 
-    const rows = await svc.entities.MonthlyParameterSnapshot.filter(
-      {
-        workspace_id: workspaceId,
-        competence_month: competenceMonth,
-      },
-      '-created_date',
-      5000,
-    );
-
-    const candidates = rows
-      .filter((row: MonthlyParameterSnapshotRecord) => normalizeText(row.status) === 'active')
-      .filter((row: MonthlyParameterSnapshotRecord) => snapshotCompatibleWithDomain(row, domain, fieldName))
-      .filter((row: MonthlyParameterSnapshotRecord) => !entityType || !normalizeText(row.entity_type) || normalizeText(row.entity_type) === entityType)
-      .filter((row: MonthlyParameterSnapshotRecord) => !fieldName || normalizeText(row.field_name) === fieldName)
-      .filter((row: MonthlyParameterSnapshotRecord) => !category || !normalizeText(row.category) || normalizeText(row.category) === category)
-      .filter((row: MonthlyParameterSnapshotRecord) => !assetType || !normalizeText(row.asset_type) || normalizeText(row.asset_type) === assetType)
-      .filter((row: MonthlyParameterSnapshotRecord) => !uf || !normalizeText(row.uf) || normalizeText(row.uf) === uf)
-      .filter((row: MonthlyParameterSnapshotRecord) => !regimeFiscal || !normalizeText(row.regime_fiscal) || normalizeText(row.regime_fiscal) === regimeFiscal)
-      .filter((row: MonthlyParameterSnapshotRecord) => !scopeKey || normalizeText(row.scope_key) === scopeKey)
-      .filter((row: MonthlyParameterSnapshotRecord) => isEffectiveForDate(row, targetDate));
+    if (isFipeRequest && assetProfile && !assetProfile.hasSpecificContext) {
+      return json(
+        {
+          found: false,
+          error: 'Informe dados mais especificos do veiculo, como marca, modelo, ano ou codigo FIPE, para melhorar a referencia.',
+          identified_classification: assetProfile.identified_classification,
+          basis: suggestionBasis(domain),
+          requires_user_confirmation: true,
+        },
+        404,
+      );
+    }
 
     const getSourceSuggestion = async (fallbackWarnings: string[] = []) => {
-      if (entityType !== 'Asset' || isFipeRequest || !assetProfile) return null;
-
       const sourceRows = await svc.entities.MonthlyParameterSource.filter(
         { workspace_id: workspaceId },
         'priority',
@@ -745,9 +917,7 @@ Deno.serve(async (req) => {
       }
     };
 
-    const safeCandidates = candidates;
-
-    if (safeCandidates.length === 0) {
+    {
       const sourceSuggestion = await getSourceSuggestion();
       if (sourceSuggestion) return json(sourceSuggestion, sourceSuggestion.found ? 200 : 404);
 
@@ -765,79 +935,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    const ranked = safeCandidates
-      .map((row: MonthlyParameterSnapshotRecord) => ({
-        row,
-        score: snapshotScore(row, {
-          domain,
-          entity_type: entityType,
-          field_name: fieldName,
-          category,
-          asset_type: assetType,
-          uf,
-          regime_fiscal: regimeFiscal,
-          parameter_key: normalizeText(body?.parameter_key || fieldName),
-        }) + (assetProfile && matchesAssetClassification(row, assetProfile) ? 20 : 0) - (genericCategoryScope(row) ? 4 : 0),
-      }))
-      .sort((a, b) => b.score - a.score || (Number(b.row.version) || 0) - (Number(a.row.version) || 0));
-
-    const invalidWarnings: string[] = [];
-    for (const item of ranked) {
-      try {
-        const best = item.row;
-        const parsedValue = parseSnapshotValue(best.value || '', best.value_type);
-        const unit = normalizeText(best.unit);
-        const label = buildSuggestionLabel(parsedValue, unit, best.value_type);
-
-        return json({
-          found: true,
-          value: parsedValue,
-          suggested_value: parsedValue,
-          unit,
-          label,
-          field: fieldName,
-          basis: suggestionBasis(domain),
-          identified_classification: assetProfile?.identified_classification || normalizeText(best.category || best.asset_type),
-          explanation: normalizeText(best.notes) || `Indicação automática baseada na competência ${competenceMonth}.`,
-          rationale: normalizeText(best.notes) || `Indicação automática baseada na competência ${competenceMonth}.`,
-          source_name: normalizeText(best.source_name),
-          source_url: normalizeText(best.source_url),
-          source_date: normalizeText(best.source_date),
-          competence_month: normalizeText(best.competence_month),
-          effective_start_date: normalizeText(best.effective_start_date),
-          effective_end_date: normalizeText(best.effective_end_date),
-          confidence_level: normalizeConfidence(normalizeText(best.confidence_level)),
-          warnings: [
-            ...(Array.isArray(best.warnings) ? best.warnings : []),
-            ...(entityType === 'Asset' && !isFipeRequest && genericCategoryScope(best) ? ['Esta sugestão usa uma fonte geral aprovada. Revise antes de aplicar.'] : []),
-            ...invalidWarnings,
-          ],
-          warning: normalizeConfidence(normalizeText(best.confidence_level)) === 'low'
-            ? 'Revise a sugestão: a confiança da fonte está baixa ou há pouca informação específica.'
-            : null,
-          snapshot_id: best.id || '',
-          context,
-          requires_user_confirmation: true,
-        });
-      } catch (error) {
-        invalidWarnings.push(
-          `Snapshot ${item.row.id || item.row.parameter_key || item.row.field_name || 'desconhecido'} ignorado: ${String(error?.message || error)}`,
-        );
-      }
-    }
-
-    const sourceSuggestion = await getSourceSuggestion(invalidWarnings);
-    if (sourceSuggestion) return json(sourceSuggestion, sourceSuggestion.found ? 200 : 404);
-
-    return json(
-      {
-        found: false,
-        error: 'Não foi possível gerar a sugestão agora. Tente novamente em instantes.',
-        warnings: invalidWarnings,
-        requires_user_confirmation: true,
-      },
-      422,
-    );
   } catch (error) {
     return json(
       {
