@@ -14,6 +14,15 @@ const cors = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const SETTINGS_DEPRECIATION_FIELDS = new Set(['depreciation_rate', 'useful_life_years']);
+const SETTINGS_DEPRECIATION_CATEGORIES = new Set([
+  'Imóveis',
+  'Veículos',
+  'Equipamentos',
+  'Investimentos',
+  'Intangíveis',
+]);
+
 function normalizeConfidence(value: string): 'low' | 'medium' | 'high' {
   if (value === 'high' || value === 'medium') return value;
   return 'low';
@@ -48,6 +57,23 @@ Deno.serve(async (req) => {
     const context = typeof body?.context === 'object' && body?.context ? body.context : {};
     const targetDate = normalizeText(body?.effective_date || `${competenceMonth}-01`);
     const isFipeRequest = domain === 'fipe';
+
+    if (entityType === 'DepreciationConfig') {
+      if (
+        domain !== 'depreciation' ||
+        !SETTINGS_DEPRECIATION_FIELDS.has(fieldName) ||
+        !SETTINGS_DEPRECIATION_CATEGORIES.has(category)
+      ) {
+        return json(
+          {
+            found: false,
+            error: 'A indicação automática em Configurações está limitada a taxa anual e vida útil das categorias padrão.',
+            requires_user_confirmation: true,
+          },
+          400,
+        );
+      }
+    }
 
     if (isFipeRequest && !scopeKey) {
       return json(
@@ -100,7 +126,7 @@ Deno.serve(async (req) => {
       return json(
         {
           found: false,
-          error: 'Nenhuma indicacao automatica vigente encontrada para este campo.',
+          error: 'Ainda não há sugestão aprovada para este campo. Cadastre ou aprove uma fonte para habilitar sugestões.',
           requires_user_confirmation: true,
         },
         404,

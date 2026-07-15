@@ -6,7 +6,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
@@ -32,203 +31,103 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
+  ExternalLink,
   FlaskConical,
-  Pencil,
-  PlayCircle,
   Plus,
-  Power,
-  PowerOff,
-  RefreshCw,
   Save,
   Sparkles,
   TrendingDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
-  approveMonthlyParameterSnapshot,
   canManageMonthlyParameters,
   createMonthlyParameterSource,
   currentCompetenceMonth,
-  deactivateMonthlyParameterSource,
-  expireMonthlyParameterSnapshot,
-  formatParameterLabel,
   listMonthlyParameterSources,
   normalizeParameterValue,
-  reactivateMonthlyParameterSource,
-  rejectMonthlyParameterSnapshot,
-  refreshMonthlyParameters,
   testMonthlyParameterSource,
-  updateMonthlyParameterSource,
 } from '@/lib/autoParameters';
 import { logAudit } from '@/lib/audit';
 
 const DEFAULT_RATES = {
   'Imóveis': { depreciation_rate: 4, useful_life_years: 25 },
   'Veículos': { depreciation_rate: 20, useful_life_years: 5 },
-  'Equipamentos': { depreciation_rate: 10, useful_life_years: 10 },
-  'Investimentos': { depreciation_rate: 0, useful_life_years: 0 },
-  'Intangíveis': { depreciation_rate: 20, useful_life_years: 5 },
+  Equipamentos: { depreciation_rate: 10, useful_life_years: 10 },
+  Investimentos: { depreciation_rate: 0, useful_life_years: 0 },
+  Intangíveis: { depreciation_rate: 20, useful_life_years: 5 },
 };
 
 const CATEGORIES = Object.keys(DEFAULT_RATES);
 
-const SNAPSHOT_STATUS_FILTER_OPTIONS = [
-  { value: 'all', label: 'Todos' },
-  { value: 'active', label: 'Ativos' },
-  { value: 'pending_review', label: 'Pendentes' },
+const SUGGESTION_FIELDS = [
+  { value: 'depreciation_rate', label: 'Taxa anual' },
+  { value: 'useful_life_years', label: 'Vida útil' },
+  { value: 'both', label: 'Ambos' },
 ];
 
-function createEmptySnapshotFilters() {
-  return {
-    competence_month: '',
-    domain: 'all',
-    status: 'all',
-    field_name: '',
-    scope_or_category: '',
-    source_name: '',
-  };
-}
-
-const SOURCE_DOMAIN_OPTIONS = [
-  { value: 'depreciation', label: 'Depreciação' },
-  { value: 'fiscal', label: 'Fiscal' },
-  { value: 'ciap', label: 'CIAP' },
-  { value: 'vehicle', label: 'Veicular' },
-  { value: 'fipe', label: 'FIPE' },
-  { value: 'revaluation', label: 'Reavaliação' },
-  { value: 'market_reference', label: 'Referência de mercado' },
+const SUGGESTION_CATEGORIES = [
+  ...CATEGORIES.map((category) => ({ value: category, label: category })),
+  { value: 'all', label: 'Todas' },
 ];
 
-const SOURCE_TYPE_OPTIONS = [
-  { value: 'manual_table', label: 'Tabela manual' },
-  { value: 'internal_rule', label: 'Regra interna' },
-  { value: 'api', label: 'API cadastrada' },
-  { value: 'official_page', label: 'Página oficial' },
-  { value: 'ai_research', label: 'Pesquisa assistida por IA' },
-];
-
-const PREDEFINED_OFFICIAL_SOURCES = [
+const TRUSTED_DEPRECIATION_SOURCES = [
   {
     id: 'cpc27',
-    label: 'CPC 27 - Ativo Imobilizado',
-    parameter_key: 'depreciation.cpc27.policy_reference',
-    domain: 'depreciation',
-    entity_type: 'DepreciationConfig',
     source_name: 'CPC 27 - Ativo Imobilizado',
     source_url: 'https://www.cpc.org.br/CPC/Documentos-Emitidos/Pronunciamentos/Pronunciamento?Id=58',
-    scope_key: 'policy:cpc27',
-    field_name: 'depreciation_policy_reference',
-    prompt: 'Resuma pontos sobre ativo imobilizado, depreciacao, vida util, valor residual e revisao de estimativas. Nao invente taxas.',
-    notes: 'Fonte oficial predefinida. Usar como referencia normativa; snapshots devem ser revisados antes de aprovacao.',
+    allowed_domain: 'www.cpc.org.br',
+    parameter_key: 'depreciation.cpc27.policy_reference',
+    reference_type: 'Norma contábil',
+    suggested_fields: 'Política contábil, vida útil, valor residual e revisão anual',
+    observation: 'Não é tabela numérica automática; serve como referência normativa.',
+    prompt: 'Identifique apenas orientações normativas sobre depreciação, vida útil, valor residual e revisão anual. Não invente taxas ou anos.',
   },
   {
     id: 'cpc23',
-    label: 'CPC 23 - Mudanca de Estimativa',
-    parameter_key: 'depreciation.cpc23.estimate_change_reference',
-    domain: 'depreciation',
-    entity_type: 'DepreciationConfig',
-    source_name: 'CPC 23 - Mudanca de Estimativa',
+    source_name: 'CPC 23 - Mudança de estimativa',
     source_url: 'https://www.cpc.org.br/CPC/Documentos-Emitidos/Pronunciamentos/Pronunciamento?Id=54',
-    scope_key: 'policy:cpc23',
-    field_name: 'depreciation_estimate_change_reference',
-    prompt: 'Resuma regras sobre mudanca de estimativa, vida util, residual e revisao prospectiva. Nao invente valores.',
-    notes: 'Fonte oficial predefinida. Usar como referencia normativa; snapshots devem ser revisados antes de aprovacao.',
+    allowed_domain: 'www.cpc.org.br',
+    parameter_key: 'depreciation.cpc23.estimate_change_reference',
+    reference_type: 'Norma contábil',
+    suggested_fields: 'Justificativa e revisão de estimativa',
+    observation: 'Apoio para alteração de vida útil ou taxa.',
+    prompt: 'Identifique orientações sobre mudança de estimativa contábil, revisão prospectiva, vida útil e taxa. Não invente valores.',
   },
   {
-    id: 'cpc46',
-    label: 'CPC 46 - Valor Justo',
-    parameter_key: 'revaluation.cpc46.fair_value_reference',
-    domain: 'revaluation',
-    entity_type: 'AssetRevaluation',
-    source_name: 'CPC 46 - Valor Justo',
-    source_url: 'https://www.cpc.org.br/CPC/Documentos-Emitidos/Pronunciamentos/Pronunciamento?Id=78',
-    scope_key: 'policy:cpc46',
-    field_name: 'fair_value_policy_reference',
-    prompt: 'Resuma criterios de valor justo e limitacoes para referencia de mercado. Nao sugira reavaliacao automatica.',
-    notes: 'Fonte oficial predefinida. Referencia para governanca; nao cria reavaliacao automatica.',
+    id: 'rfb-in-1700-anexo-iii',
+    source_name: 'Receita Federal / IN RFB 1.700 Anexo III',
+    source_url: 'https://normas.receita.fazenda.gov.br/sijut2consulta/link.action?idAto=81268',
+    allowed_domain: 'normas.receita.fazenda.gov.br',
+    parameter_key: 'depreciation.rfb_in_1700_anexo_iii.reference',
+    reference_type: 'Referência fiscal',
+    suggested_fields: 'Taxa fiscal e vida útil fiscal por tipo de bem',
+    observation: 'Pode apoiar sugestão; propostas da IA exigem revisão humana.',
+    prompt: 'Identifique apenas referências de depreciação fiscal relacionadas a taxa e vida útil por tipo de bem. Não extrapole categorias sem base na página.',
   },
   {
-    id: 'ciap-ajuste-sinief-03-01',
-    label: 'CONFAZ Ajuste SINIEF 03/01 - CIAP',
-    parameter_key: 'ciap.ajuste_sinief_03_01.reference',
-    domain: 'ciap',
-    entity_type: 'CiapCredit',
-    source_name: 'CONFAZ Ajuste SINIEF 03/01 - CIAP',
-    source_url: 'https://www.confaz.fazenda.gov.br/legislacao/ajustes/2001/AJ_003_01',
-    allowed_domain: 'www.confaz.fazenda.gov.br',
-    scope_key: 'policy:ciap-ajuste-sinief-03-01',
-    field_name: 'ciap_policy_reference',
-    prompt: 'Resuma fracao 1/48, coeficiente de creditamento e necessidade de saidas tributadas/exportacao/total. Nao calcule sem dados da competencia.',
-    notes: 'Fonte oficial predefinida para referencia CIAP. Validar com responsavel fiscal antes de aprovar snapshots.',
-  },
-  {
-    id: 'sped-efd-icms-ipi',
-    label: 'SPED EFD ICMS/IPI',
-    parameter_key: 'fiscal.sped_efd_icms_ipi.reference',
-    domain: 'fiscal',
-    entity_type: 'Asset',
-    source_name: 'SPED EFD ICMS/IPI',
-    source_url: 'https://sped.rfb.gov.br/item/show/1573',
-    allowed_domain: 'sped.rfb.gov.br',
-    scope_key: 'policy:sped-efd-icms-ipi',
-    field_name: 'sped_efd_icms_ipi_reference',
-    prompt: 'Resuma apenas pontos de escrituracao relacionados a ICMS/IPI e CIAP. Nao invente aliquotas.',
-    notes: 'Fonte oficial predefinida para referencia de escrituracao. Nao substitui validacao fiscal.',
-  },
-  {
-    id: 'sped-efd-contribuicoes',
-    label: 'SPED EFD Contribuicoes',
-    parameter_key: 'fiscal.sped_efd_contribuicoes.reference',
-    domain: 'fiscal',
-    entity_type: 'Asset',
-    source_name: 'SPED EFD Contribuicoes',
-    source_url: 'https://sped.rfb.gov.br/item/show/4263',
-    allowed_domain: 'sped.rfb.gov.br',
-    scope_key: 'policy:sped-efd-contribuicoes',
-    field_name: 'sped_efd_contribuicoes_reference',
-    prompt: 'Resuma pontos de PIS/COFINS e escrituracao. Nao invente aliquotas.',
-    notes: 'Fonte oficial predefinida para referencia fiscal. Nao substitui validacao fiscal.',
-  },
-  {
-    id: 'fipe-vehicles',
-    label: 'FIPE Veiculos',
-    parameter_key: 'fipe.vehicles.market_reference_policy',
-    domain: 'fipe',
-    entity_type: 'Asset',
-    source_name: 'FIPE Veiculos',
-    source_url: 'https://www.fipe.org.br/pt-br/indices/veiculos',
-    scope_key: 'policy:fipe-vehicles',
-    field_name: 'market_reference_policy',
-    prompt: 'Resuma limitacoes da Tabela FIPE como referencia de mercado. Nao trate como valor contabil automatico.',
-    notes: 'Fonte oficial predefinida para referencia de mercado. FIPE nao altera valor contabil automaticamente.',
+    id: 'rir-2018',
+    source_name: 'RIR/2018 / Planalto',
+    source_url: 'https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/decreto/d9580.htm',
+    allowed_domain: 'www.planalto.gov.br',
+    parameter_key: 'depreciation.rir_2018.reference',
+    reference_type: 'Base legal complementar',
+    suggested_fields: 'Regra fiscal de depreciação',
+    observation: 'Referência legal; exige revisão humana antes de uso.',
+    prompt: 'Identifique regras gerais de depreciação fiscal aplicáveis ao imobilizado. Não invente taxa, categoria ou vida útil.',
   },
 ];
 
-function createEmptySourceForm() {
-  return {
-    parameter_key: '',
-    domain: 'depreciation',
-    source_type: 'manual_table',
-    source_name: '',
-    source_url: '',
-    priority: '100',
-    is_active: true,
-    parser_config_json: '{}',
-    notes: '',
-  };
+function buildCategoryScopeKey(category) {
+  return `category:${category}`;
 }
 
-function sourceToForm(source) {
+function createEmptySiteSuggestionForm() {
   return {
-    parameter_key: source?.parameter_key || '',
-    domain: source?.domain || 'depreciation',
-    source_type: source?.source_type || 'manual_table',
-    source_name: source?.source_name || '',
-    source_url: source?.source_url || '',
-    priority: String(source?.priority ?? 100),
-    is_active: source?.is_active !== false,
-    parser_config_json: JSON.stringify(source?.parser_config_json || {}, null, 2),
-    notes: source?.notes || '',
+    source_url: '',
+    description: '',
+    related_field: 'both',
+    related_category: 'all',
+    parser_config_json: '',
   };
 }
 
@@ -240,280 +139,163 @@ function hostFromUrl(url) {
   }
 }
 
-function predefinedSourceToForm(source) {
-  const allowedDomain = source.allowed_domain || hostFromUrl(source.source_url);
-  const parserConfig = {
+function formatDateTime(value) {
+  if (!value) return '-';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '-';
+  return date.toLocaleString('pt-BR');
+}
+
+function normalizeStatusLabel(source) {
+  if (!source) return 'Não cadastrada';
+  return source.is_active ? 'Cadastrada' : 'Pendente';
+}
+
+function sourceLastSeen(source) {
+  return source?.updated_date || source?.created_date || source?.retrieved_at || '';
+}
+
+function parserConfigForTrustedSource(source) {
+  return {
     url: source.source_url,
-    allowed_domain: allowedDomain,
+    allowed_domain: source.allowed_domain || hostFromUrl(source.source_url),
     parameter_key: source.parameter_key,
-    domain: source.domain,
-    entity_type: source.entity_type || 'Asset',
-    field_name: source.field_name,
-    scope_key: source.scope_key,
-    extraction_mode: 'summary',
-    expected_value_type: 'text',
+    domain: 'depreciation',
+    entity_type: 'DepreciationConfig',
+    field_name: 'depreciation_rate',
+    scope_key: `policy:${source.id}`,
+    extraction_mode: 'suggestion',
+    expected_fields: ['depreciation_rate', 'useful_life_years'],
+    allowed_categories: CATEGORIES,
     confidence_level: 'medium',
-    requires_review: true,
     requires_manual_review: true,
     default_snapshot_status: 'pending_review',
+    output_schema: {
+      category: 'string',
+      field_name: 'depreciation_rate | useful_life_years',
+      suggested_value: 'number',
+      value_type: 'percent | decimal',
+      unit: '% | anos',
+      source_name: 'string',
+      source_url: 'string',
+      reason: 'string',
+      confidence_level: 'low | medium',
+      warnings: ['string'],
+    },
     prompt: source.prompt,
   };
+}
 
+function buildTrustedSourcePayload(source) {
   return {
     parameter_key: source.parameter_key,
-    domain: source.domain,
+    domain: 'depreciation',
     source_type: 'official_page',
     source_name: source.source_name,
     source_url: source.source_url,
     priority: '80',
     is_active: true,
-    parser_config_json: JSON.stringify(parserConfig, null, 2),
-    notes: source.notes,
+    parser_config_json: JSON.stringify(parserConfigForTrustedSource(source), null, 2),
+    notes: `${source.observation} Revisão humana obrigatória antes de aprovar snapshots.`,
   };
 }
 
-function formatDate(value) {
-  if (!value || typeof value !== 'string' || !value.includes('-')) return '-';
-  const [year, month, day] = value.split('-');
-  return day ? `${day}/${month}/${year}` : `${month}/${year}`;
-}
+function buildSuggestedSiteParserConfig(form) {
+  const url = form.source_url.trim();
+  const relatedField = form.related_field;
+  const relatedCategory = form.related_category;
+  const requestedFields = relatedField === 'both'
+    ? ['depreciation_rate', 'useful_life_years']
+    : [relatedField];
+  const requestedCategories = relatedCategory === 'all' ? CATEGORIES : [relatedCategory];
 
-function formatDateTime(value) {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString('pt-BR');
-}
-
-function normalizeStatusLabel(status) {
-  const map = {
-    running: 'Em andamento',
-    success: 'Sucesso',
-    partial_success: 'Parcial',
-    failed: 'Falhou',
-    pending_review: 'Pendente',
-    active: 'Ativo',
-    rejected: 'Rejeitado',
-    expired: 'Expirado',
-    draft: 'Rascunho',
-    error: 'Erro',
-  };
-  return map[status] || status || '-';
-}
-
-function normalizeDomainLabel(value) {
-  return SOURCE_DOMAIN_OPTIONS.find((option) => option.value === value)?.label || value || '-';
-}
-
-function normalizeSourceTypeLabel(value) {
-  return SOURCE_TYPE_OPTIONS.find((option) => option.value === value)?.label || value || '-';
-}
-
-function statusVariant(status) {
-  if (status === 'success' || status === 'active') return 'secondary';
-  if (status === 'failed' || status === 'rejected' || status === 'error') return 'destructive';
-  return 'outline';
-}
-
-function confidenceLabel(value) {
-  if (value === 'high') return 'Alta';
-  if (value === 'medium') return 'Média';
-  return 'Baixa';
-}
-
-function parseJsonObject(value) {
-  if (!value) return {};
-  if (typeof value === 'object') return value;
-  if (typeof value === 'string') {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return {};
-    }
-  }
-  return {};
-}
-
-function parseRunErrors(run) {
-  const source = parseJsonObject(run?.errors_json);
-  return Array.isArray(source?.errors) ? source.errors : [];
-}
-
-function formatSnapshotDisplayValue(snapshot) {
-  try {
-    const normalizedValue = normalizeParameterValue(snapshot.value, snapshot.value_type);
-    return formatParameterLabel(normalizedValue, snapshot.value_type, snapshot.unit);
-  } catch (_) {
-    return 'Valor inválido';
-  }
-}
-
-function matchesText(value, search) {
-  const needle = String(search || '').trim().toLowerCase();
-  if (!needle) return true;
-  return String(value || '').toLowerCase().includes(needle);
-}
-
-function matchesSnapshotFilters(snapshot, filters, expectedStatus) {
-  if (filters.status !== 'all' && filters.status !== expectedStatus) return false;
-  if (filters.competence_month && snapshot.competence_month !== filters.competence_month) return false;
-  if (filters.domain !== 'all' && snapshot.domain !== filters.domain) return false;
-  if (!matchesText(snapshot.field_name, filters.field_name)) return false;
-  if (!matchesText(`${snapshot.category || ''} ${snapshot.scope_key || ''}`, filters.scope_or_category)) return false;
-  if (!matchesText(snapshot.source_name, filters.source_name)) return false;
-  return true;
-}
-
-function buildSourcePayload(sourceForm) {
   return {
-    parameter_key: sourceForm.parameter_key.trim(),
-    domain: sourceForm.domain,
-    source_type: sourceForm.source_type,
-    source_name: sourceForm.source_name.trim(),
-    source_url: sourceForm.source_url.trim(),
-    priority: sourceForm.priority.trim(),
-    is_active: sourceForm.is_active,
-    parser_config_json: sourceForm.parser_config_json.trim() || '{}',
-    notes: sourceForm.notes.trim(),
+    url,
+    allowed_domain: hostFromUrl(url),
+    parameter_key: `depreciation.suggested.${hostFromUrl(url) || 'site'}`,
+    domain: 'depreciation',
+    entity_type: 'DepreciationConfig',
+    field_name: requestedFields[0],
+    scope_key: relatedCategory === 'all' ? 'category:all' : buildCategoryScopeKey(relatedCategory),
+    extraction_mode: 'suggestion',
+    expected_fields: requestedFields,
+    allowed_categories: requestedCategories,
+    confidence_level: 'medium',
+    requires_manual_review: true,
+    default_snapshot_status: 'pending_review',
+    output_schema: {
+      category: 'string',
+      field_name: 'depreciation_rate | useful_life_years',
+      suggested_value: 'number',
+      value_type: 'percent | decimal',
+      unit: '% | anos',
+      source_name: 'string',
+      source_url: 'string',
+      reason: 'string',
+      confidence_level: 'low | medium',
+      warnings: ['string'],
+    },
+    prompt: form.description.trim() || 'Identifique referências para taxa anual e vida útil por categoria. Não invente valores.',
   };
 }
 
-function formatTestResultSummary(testResult) {
-  if (!testResult) return '';
-  if (!testResult.ok) {
-    return testResult.error || 'Não foi possível testar a fonte.';
-  }
-  return testResult.summary || `${testResult.simulated_snapshots || 0} snapshot(s) simulados sem persistência.`;
+function buildSuggestedSitePayload(form) {
+  const parserConfig = form.parser_config_json.trim()
+    ? JSON.parse(form.parser_config_json)
+    : buildSuggestedSiteParserConfig(form);
+  const host = hostFromUrl(form.source_url);
+
+  return {
+    parameter_key: parserConfig.parameter_key || `depreciation.suggested.${host || 'site'}`,
+    domain: 'depreciation',
+    source_type: 'official_page',
+    source_name: host ? `Site sugerido - ${host}` : 'Site sugerido para depreciação',
+    source_url: form.source_url.trim(),
+    priority: '120',
+    is_active: false,
+    parser_config_json: JSON.stringify(parserConfig, null, 2),
+    notes: `Site sugerido para IA. Campo relacionado: ${form.related_field}. Categoria relacionada: ${form.related_category}. ${form.description.trim()}`,
+  };
 }
 
-function buildCategoryScopeKey(category) {
-  return `category:${category}`;
+function parseSourceConfig(source) {
+  if (!source?.parser_config_json) return {};
+  if (typeof source.parser_config_json === 'object') return source.parser_config_json;
+  try {
+    return JSON.parse(source.parser_config_json);
+  } catch {
+    return {};
+  }
 }
 
-function sourceParserPlaceholder(sourceType) {
-  if (sourceType === 'api') {
-    return `{
-  "endpoint_url": "https://api.exemplo.com/parametros",
-  "method": "GET",
-  "timeout_ms": 10000,
-  "headers": [
-    {
-      "name": "Authorization",
-      "secret_name": "PARAMETER_API_KEY",
-      "prefix": "Bearer "
-    }
-  ],
-  "query": {
-    "competence_month": "{{competence_month}}",
-    "domain": "{{domain}}"
-  },
-  "items_path": "data.items",
-  "field_map": {
-    "parameter_key": "key",
-    "domain": "domain",
-    "entity_type": "entity_type",
-    "field_name": "field_name",
-    "scope_key": "scope_key",
-    "category": "category",
-    "value": "value",
-    "value_type": "value_type",
-    "unit": "unit",
-    "effective_start_date": "effective_start_date",
-    "confidence_level": "confidence_level",
-    "notes": "notes"
-  }
-}`;
-  }
+function sourceMatchesTrusted(source, trustedSource) {
+  return source.parameter_key === trustedSource.parameter_key || source.source_url === trustedSource.source_url;
+}
 
-  if (sourceType === 'internal_rule') {
-    return `{
-  "rules": [
-    {
-      "parameter_key": "depreciation.vehicles.useful_life",
-      "domain": "depreciation",
-      "entity_type": "Asset",
-      "field_name": "useful_life_years",
-      "scope_key": "category:veiculos",
-      "category": "veiculos",
-      "value": 5,
-      "value_type": "decimal",
-      "unit": "anos",
-      "effective_start_date": "2026-01-01",
-      "confidence_level": "high"
-    }
-  ]
-}`;
-  }
-
-  if (sourceType === 'official_page') {
-    return `{
-  "url": "https://www.cpc.org.br/CPC/Documentos-Emitidos/Pronunciamentos/Pronunciamento?Id=58",
-  "allowed_domain": "cpc.org.br",
-  "parameter_key": "depreciation.cpc27.policy_reference",
-  "domain": "depreciation",
-  "entity_type": "DepreciationConfig",
-  "field_name": "depreciation_policy_reference",
-  "scope_key": "policy:cpc27",
-  "extraction_mode": "summary",
-  "expected_value_type": "text",
-  "unit": "",
-  "confidence_level": "medium",
-  "requires_manual_review": true,
-  "prompt": "Resuma apenas pontos aplicaveis a vida util, valor residual e depreciacao. Nao transforme norma textual em taxa numerica."
-}`;
-  }
-
-  return `{
-  "items": [
-    {
-      "parameter_key": "depreciation.vehicles.rate",
-      "domain": "depreciation",
-      "entity_type": "Asset",
-      "field_name": "depreciation_rate",
-      "scope_key": "category:veiculos",
-      "category": "veiculos",
-      "value": 20,
-      "value_type": "percent",
-      "unit": "%",
-      "effective_start_date": "2026-01-01",
-      "confidence_level": "high"
-    }
-  ]
-}`;
+function isSuggestedDepreciationSource(source) {
+  const config = parseSourceConfig(source);
+  return (
+    source.source_type === 'official_page' &&
+    source.domain === 'depreciation' &&
+    config.entity_type === 'DepreciationConfig' &&
+    !TRUSTED_DEPRECIATION_SOURCES.some((trustedSource) => sourceMatchesTrusted(source, trustedSource))
+  );
 }
 
 export default function Settings() {
   const [configs, setConfigs] = useState({});
   const [records, setRecords] = useState({});
   const [saving, setSaving] = useState(false);
-  const [monthlyLoading, setMonthlyLoading] = useState(true);
-  const [monthlyAction, setMonthlyAction] = useState('');
-  const [latestRun, setLatestRun] = useState(null);
   const [monthlySources, setMonthlySources] = useState([]);
-  const [activeSnapshots, setActiveSnapshots] = useState([]);
-  const [pendingSnapshots, setPendingSnapshots] = useState([]);
-  const [simulationResult, setSimulationResult] = useState(null);
-  const [sourceDialogOpen, setSourceDialogOpen] = useState(false);
-  const [editingSource, setEditingSource] = useState(null);
-  const [sourceForm, setSourceForm] = useState(createEmptySourceForm());
-  const [sourceSaving, setSourceSaving] = useState(false);
-  const [sourceRowActionId, setSourceRowActionId] = useState('');
-  const [snapshotActionId, setSnapshotActionId] = useState('');
-  const [sourceDialogTestLoading, setSourceDialogTestLoading] = useState(false);
-  const [sourceDialogTestResult, setSourceDialogTestResult] = useState(null);
-  const [lastSourceTestResult, setLastSourceTestResult] = useState(null);
-  const [snapshotFilters, setSnapshotFilters] = useState(createEmptySnapshotFilters());
-  const [snapshotDetail, setSnapshotDetail] = useState(null);
-  const [rejectSnapshot, setRejectSnapshot] = useState(null);
-  const [rejectReason, setRejectReason] = useState('');
-  const [rejectError, setRejectError] = useState('');
-  const [rejectLoading, setRejectLoading] = useState(false);
+  const [sourceActionId, setSourceActionId] = useState('');
+  const [siteDialogOpen, setSiteDialogOpen] = useState(false);
+  const [siteForm, setSiteForm] = useState(createEmptySiteSuggestionForm());
+  const [siteSaving, setSiteSaving] = useState(false);
+  const [siteTestResult, setSiteTestResult] = useState(null);
+  const [siteTestLoading, setSiteTestLoading] = useState(false);
 
   const { user } = useAuth();
   const ConfigEntity = useWorkspaceEntity('DepreciationConfig');
-  const RunEntity = useWorkspaceEntity('MonthlyParameterRun');
-  const SnapshotEntity = useWorkspaceEntity('MonthlyParameterSnapshot');
-
   const canManageSources = canManageMonthlyParameters(user);
 
   useEffect(() => {
@@ -539,53 +321,43 @@ export default function Settings() {
   }, [ConfigEntity]);
 
   useEffect(() => {
-    loadMonthlyData();
+    loadMonthlySources();
   }, [canManageSources]);
 
-  const loadMonthlyData = async () => {
+  useEffect(() => {
+    if (!siteDialogOpen) return;
+    if (siteForm.parser_config_json.trim()) return;
+    if (!siteForm.source_url.trim()) return;
+
+    setSiteForm((previous) => ({
+      ...previous,
+      parser_config_json: JSON.stringify(buildSuggestedSiteParserConfig(previous), null, 2),
+    }));
+  }, [siteDialogOpen, siteForm.source_url, siteForm.description, siteForm.related_field, siteForm.related_category]);
+
+  const loadMonthlySources = async () => {
     if (!canManageSources) {
-      setMonthlyLoading(false);
-      setLatestRun(null);
       setMonthlySources([]);
-      setActiveSnapshots([]);
-      setPendingSnapshots([]);
-      setSimulationResult(null);
-      setLastSourceTestResult(null);
+      setSourceActionId('');
+      setSiteTestResult(null);
       return;
     }
 
-    setMonthlyLoading(true);
-    try {
-      const [runs, active, pending, sourcesResult] = await Promise.all([
-        RunEntity.list('-started_at', 10).catch(() => []),
-        SnapshotEntity.filter({ status: 'active' }, '-retrieved_at', 25).catch(() => []),
-        SnapshotEntity.filter({ status: 'pending_review' }, '-retrieved_at', 25).catch(() => []),
-        listMonthlyParameterSources().catch(() => ({ ok: false, sources: [] })),
-      ]);
-
-      const sortedRuns = [...runs].sort((a, b) => String(b.started_at || '').localeCompare(String(a.started_at || '')));
-      setLatestRun(sortedRuns[0] || null);
-      setActiveSnapshots(active);
-      setPendingSnapshots(pending);
-      setMonthlySources(sourcesResult.ok ? sourcesResult.sources || [] : []);
-    } finally {
-      setMonthlyLoading(false);
-    }
+    const result = await listMonthlyParameterSources();
+    setMonthlySources(result.ok ? result.sources || [] : []);
   };
 
-  const activeSourceCount = useMemo(
-    () => monthlySources.filter((source) => source.is_active).length,
+  const trustedRows = useMemo(
+    () => TRUSTED_DEPRECIATION_SOURCES.map((trustedSource) => ({
+      trustedSource,
+      source: monthlySources.find((source) => sourceMatchesTrusted(source, trustedSource)),
+    })),
     [monthlySources],
   );
 
-  const latestRunErrors = parseRunErrors(latestRun);
-  const filteredActiveSnapshots = useMemo(
-    () => activeSnapshots.filter((snapshot) => matchesSnapshotFilters(snapshot, snapshotFilters, 'active')),
-    [activeSnapshots, snapshotFilters],
-  );
-  const filteredPendingSnapshots = useMemo(
-    () => pendingSnapshots.filter((snapshot) => matchesSnapshotFilters(snapshot, snapshotFilters, 'pending_review')),
-    [pendingSnapshots, snapshotFilters],
+  const suggestedSources = useMemo(
+    () => monthlySources.filter((source) => isSuggestedDepreciationSource(source)),
+    [monthlySources],
   );
 
   const handleChange = (category, field, value) => {
@@ -609,8 +381,6 @@ export default function Settings() {
       fieldName === 'depreciation_rate' ? 'percent' : 'decimal',
     );
 
-    // Aplicacao em Settings e campo a campo: nao recalcula o par taxa/vida util,
-    // pois cada campo pode ter snapshot mensal proprio e fonte diferente.
     setConfigs((previous) => ({
       ...previous,
       [category]: {
@@ -640,7 +410,7 @@ export default function Settings() {
       },
     });
 
-    toast.success('Sugestao aplicada ao padrao da categoria. Revise antes de salvar.');
+    toast.success('Sugestão aplicada ao padrão da categoria. Revise antes de salvar.');
   };
 
   const handleSave = async () => {
@@ -667,215 +437,84 @@ export default function Settings() {
     }
   };
 
-  const executeMonthlyRefresh = async (dryRun) => {
-    if (!canManageSources) {
-      toast.error('Você não tem permissão para atualizar parâmetros automáticos.');
-      return;
-    }
-
-    setMonthlyAction(dryRun ? 'dry_run' : 'refresh');
-    if (!dryRun) setSimulationResult(null);
-
-    const result = await refreshMonthlyParameters({
-      competence_month: currentCompetenceMonth(),
-      dry_run: dryRun,
-    });
-
-    setMonthlyAction('');
-
-    if (!result.ok) {
-      toast.error(result.error || 'Não foi possível atualizar a base mensal de parâmetros.');
-      return;
-    }
-
-    if (dryRun) {
-      setSimulationResult(result);
-      toast.success(result.summary || 'Simulação concluída.');
-      return;
-    }
-
-    toast.success(result.summary || 'Parâmetros automáticos atualizados.');
-    await loadMonthlyData();
-  };
-
-  const openCreateSourceDialog = () => {
-    setEditingSource(null);
-    setSourceForm(createEmptySourceForm());
-    setSourceDialogTestResult(null);
-    setSourceDialogOpen(true);
-  };
-
-  const applyPredefinedSource = (sourceId) => {
-    const selected = PREDEFINED_OFFICIAL_SOURCES.find((source) => source.id === sourceId);
-    if (!selected) return;
-    setEditingSource(null);
-    setSourceForm(predefinedSourceToForm(selected));
-    setSourceDialogTestResult(null);
-    toast.info('Fonte predefinida carregada. Revise antes de salvar.');
-  };
-
-  const openEditSourceDialog = (source) => {
-    setEditingSource(source);
-    setSourceForm(sourceToForm(source));
-    setSourceDialogTestResult(null);
-    setSourceDialogOpen(true);
-  };
-
-  const handleSourceSubmit = async () => {
-    setSourceSaving(true);
+  const handleCreateTrustedSource = async (trustedSource) => {
+    setSourceActionId(`create:${trustedSource.id}`);
     try {
-      const payload = buildSourcePayload(sourceForm);
-      const result = editingSource
-        ? await updateMonthlyParameterSource(editingSource.id, payload)
-        : await createMonthlyParameterSource(payload);
-
+      const result = await createMonthlyParameterSource(buildTrustedSourcePayload(trustedSource));
       if (!result.ok) {
-        toast.error(result.error || 'Não foi possível salvar a fonte mensal.');
+        toast.error(result.error || 'Não foi possível cadastrar a fonte.');
         return;
       }
-
-      toast.success(editingSource ? 'Fonte mensal atualizada.' : 'Fonte mensal criada.');
-      setSourceDialogOpen(false);
-      setEditingSource(null);
-      setSourceForm(createEmptySourceForm());
-      setSourceDialogTestResult(null);
-      await loadMonthlyData();
+      toast.success('Fonte cadastrada. Execute o teste antes de usar em produção.');
+      await loadMonthlySources();
     } finally {
-      setSourceSaving(false);
+      setSourceActionId('');
     }
   };
 
-  const handleDialogSourceTest = async () => {
-    setSourceDialogTestLoading(true);
-    try {
-      const payload = buildSourcePayload(sourceForm);
-      const result = await testMonthlyParameterSource({
-        id: editingSource?.id || '',
-        source: payload,
-        competence_month: currentCompetenceMonth(),
-      });
-
-      setSourceDialogTestResult(result);
-      if (result.ok) {
-        toast.success(result.summary || 'Fonte testada sem persistência.');
-        return;
-      }
-
-      toast.error(result.error || 'Não foi possível testar a fonte.');
-    } finally {
-      setSourceDialogTestLoading(false);
-    }
-  };
-
-  const handleRowSourceTest = async (source) => {
-    setSourceRowActionId(`test:${source.id}`);
+  const handleTestSource = async (source) => {
+    setSourceActionId(`test:${source.id}`);
     try {
       const result = await testMonthlyParameterSource({
         id: source.id,
         competence_month: currentCompetenceMonth(),
       });
-
-      setLastSourceTestResult({
-        ...result,
-        source_name: source.source_name,
-        source_id: source.id,
-      });
-
       if (result.ok) {
         toast.success(result.summary || 'Fonte testada sem persistência.');
         return;
       }
-
       toast.error(result.error || 'Não foi possível testar a fonte.');
     } finally {
-      setSourceRowActionId('');
+      setSourceActionId('');
     }
   };
 
-  const handleToggleSource = async (source) => {
-    setSourceRowActionId(`toggle:${source.id}`);
-    try {
-      const result = source.is_active
-        ? await deactivateMonthlyParameterSource(source.id)
-        : await reactivateMonthlyParameterSource(source.id);
+  const openSiteDialog = () => {
+    setSiteForm(createEmptySiteSuggestionForm());
+    setSiteTestResult(null);
+    setSiteDialogOpen(true);
+  };
 
+  const handleSaveSuggestedSite = async () => {
+    setSiteSaving(true);
+    try {
+      const payload = buildSuggestedSitePayload(siteForm);
+      const result = await createMonthlyParameterSource(payload);
       if (!result.ok) {
-        toast.error(result.error || 'Não foi possível alterar o status da fonte.');
+        toast.error(result.error || 'Não foi possível salvar o site sugerido.');
         return;
       }
 
-      toast.success(source.is_active ? 'Fonte mensal inativada.' : 'Fonte mensal reativada.');
-      await loadMonthlyData();
+      toast.success('Site sugerido salvo como fonte pendente. Nenhuma consulta foi executada automaticamente.');
+      setSiteDialogOpen(false);
+      setSiteForm(createEmptySiteSuggestionForm());
+      setSiteTestResult(null);
+      await loadMonthlySources();
+    } catch (error) {
+      toast.error(error?.message || 'Revise a URL e a configuração avançada.');
     } finally {
-      setSourceRowActionId('');
+      setSiteSaving(false);
     }
   };
 
-  const handleApproveSnapshot = async (snapshot) => {
-    setSnapshotActionId(`approve:${snapshot.id}`);
+  const handleTestSuggestedSite = async () => {
+    setSiteTestLoading(true);
     try {
-      const result = await approveMonthlyParameterSnapshot(snapshot.id);
-      if (!result.ok) {
-        toast.error(result.error || 'Nao foi possivel aprovar o snapshot.');
+      const payload = buildSuggestedSitePayload(siteForm);
+      const result = await testMonthlyParameterSource({
+        source: payload,
+        competence_month: currentCompetenceMonth(),
+      });
+      setSiteTestResult(result);
+      if (result.ok) {
+        toast.success(result.summary || 'Fonte testada sem persistência.');
         return;
       }
-
-      toast.success(result.message || 'Snapshot aprovado.');
-      await loadMonthlyData();
+      toast.error(result.error || 'Não foi possível testar o site sugerido.');
+    } catch (error) {
+      toast.error(error?.message || 'Revise a URL e a configuração avançada.');
     } finally {
-      setSnapshotActionId('');
-    }
-  };
-
-  const handleRejectSnapshot = async (snapshot) => {
-    setRejectSnapshot(snapshot);
-    setRejectReason('');
-    setRejectError('');
-  };
-
-  const handleConfirmRejectSnapshot = async () => {
-    if (!rejectSnapshot) return;
-    if (!rejectReason.trim()) {
-      setRejectError('Informe um motivo para rejeitar o snapshot.');
-      return;
-    }
-
-    setRejectLoading(true);
-    setSnapshotActionId(`reject:${rejectSnapshot.id}`);
-    try {
-      const result = await rejectMonthlyParameterSnapshot(rejectSnapshot.id, rejectReason.trim());
-      if (!result.ok) {
-        setRejectError(result.error || 'Nao foi possivel rejeitar o snapshot.');
-        return;
-      }
-
-      toast.success(result.message || 'Snapshot rejeitado.');
-      setRejectSnapshot(null);
-      setRejectReason('');
-      setRejectError('');
-      await loadMonthlyData();
-    } finally {
-      setRejectLoading(false);
-      setSnapshotActionId('');
-    }
-  };
-
-  const handleExpireSnapshot = async (snapshot) => {
-    const confirmed = window.confirm('Expirar este snapshot ativo? Ele deixara de ser usado pela Indicacao automatica.');
-    if (!confirmed) return;
-
-    setSnapshotActionId(`expire:${snapshot.id}`);
-    try {
-      const result = await expireMonthlyParameterSnapshot(snapshot.id);
-      if (!result.ok) {
-        toast.error(result.error || 'Nao foi possivel expirar o snapshot.');
-        return;
-      }
-
-      toast.success(result.message || 'Snapshot expirado.');
-      await loadMonthlyData();
-    } finally {
-      setSnapshotActionId('');
+      setSiteTestLoading(false);
     }
   };
 
@@ -898,7 +537,7 @@ export default function Settings() {
         </p>
 
         <p className="text-xs text-muted-foreground">
-          A IndicaÃ§Ã£o automÃ¡tica consulta a base mensal de parÃ¢metros para sugerir padrÃµes por categoria; ela nÃ£o aplica nada sem confirmaÃ§Ã£o.
+          A indicação automática consulta a base mensal de parâmetros para sugerir padrões por categoria; ela não aplica nada sem confirmação.
         </p>
 
         <div className="divide-y divide-border">
@@ -964,912 +603,290 @@ export default function Settings() {
       </div>
 
       {canManageSources && (
-      <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <Sparkles className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold text-card-foreground">Base mensal de parâmetros</h2>
+        <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-6">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <h2 className="text-lg font-semibold text-card-foreground">Fontes da IA para depreciação</h2>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                A IA consulta fontes confiáveis cadastradas para sugerir taxa anual e vida útil por categoria. Nada é aplicado sem confirmação.
+              </p>
             </div>
-            <p className="text-sm text-muted-foreground">
-              Governança das fontes, execuções mensais e snapshots usados pela IA e pela Indicação automática.
-            </p>
-            <p className="text-xs text-muted-foreground mt-2">
-              A permissão real é validada na function do backend. O bloqueio da interface é apenas apoio de UX.
-            </p>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              onClick={openCreateSourceDialog}
-            >
-              <Sparkles className="h-4 w-4" />
-              Usar fonte predefinida
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              onClick={openCreateSourceDialog}
-            >
+            <Button type="button" className="gap-2" onClick={openSiteDialog}>
               <Plus className="h-4 w-4" />
-              Nova fonte
+              Sugerir outro site para a IA
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              disabled={monthlyAction !== '' || !canManageSources}
-              onClick={() => executeMonthlyRefresh(true)}
-            >
-              <PlayCircle className="h-4 w-4" />
-              {monthlyAction === 'dry_run' ? 'Simulando...' : 'Simular atualização'}
-            </Button>
-            <Button
-              type="button"
-              className="gap-2"
-              disabled={monthlyAction !== '' || !canManageSources}
-              onClick={() => executeMonthlyRefresh(false)}
-            >
-              <RefreshCw className={`h-4 w-4 ${monthlyAction === 'refresh' ? 'animate-spin' : ''}`} />
-              {monthlyAction === 'refresh' ? 'Atualizando...' : 'Atualizar parâmetros agora'}
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-1 gap-3 border-y border-border py-4 sm:grid-cols-2 xl:grid-cols-5">
-          <div>
-            <p className="text-xs text-muted-foreground">Competência atual</p>
-            <p className="font-medium text-card-foreground">{formatDate(`${currentCompetenceMonth()}-01`)}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Última execução</p>
-            <p className="font-medium text-card-foreground">{latestRun ? formatDateTime(latestRun.started_at) : '-'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Status</p>
-            {latestRun ? (
-              <Badge variant={statusVariant(latestRun.status)}>{normalizeStatusLabel(latestRun.status)}</Badge>
-            ) : (
-              <p className="font-medium text-card-foreground">-</p>
-            )}
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Fontes ativas</p>
-            <p className="font-medium text-card-foreground">{canManageSources ? activeSourceCount : '-'}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Snapshots pendentes</p>
-            <p className="font-medium text-card-foreground">{pendingSnapshots.length}</p>
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <div>
-            <h3 className="font-semibold text-card-foreground">Última execução mensal</h3>
-            <p className="text-sm text-muted-foreground">
-              Resumo da última atualização persistida para este workspace.
-            </p>
-          </div>
-
-          {monthlyLoading ? (
-            <p className="text-sm text-muted-foreground">Carregando base mensal de parâmetros...</p>
-          ) : latestRun ? (
-            <div className="space-y-3">
-              <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
-                <div>
-                  <p className="text-xs text-muted-foreground">Competência</p>
-                  <p className="font-medium text-card-foreground">{latestRun.competence_month || '-'}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Criados</p>
-                  <p className="font-medium text-card-foreground">{latestRun.parameters_created ?? 0}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Atualizados</p>
-                  <p className="font-medium text-card-foreground">{latestRun.parameters_updated ?? 0}</p>
-                </div>
-                <div>
-                  <p className="text-xs text-muted-foreground">Inalterados</p>
-                  <p className="font-medium text-card-foreground">{latestRun.parameters_unchanged ?? 0}</p>
-                </div>
-              </div>
-
-              <div className="text-sm text-muted-foreground">
-                <p>{latestRun.summary || 'Sem resumo disponível.'}</p>
-                <p className="mt-1">Finalizada em {formatDateTime(latestRun.finished_at)}</p>
-              </div>
-
-              {latestRunErrors.length > 0 && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3">
-                  <p className="font-medium text-amber-900">Erros resumidos</p>
-                  <ul className="mt-2 list-disc space-y-1 pl-4 text-sm text-amber-900">
-                    {latestRunErrors.slice(0, 5).map((error, index) => (
-                      <li key={`run-error-${index}`}>
-                        {error?.source_name ? `${error.source_name}: ` : ''}
-                        {error?.message || 'Falha não detalhada.'}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">Nenhuma execução mensal encontrada para este workspace.</p>
-          )}
-
-          {simulationResult && (
-            <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
-              <p className="font-medium text-card-foreground">Última simulação</p>
-              <p className="text-muted-foreground mt-1">{simulationResult.summary || 'Simulação executada.'}</p>
-              <p className="text-muted-foreground mt-1">
-                Status: {normalizeStatusLabel(simulationResult.status)} | Persistiu dados: {simulationResult.persisted ? 'Sim' : 'Não'}
-              </p>
-              <p className="text-muted-foreground mt-1">
-                Criados: {simulationResult.parameters_created ?? 0} | Atualizados: {simulationResult.parameters_updated ?? 0} | Inalterados: {simulationResult.parameters_unchanged ?? 0}
-              </p>
-              {Array.isArray(simulationResult.errors) && simulationResult.errors.length > 0 && (
-                <ul className="mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
-                  {simulationResult.errors.slice(0, 5).map((error, index) => (
-                    <li key={`dry-run-error-${index}`}>
-                      {error?.source_name ? `${error.source_name}: ` : ''}
-                      {error?.message || 'Falha não detalhada.'}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-
-          {lastSourceTestResult && (
-            <div className={`rounded-lg border px-4 py-3 text-sm ${lastSourceTestResult.ok ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
-              <p className="font-medium text-card-foreground">
-                Último teste de fonte{lastSourceTestResult.source_name ? `: ${lastSourceTestResult.source_name}` : ''}
-              </p>
-              <p className="text-muted-foreground mt-1">{formatTestResultSummary(lastSourceTestResult)}</p>
-              {Array.isArray(lastSourceTestResult.preview) && lastSourceTestResult.preview.length > 0 && (
-                <ul className="mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
-                  {lastSourceTestResult.preview.map((item, index) => (
-                    <li key={`source-test-preview-${index}`}>
-                      {item.field_name}: {String(item.value)} {item.unit || ''}
-                    </li>
-                  ))}
-                </ul>
-              )}
-              {Array.isArray(lastSourceTestResult.errors) && lastSourceTestResult.errors.length > 0 && (
-                <ul className="mt-2 list-disc space-y-1 pl-4 text-amber-700">
-                  {lastSourceTestResult.errors.slice(0, 5).map((error, index) => (
-                    <li key={`source-test-error-${index}`}>
-                      Item {(error?.index ?? index) + 1}: {error?.message || 'Item rejeitado.'}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-3 border-t border-border pt-6">
-          <div>
-            <h3 className="font-semibold text-card-foreground">Gestão de fontes</h3>
-            <p className="text-sm text-muted-foreground">
-              Cadastro controlado das fontes usadas pela atualização mensal. Nunca informe chave secreta em claro; use apenas o nome do secret quando necessário.
-            </p>
           </div>
 
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Chave</TableHead>
-                <TableHead>Domínio</TableHead>
-                <TableHead>Fonte</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Prioridade</TableHead>
+                <TableHead>Fonte/site</TableHead>
+                <TableHead>Tipo de referência</TableHead>
+                <TableHead>Campos sugeridos</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Última consulta</TableHead>
                 <TableHead className="text-right">Ações</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {monthlySources.length > 0 ? monthlySources.map((source) => {
-                const isTesting = sourceRowActionId === `test:${source.id}`;
-                const isToggling = sourceRowActionId === `toggle:${source.id}`;
+              {trustedRows.map(({ trustedSource, source }) => {
+                const isCreating = sourceActionId === `create:${trustedSource.id}`;
+                const isTesting = sourceActionId === `test:${source?.id}`;
                 return (
-                  <TableRow key={source.id}>
-                    <TableCell className="font-medium">{source.parameter_key}</TableCell>
-                    <TableCell>{normalizeDomainLabel(source.domain)}</TableCell>
+                  <TableRow key={trustedSource.id}>
                     <TableCell>
-                      <div className="space-y-0.5">
-                        <p>{source.source_name}</p>
-                        <p className="text-xs text-muted-foreground break-all">{source.source_url || '-'}</p>
+                      <div className="space-y-1">
+                        <p className="font-medium text-card-foreground">{trustedSource.source_name}</p>
+                        <a
+                          href={trustedSource.source_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 break-all text-xs text-primary hover:underline"
+                        >
+                          {trustedSource.source_url}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                        <p className="text-xs text-muted-foreground">{trustedSource.observation}</p>
                       </div>
                     </TableCell>
-                    <TableCell>{normalizeSourceTypeLabel(source.source_type)}</TableCell>
-                    <TableCell>{source.priority ?? '-'}</TableCell>
+                    <TableCell>{trustedSource.reference_type}</TableCell>
+                    <TableCell>{trustedSource.suggested_fields}</TableCell>
                     <TableCell>
-                      <Badge variant={source.is_active ? 'secondary' : 'outline'}>
-                        {source.is_active ? 'Ativa' : 'Inativa'}
-                      </Badge>
+                      <Badge variant={source?.is_active ? 'secondary' : 'outline'}>{normalizeStatusLabel(source)}</Badge>
                     </TableCell>
+                    <TableCell>{formatDateTime(sourceLastSeen(source))}</TableCell>
                     <TableCell className="text-right">
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          className="gap-1.5"
-                          onClick={() => openEditSourceDialog(source)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" />
-                          Editar
-                        </Button>
+                      {source ? (
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
                           className="gap-1.5"
                           disabled={isTesting}
-                          onClick={() => handleRowSourceTest(source)}
+                          onClick={() => handleTestSource(source)}
                         >
                           <FlaskConical className={`h-3.5 w-3.5 ${isTesting ? 'animate-pulse' : ''}`} />
                           {isTesting ? 'Testando...' : 'Testar fonte'}
                         </Button>
+                      ) : (
                         <Button
                           type="button"
                           size="sm"
                           variant="outline"
-                          className="gap-1.5"
-                          disabled={isToggling}
-                          onClick={() => handleToggleSource(source)}
+                          disabled={isCreating}
+                          onClick={() => handleCreateTrustedSource(trustedSource)}
                         >
-                          {source.is_active ? <PowerOff className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5" />}
-                          {source.is_active ? 'Inativar' : 'Reativar'}
+                          {isCreating ? 'Cadastrando...' : 'Cadastrar'}
                         </Button>
-                      </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
-              }) : (
-                <TableRow>
-                  <TableCell colSpan={7} className="text-muted-foreground">
-                    Nenhuma fonte mensal cadastrada neste workspace.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
+              })}
 
-        <div className="space-y-4 border-t border-border pt-6">
-          <div>
-            <h3 className="font-semibold text-card-foreground">Filtros de snapshots</h3>
-            <p className="text-sm text-muted-foreground">
-              Refine a analise por competencia, dominio, status, campo, escopo/categoria e fonte.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <div>
-              <Label className="text-xs text-muted-foreground">Competencia</Label>
-              <Input
-                type="month"
-                value={snapshotFilters.competence_month}
-                onChange={(event) => setSnapshotFilters((previous) => ({ ...previous, competence_month: event.target.value }))}
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label className="text-xs text-muted-foreground">Dominio</Label>
-              <Select
-                value={snapshotFilters.domain}
-                onValueChange={(value) => setSnapshotFilters((previous) => ({ ...previous, domain: value }))}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos</SelectItem>
-                  {SOURCE_DOMAIN_OPTIONS.map((option) => (
-                    <SelectItem key={`snapshot-domain-${option.value}`} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label className="text-xs text-muted-foreground">Status</Label>
-              <Select
-                value={snapshotFilters.status}
-                onValueChange={(value) => setSnapshotFilters((previous) => ({ ...previous, status: value }))}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {SNAPSHOT_STATUS_FILTER_OPTIONS.map((option) => (
-                    <SelectItem key={`snapshot-status-${option.value}`} value={option.value}>
-                      {option.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label className="text-xs text-muted-foreground">Campo</Label>
-              <Input
-                value={snapshotFilters.field_name}
-                onChange={(event) => setSnapshotFilters((previous) => ({ ...previous, field_name: event.target.value }))}
-                placeholder="depreciation_rate"
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label className="text-xs text-muted-foreground">Categoria / escopo</Label>
-              <Input
-                value={snapshotFilters.scope_or_category}
-                onChange={(event) => setSnapshotFilters((previous) => ({ ...previous, scope_or_category: event.target.value }))}
-                placeholder="category:veiculos"
-                className="mt-1"
-              />
-            </div>
-
-            <div>
-              <Label className="text-xs text-muted-foreground">Fonte</Label>
-              <Input
-                value={snapshotFilters.source_name}
-                onChange={(event) => setSnapshotFilters((previous) => ({ ...previous, source_name: event.target.value }))}
-                placeholder="Nome da fonte"
-                className="mt-1"
-              />
-            </div>
-          </div>
-
-          <div className="flex justify-end">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setSnapshotFilters(createEmptySnapshotFilters())}
-            >
-              Limpar filtros
-            </Button>
-          </div>
-        </div>
-
-        <div className="space-y-3 border-t border-border pt-6">
-          <div>
-            <h3 className="font-semibold text-card-foreground">Snapshots ativos recentes</h3>
-            <p className="text-sm text-muted-foreground">
-              Base vigente usada nas sugestões automáticas e no contexto da IA.
-            </p>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Chave</TableHead>
-                <TableHead>Campo</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Fonte</TableHead>
-                <TableHead>Competência</TableHead>
-                <TableHead>Vigência</TableHead>
-                <TableHead>Confiança</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Acoes</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredActiveSnapshots.length > 0 ? filteredActiveSnapshots.map((snapshot) => {
-                const label = formatSnapshotDisplayValue(snapshot);
+              {suggestedSources.map((source) => {
+                const isTesting = sourceActionId === `test:${source.id}`;
+                const config = parseSourceConfig(source);
                 return (
-                  <TableRow key={snapshot.id}>
-                    <TableCell className="font-medium">{snapshot.parameter_key}</TableCell>
-                    <TableCell>{snapshot.field_name}</TableCell>
-                    <TableCell>{label}</TableCell>
-                    <TableCell>{snapshot.source_name || '-'}</TableCell>
-                    <TableCell>{snapshot.competence_month || '-'}</TableCell>
-                    <TableCell>{snapshot.effective_start_date ? formatDate(snapshot.effective_start_date) : '-'}</TableCell>
-                    <TableCell>{confidenceLabel(snapshot.confidence_level)}</TableCell>
+                  <TableRow key={source.id}>
                     <TableCell>
-                      <Badge variant={statusVariant(snapshot.status)}>{normalizeStatusLabel(snapshot.status)}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSnapshotDetail(snapshot)}
-                        >
-                          Ver detalhes
-                        </Button>
-                        {canManageSources ? (
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          disabled={snapshotActionId === `expire:${snapshot.id}`}
-                          onClick={() => handleExpireSnapshot(snapshot)}
-                        >
-                          {snapshotActionId === `expire:${snapshot.id}` ? 'Expirando...' : 'Expirar'}
-                        </Button>
+                      <div className="space-y-1">
+                        <p className="font-medium text-card-foreground">{source.source_name}</p>
+                        {source.source_url ? (
+                          <a
+                            href={source.source_url}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex items-center gap-1 break-all text-xs text-primary hover:underline"
+                          >
+                            {source.source_url}
+                            <ExternalLink className="h-3 w-3" />
+                          </a>
                         ) : null}
+                        <p className="text-xs text-muted-foreground">{source.notes || 'Site sugerido pelo administrador autorizado.'}</p>
                       </div>
+                    </TableCell>
+                    <TableCell>Site sugerido</TableCell>
+                    <TableCell>
+                      {(Array.isArray(config.expected_fields) ? config.expected_fields : []).join(', ') || 'Taxa anual e vida útil'}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={source.is_active ? 'secondary' : 'outline'}>{normalizeStatusLabel(source)}</Badge>
+                    </TableCell>
+                    <TableCell>{formatDateTime(sourceLastSeen(source))}</TableCell>
+                    <TableCell className="text-right">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        className="gap-1.5"
+                        disabled={isTesting}
+                        onClick={() => handleTestSource(source)}
+                      >
+                        <FlaskConical className={`h-3.5 w-3.5 ${isTesting ? 'animate-pulse' : ''}`} />
+                        {isTesting ? 'Testando...' : 'Testar fonte'}
+                      </Button>
                     </TableCell>
                   </TableRow>
                 );
-              }) : (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-muted-foreground">
-                    Nenhum snapshot ativo recente encontrado.
-                  </TableCell>
-                </TableRow>
-              )}
+              })}
             </TableBody>
           </Table>
         </div>
-
-        <div className="space-y-3 border-t border-border pt-6">
-          <div>
-            <h3 className="font-semibold text-card-foreground">Snapshots pendentes</h3>
-            <p className="text-sm text-muted-foreground">
-              Pendentes de revisao manual. Administradores podem aprovar ou rejeitar com motivo.
-            </p>
-            <p className="hidden">
-              Pendentes de revisão manual. Aprovação ou rejeição não foi habilitada nesta fase.
-            </p>
-          </div>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Chave</TableHead>
-                <TableHead>Campo</TableHead>
-                <TableHead>Valor</TableHead>
-                <TableHead>Fonte</TableHead>
-                <TableHead>Competência</TableHead>
-                <TableHead>Vigência</TableHead>
-                <TableHead>Confiança</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Acoes</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPendingSnapshots.length > 0 ? filteredPendingSnapshots.map((snapshot) => {
-                const label = formatSnapshotDisplayValue(snapshot);
-                return (
-                  <TableRow key={snapshot.id}>
-                    <TableCell className="font-medium">{snapshot.parameter_key}</TableCell>
-                    <TableCell>{snapshot.field_name}</TableCell>
-                    <TableCell>{label}</TableCell>
-                    <TableCell>{snapshot.source_name || '-'}</TableCell>
-                    <TableCell>{snapshot.competence_month || '-'}</TableCell>
-                    <TableCell>{snapshot.effective_start_date ? formatDate(snapshot.effective_start_date) : '-'}</TableCell>
-                    <TableCell>{confidenceLabel(snapshot.confidence_level)}</TableCell>
-                    <TableCell>
-                      <Badge variant={statusVariant(snapshot.status)}>{normalizeStatusLabel(snapshot.status)}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex flex-wrap justify-end gap-2">
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="outline"
-                          onClick={() => setSnapshotDetail(snapshot)}
-                        >
-                          Ver detalhes
-                        </Button>
-                        {canManageSources ? (
-                          <>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={snapshotActionId === `approve:${snapshot.id}` || snapshotActionId === `reject:${snapshot.id}`}
-                            onClick={() => handleApproveSnapshot(snapshot)}
-                          >
-                            {snapshotActionId === `approve:${snapshot.id}` ? 'Aprovando...' : 'Aprovar'}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={snapshotActionId === `approve:${snapshot.id}` || snapshotActionId === `reject:${snapshot.id}`}
-                            onClick={() => handleRejectSnapshot(snapshot)}
-                          >
-                            {snapshotActionId === `reject:${snapshot.id}` ? 'Rejeitando...' : 'Rejeitar'}
-                          </Button>
-                          </>
-                        ) : null}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              }) : (
-                <TableRow>
-                  <TableCell colSpan={9} className="text-muted-foreground">
-                    Nenhum snapshot pendente de revisão.
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </div>
-      </div>
       )}
 
       {canManageSources && (
-      <>
-      <Dialog open={!!snapshotDetail} onOpenChange={(open) => !open && setSnapshotDetail(null)}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Detalhes do snapshot</DialogTitle>
-            <DialogDescription>
-              Visualizacao segura do parametro mensal. A carga bruta nao e exibida nesta tela.
-            </DialogDescription>
-          </DialogHeader>
+        <Dialog open={siteDialogOpen} onOpenChange={setSiteDialogOpen}>
+          <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Sugerir outro site para a IA</DialogTitle>
+              <DialogDescription>
+                O site será cadastrado como fonte inativa para revisão. Nenhuma consulta, atualização ou aprovação roda automaticamente.
+              </DialogDescription>
+            </DialogHeader>
 
-          {snapshotDetail && (
-            <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
-              <div>
-                <p className="text-xs text-muted-foreground">Chave</p>
-                <p className="font-medium break-all">{snapshotDetail.parameter_key || '-'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Campo</p>
-                <p className="font-medium">{snapshotDetail.field_name || '-'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Valor formatado</p>
-                <p className="font-medium">{formatSnapshotDisplayValue(snapshotDetail)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Valor bruto</p>
-                <p className="font-mono text-xs break-all">{String(snapshotDetail.value ?? '-')}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Fonte</p>
-                <p className="font-medium">{snapshotDetail.source_name || '-'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">URL da fonte</p>
-                {snapshotDetail.source_url ? (
-                  <a href={snapshotDetail.source_url} target="_blank" rel="noreferrer" className="break-all text-primary hover:underline">
-                    {snapshotDetail.source_url}
-                  </a>
-                ) : (
-                  <p>-</p>
-                )}
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Competencia</p>
-                <p>{snapshotDetail.competence_month || '-'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Vigencia</p>
-                <p>
-                  {snapshotDetail.effective_start_date ? formatDate(snapshotDetail.effective_start_date) : '-'}
-                  {snapshotDetail.effective_end_date ? ` a ${formatDate(snapshotDetail.effective_end_date)}` : ''}
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Confianca</p>
-                <p>{confidenceLabel(snapshotDetail.confidence_level)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Status</p>
-                <Badge variant={statusVariant(snapshotDetail.status)}>{normalizeStatusLabel(snapshotDetail.status)}</Badge>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Aprovado por</p>
-                <p>{snapshotDetail.approved_by || '-'}</p>
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Aprovado em</p>
-                <p>{snapshotDetail.approved_at ? formatDateTime(snapshotDetail.approved_at) : '-'}</p>
-              </div>
-              <div className="md:col-span-2">
-                <p className="text-xs text-muted-foreground">Avisos</p>
-                {Array.isArray(snapshotDetail.warnings) && snapshotDetail.warnings.length > 0 ? (
-                  <ul className="mt-1 list-disc space-y-1 pl-4">
-                    {snapshotDetail.warnings.map((warning, index) => (
-                      <li key={`snapshot-detail-warning-${index}`}>{warning}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <p>-</p>
-                )}
-              </div>
-              <div className="md:col-span-2">
-                <p className="text-xs text-muted-foreground">Observacoes</p>
-                <p className="whitespace-pre-wrap">{snapshotDetail.notes || '-'}</p>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setSnapshotDetail(null)}>
-              Fechar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={!!rejectSnapshot}
-        onOpenChange={(open) => {
-          if (!open && !rejectLoading) {
-            setRejectSnapshot(null);
-            setRejectReason('');
-            setRejectError('');
-          }
-        }}
-      >
-        <DialogContent className="max-w-xl">
-          <DialogHeader>
-            <DialogTitle>Rejeitar snapshot</DialogTitle>
-            <DialogDescription>
-              Informe o motivo da rejeicao. O snapshot nao sera usado pela Indicacao automatica.
-            </DialogDescription>
-          </DialogHeader>
-
-          {rejectSnapshot && (
             <div className="space-y-4">
-              <div className="rounded-lg border border-border px-3 py-2 text-sm">
-                <p className="font-medium">{rejectSnapshot.parameter_key}</p>
-                <p className="text-muted-foreground">
-                  {rejectSnapshot.field_name} · {formatSnapshotDisplayValue(rejectSnapshot)} · {rejectSnapshot.competence_month}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Fonte: {rejectSnapshot.source_name || '-'}
-                </p>
-              </div>
-
               <div>
-                <Label>Motivo da rejeicao</Label>
-                <Textarea
-                  rows={4}
-                  value={rejectReason}
-                  onChange={(event) => {
-                    setRejectReason(event.target.value);
-                    setRejectError('');
-                  }}
-                  placeholder="Explique por que este snapshot nao deve ser aprovado."
-                />
-                {rejectError && <p className="mt-2 text-sm text-destructive">{rejectError}</p>}
-              </div>
-            </div>
-          )}
-
-          <DialogFooter className="gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={rejectLoading}
-              onClick={() => {
-                setRejectSnapshot(null);
-                setRejectReason('');
-                setRejectError('');
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="button"
-              disabled={rejectLoading}
-              onClick={handleConfirmRejectSnapshot}
-            >
-              {rejectLoading ? 'Rejeitando...' : 'Rejeitar'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog open={sourceDialogOpen} onOpenChange={setSourceDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingSource ? 'Editar fonte mensal' : 'Nova fonte mensal'}</DialogTitle>
-            <DialogDescription>
-              Cadastre apenas referências controladas. Para fontes do tipo API, informe somente o nome do secret.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {!editingSource && (
-              <div className="rounded-lg border border-border px-3 py-3">
-                <Label>Usar fonte predefinida</Label>
-                <Select onValueChange={applyPredefinedSource}>
-                  <SelectTrigger className="mt-2">
-                    <SelectValue placeholder="Selecionar modelo oficial" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {PREDEFINED_OFFICIAL_SOURCES.map((source) => (
-                      <SelectItem key={source.id} value={source.id}>
-                        {source.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <p className="mt-2 text-xs text-muted-foreground">
-                  O modelo apenas preenche o formulario. Revise os campos e clique em salvar para cadastrar.
-                </p>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <Label>Chave do parâmetro</Label>
+                <Label>URL do site</Label>
                 <Input
-                  value={sourceForm.parameter_key}
-                  onChange={(event) => setSourceForm((previous) => ({ ...previous, parameter_key: event.target.value }))}
-                  placeholder="depreciation_rate"
-                />
-              </div>
-
-              <div>
-                <Label>Nome da fonte</Label>
-                <Input
-                  value={sourceForm.source_name}
-                  onChange={(event) => setSourceForm((previous) => ({ ...previous, source_name: event.target.value }))}
-                  placeholder="Tabela societária padrão"
-                />
-              </div>
-
-              <div>
-                <Label>Domínio</Label>
-                <Select
-                  value={sourceForm.domain}
-                  onValueChange={(value) => setSourceForm((previous) => ({ ...previous, domain: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SOURCE_DOMAIN_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>Tipo de fonte</Label>
-                <Select
-                  value={sourceForm.source_type}
-                  onValueChange={(value) => setSourceForm((previous) => ({ ...previous, source_type: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {SOURCE_TYPE_OPTIONS.map((option) => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label>URL da fonte</Label>
-                <Input
-                  value={sourceForm.source_url}
-                  onChange={(event) => setSourceForm((previous) => ({ ...previous, source_url: event.target.value }))}
+                  value={siteForm.source_url}
+                  onChange={(event) => setSiteForm((previous) => ({
+                    ...previous,
+                    source_url: event.target.value,
+                    parser_config_json: '',
+                  }))}
                   placeholder="https://..."
                 />
               </div>
 
               <div>
-                <Label>Prioridade</Label>
-                <Input
-                  type="number"
-                  min="1"
-                  step="1"
-                  value={sourceForm.priority}
-                  onChange={(event) => setSourceForm((previous) => ({ ...previous, priority: event.target.value }))}
+                <Label>Descrição do que a IA deve procurar</Label>
+                <Textarea
+                  rows={3}
+                  value={siteForm.description}
+                  onChange={(event) => setSiteForm((previous) => ({
+                    ...previous,
+                    description: event.target.value,
+                    parser_config_json: '',
+                  }))}
+                  placeholder="Ex.: procurar referências sobre vida útil econômica de veículos ou taxa anual de depreciação por categoria."
                 />
               </div>
-            </div>
 
-            <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2">
-              <div>
-                <p className="text-sm font-medium text-card-foreground">Fonte ativa</p>
-                <p className="text-xs text-muted-foreground">
-                  A rotina mensal e a IA usam apenas fontes cadastradas e ativas.
-                </p>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div>
+                  <Label>Campo relacionado</Label>
+                  <Select
+                    value={siteForm.related_field}
+                    onValueChange={(value) => setSiteForm((previous) => ({
+                      ...previous,
+                      related_field: value,
+                      parser_config_json: '',
+                    }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUGGESTION_FIELDS.map((field) => (
+                        <SelectItem key={field.value} value={field.value}>
+                          {field.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
+                  <Label>Categoria relacionada</Label>
+                  <Select
+                    value={siteForm.related_category}
+                    onValueChange={(value) => setSiteForm((previous) => ({
+                      ...previous,
+                      related_category: value,
+                      parser_config_json: '',
+                    }))}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUGGESTION_CATEGORIES.map((category) => (
+                        <SelectItem key={category.value} value={category.value}>
+                          {category.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
-              <Switch
-                checked={sourceForm.is_active}
-                onCheckedChange={(checked) => setSourceForm((previous) => ({ ...previous, is_active: checked }))}
-              />
-            </div>
 
-            <div>
-              <Label>Configuração do parser (JSON)</Label>
-              <Textarea
-                rows={10}
-                value={sourceForm.parser_config_json}
-                onChange={(event) => setSourceForm((previous) => ({ ...previous, parser_config_json: event.target.value }))}
-                placeholder={sourceParserPlaceholder(sourceForm.source_type)}
-              />
-              <p className="mt-2 text-xs text-muted-foreground">
-                Não informe token, senha ou API key em claro. Use apenas nomes de secret, como <span className="font-mono">FIPE_API_KEY</span>.
-              </p>
-              {sourceForm.source_type === 'official_page' && (
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Paginas oficiais usam apenas a URL cadastrada e o allowed_domain informado. A IA nao pesquisa fora da pagina e os snapshots ficam pendentes de revisao.
-                </p>
+              <details className="rounded-lg border border-border px-3 py-2">
+                <summary className="cursor-pointer text-sm font-medium text-card-foreground">
+                  Configuração avançada
+                </summary>
+                <div className="mt-3">
+                  <Label>Parser config JSON</Label>
+                  <Textarea
+                    rows={10}
+                    value={siteForm.parser_config_json}
+                    onChange={(event) => setSiteForm((previous) => ({
+                      ...previous,
+                      parser_config_json: event.target.value,
+                    }))}
+                    placeholder="Gerado automaticamente a partir dos campos acima."
+                  />
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    Use apenas URL cadastrada e domínio permitido. Não informe tokens, senhas ou API keys.
+                  </p>
+                </div>
+              </details>
+
+              {siteTestResult && (
+                <div className={`rounded-lg border px-4 py-3 text-sm ${siteTestResult.ok ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+                  <p className="font-medium text-card-foreground">Resultado do teste</p>
+                  <p className="mt-1 text-muted-foreground">
+                    {siteTestResult.summary || siteTestResult.error || 'Teste concluído.'}
+                  </p>
+                  {Array.isArray(siteTestResult.errors) && siteTestResult.errors.length > 0 && (
+                    <ul className="mt-2 list-disc space-y-1 pl-4 text-amber-700">
+                      {siteTestResult.errors.slice(0, 5).map((error, index) => (
+                        <li key={`site-test-error-${index}`}>
+                          Item {(error?.index ?? index) + 1}: {error?.message || 'Item rejeitado.'}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
               )}
             </div>
 
-            <div>
-              <Label>Observações</Label>
-              <Textarea
-                rows={3}
-                value={sourceForm.notes}
-                onChange={(event) => setSourceForm((previous) => ({ ...previous, notes: event.target.value }))}
-                placeholder="Escopo, vigência, origem interna ou cuidados operacionais."
-              />
-            </div>
-
-            {sourceDialogTestResult && (
-              <div className={`rounded-lg border px-4 py-3 text-sm ${sourceDialogTestResult.ok ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
-                <p className="font-medium text-card-foreground">Resultado do teste</p>
-                <p className="text-muted-foreground mt-1">{formatTestResultSummary(sourceDialogTestResult)}</p>
-                {Array.isArray(sourceDialogTestResult.preview) && sourceDialogTestResult.preview.length > 0 && (
-                  <ul className="mt-2 list-disc space-y-1 pl-4 text-muted-foreground">
-                    {sourceDialogTestResult.preview.map((item, index) => (
-                      <li key={`dialog-source-preview-${index}`}>
-                        {item.field_name}: {String(item.value)} {item.unit || ''}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {Array.isArray(sourceDialogTestResult.errors) && sourceDialogTestResult.errors.length > 0 && (
-                  <ul className="mt-2 list-disc space-y-1 pl-4 text-amber-700">
-                    {sourceDialogTestResult.errors.slice(0, 5).map((error, index) => (
-                      <li key={`dialog-source-error-${index}`}>
-                        Item {(error?.index ?? index) + 1}: {error?.message || 'Item rejeitado.'}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="gap-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="gap-2"
-              disabled={sourceSaving || sourceDialogTestLoading}
-              onClick={handleDialogSourceTest}
-            >
-              <FlaskConical className="h-4 w-4" />
-              {sourceDialogTestLoading ? 'Testando...' : 'Testar fonte'}
-            </Button>
-            <Button
-              type="button"
-              className="gap-2"
-              disabled={sourceSaving || sourceDialogTestLoading}
-              onClick={handleSourceSubmit}
-            >
-              <Save className="h-4 w-4" />
-              {sourceSaving ? 'Salvando...' : editingSource ? 'Salvar alterações' : 'Criar fonte'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      </>
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="gap-2"
+                disabled={siteSaving || siteTestLoading}
+                onClick={handleTestSuggestedSite}
+              >
+                <FlaskConical className="h-4 w-4" />
+                {siteTestLoading ? 'Testando...' : 'Testar sem salvar'}
+              </Button>
+              <Button
+                type="button"
+                className="gap-2"
+                disabled={siteSaving || siteTestLoading}
+                onClick={handleSaveSuggestedSite}
+              >
+                <Save className="h-4 w-4" />
+                {siteSaving ? 'Salvando...' : 'Salvar site sugerido'}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
     </div>
   );
