@@ -543,15 +543,24 @@ export default function Settings() {
   }, [canManageSources]);
 
   const loadMonthlyData = async () => {
+    if (!canManageSources) {
+      setMonthlyLoading(false);
+      setLatestRun(null);
+      setMonthlySources([]);
+      setActiveSnapshots([]);
+      setPendingSnapshots([]);
+      setSimulationResult(null);
+      setLastSourceTestResult(null);
+      return;
+    }
+
     setMonthlyLoading(true);
     try {
       const [runs, active, pending, sourcesResult] = await Promise.all([
         RunEntity.list('-started_at', 10).catch(() => []),
         SnapshotEntity.filter({ status: 'active' }, '-retrieved_at', 25).catch(() => []),
         SnapshotEntity.filter({ status: 'pending_review' }, '-retrieved_at', 25).catch(() => []),
-        canManageSources
-          ? listMonthlyParameterSources().catch(() => ({ ok: false, sources: [] }))
-          : Promise.resolve({ ok: true, sources: [] }),
+        listMonthlyParameterSources().catch(() => ({ ok: false, sources: [] })),
       ]);
 
       const sortedRuns = [...runs].sort((a, b) => String(b.started_at || '').localeCompare(String(a.started_at || '')));
@@ -954,6 +963,7 @@ export default function Settings() {
         </div>
       </div>
 
+      {canManageSources && (
       <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -964,39 +974,30 @@ export default function Settings() {
             <p className="text-sm text-muted-foreground">
               Governança das fontes, execuções mensais e snapshots usados pela IA e pela Indicação automática.
             </p>
-            {!canManageSources && (
-              <p className="text-xs text-muted-foreground mt-2">
-                A atualização manual e a gestão detalhada das fontes estão disponíveis apenas para administrador da plataforma.
-              </p>
-            )}
             <p className="text-xs text-muted-foreground mt-2">
               A permissão real é validada na function do backend. O bloqueio da interface é apenas apoio de UX.
             </p>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {canManageSources && (
-              <>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="gap-2"
-                  onClick={openCreateSourceDialog}
-                >
-                  <Sparkles className="h-4 w-4" />
-                  Usar fonte predefinida
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="gap-2"
-                  onClick={openCreateSourceDialog}
-                >
-                  <Plus className="h-4 w-4" />
-                  Nova fonte
-                </Button>
-              </>
-            )}
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={openCreateSourceDialog}
+            >
+              <Sparkles className="h-4 w-4" />
+              Usar fonte predefinida
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={openCreateSourceDialog}
+            >
+              <Plus className="h-4 w-4" />
+              Nova fonte
+            </Button>
             <Button
               type="button"
               variant="outline"
@@ -1159,92 +1160,86 @@ export default function Settings() {
             </p>
           </div>
 
-          {canManageSources ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Chave</TableHead>
-                  <TableHead>Domínio</TableHead>
-                  <TableHead>Fonte</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead>Prioridade</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Ações</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {monthlySources.length > 0 ? monthlySources.map((source) => {
-                  const isTesting = sourceRowActionId === `test:${source.id}`;
-                  const isToggling = sourceRowActionId === `toggle:${source.id}`;
-                  return (
-                    <TableRow key={source.id}>
-                      <TableCell className="font-medium">{source.parameter_key}</TableCell>
-                      <TableCell>{normalizeDomainLabel(source.domain)}</TableCell>
-                      <TableCell>
-                        <div className="space-y-0.5">
-                          <p>{source.source_name}</p>
-                          <p className="text-xs text-muted-foreground break-all">{source.source_url || '-'}</p>
-                        </div>
-                      </TableCell>
-                      <TableCell>{normalizeSourceTypeLabel(source.source_type)}</TableCell>
-                      <TableCell>{source.priority ?? '-'}</TableCell>
-                      <TableCell>
-                        <Badge variant={source.is_active ? 'secondary' : 'outline'}>
-                          {source.is_active ? 'Ativa' : 'Inativa'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex flex-wrap justify-end gap-2">
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5"
-                            onClick={() => openEditSourceDialog(source)}
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                            Editar
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5"
-                            disabled={isTesting}
-                            onClick={() => handleRowSourceTest(source)}
-                          >
-                            <FlaskConical className={`h-3.5 w-3.5 ${isTesting ? 'animate-pulse' : ''}`} />
-                            {isTesting ? 'Testando...' : 'Testar fonte'}
-                          </Button>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            className="gap-1.5"
-                            disabled={isToggling}
-                            onClick={() => handleToggleSource(source)}
-                          >
-                            {source.is_active ? <PowerOff className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5" />}
-                            {source.is_active ? 'Inativar' : 'Reativar'}
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  );
-                }) : (
-                  <TableRow>
-                    <TableCell colSpan={7} className="text-muted-foreground">
-                      Nenhuma fonte mensal cadastrada neste workspace.
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Chave</TableHead>
+                <TableHead>Domínio</TableHead>
+                <TableHead>Fonte</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Prioridade</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Ações</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {monthlySources.length > 0 ? monthlySources.map((source) => {
+                const isTesting = sourceRowActionId === `test:${source.id}`;
+                const isToggling = sourceRowActionId === `toggle:${source.id}`;
+                return (
+                  <TableRow key={source.id}>
+                    <TableCell className="font-medium">{source.parameter_key}</TableCell>
+                    <TableCell>{normalizeDomainLabel(source.domain)}</TableCell>
+                    <TableCell>
+                      <div className="space-y-0.5">
+                        <p>{source.source_name}</p>
+                        <p className="text-xs text-muted-foreground break-all">{source.source_url || '-'}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell>{normalizeSourceTypeLabel(source.source_type)}</TableCell>
+                    <TableCell>{source.priority ?? '-'}</TableCell>
+                    <TableCell>
+                      <Badge variant={source.is_active ? 'secondary' : 'outline'}>
+                        {source.is_active ? 'Ativa' : 'Inativa'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          onClick={() => openEditSourceDialog(source)}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Editar
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          disabled={isTesting}
+                          onClick={() => handleRowSourceTest(source)}
+                        >
+                          <FlaskConical className={`h-3.5 w-3.5 ${isTesting ? 'animate-pulse' : ''}`} />
+                          {isTesting ? 'Testando...' : 'Testar fonte'}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          className="gap-1.5"
+                          disabled={isToggling}
+                          onClick={() => handleToggleSource(source)}
+                        >
+                          {source.is_active ? <PowerOff className="h-3.5 w-3.5" /> : <Power className="h-3.5 w-3.5" />}
+                          {source.is_active ? 'Inativar' : 'Reativar'}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          ) : (
-            <div className="rounded-lg border border-dashed border-border px-4 py-3 text-sm text-muted-foreground">
-              As fontes mensais são tratadas como dado sensível. Somente administrador da plataforma pode visualizar, cadastrar ou testar esse catálogo.
-            </div>
-          )}
+                );
+              }) : (
+                <TableRow>
+                  <TableCell colSpan={7} className="text-muted-foreground">
+                    Nenhuma fonte mensal cadastrada neste workspace.
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
         </div>
 
         <div className="space-y-4 border-t border-border pt-6">
@@ -1506,7 +1501,10 @@ export default function Settings() {
           </Table>
         </div>
       </div>
+      )}
 
+      {canManageSources && (
+      <>
       <Dialog open={!!snapshotDetail} onOpenChange={(open) => !open && setSnapshotDetail(null)}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
@@ -1871,6 +1869,8 @@ export default function Settings() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      </>
+      )}
     </div>
   );
 }
