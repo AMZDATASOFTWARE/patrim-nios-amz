@@ -89,7 +89,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "role": "admin"
+            "is_platform_admin": true
           }
         }
       }
@@ -100,7 +100,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "role": "admin"
+            "is_platform_admin": true
           }
         }
       }
@@ -111,7 +111,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "role": "admin"
+            "is_platform_admin": true
           }
         }
       }
@@ -123,7 +123,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "role": "admin"
+            "is_platform_admin": true
           }
         }
       }
@@ -134,7 +134,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "role": "admin"
+            "is_platform_admin": true
           }
         }
       }
@@ -145,7 +145,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "role": "admin"
+            "is_platform_admin": true
           }
         }
       }
@@ -160,7 +160,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "role": "admin"
+            "is_platform_admin": true
           }
         }
       }

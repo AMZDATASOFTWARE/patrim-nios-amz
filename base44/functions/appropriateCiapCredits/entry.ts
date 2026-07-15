@@ -25,40 +25,6 @@ function currentCompetence(): string {
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}`;
 }
 
-async function findCiapCoefficientReferences(svc: any, competence: string, workspaceIds: string[]) {
-  const uniqueWorkspaceIds = Array.from(new Set(workspaceIds.filter(Boolean)));
-  const references = [];
-
-  for (const workspaceId of uniqueWorkspaceIds) {
-    const rows = await svc.entities.MonthlyParameterSnapshot.filter(
-      {
-        workspace_id: workspaceId,
-        competence_month: competence,
-      },
-      '-created_date',
-      100,
-    );
-    const coefficient = rows.find((row: any) => (
-      String(row.status || '') === 'active' &&
-      String(row.domain || '') === 'ciap' &&
-      String(row.field_name || '') === 'ciap_credit_coefficient'
-    ));
-
-    if (coefficient) {
-      references.push({
-        workspace_id: workspaceId,
-        snapshot_id: coefficient.id || '',
-        value: coefficient.value,
-        unit: coefficient.unit || '',
-        source_name: coefficient.source_name || '',
-        competence_month: coefficient.competence_month || competence,
-      });
-    }
-  }
-
-  return references;
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   const json = (body: unknown, status = 200) => Response.json(body, { status, headers: cors });
@@ -94,17 +60,6 @@ Deno.serve(async (req) => {
     let appropriated = 0;
     let skipped = 0;
     let concluded = 0;
-    const coefficientReferences = await findCiapCoefficientReferences(
-      svc,
-      competence,
-      credits.map((c: any) => c.workspace_id),
-    );
-    const warnings = [
-      'Apropriacao CIAP ainda usa calculo simplificado 1/48. Coeficiente mensal e retornado apenas como referencia nesta fase.',
-    ];
-    if (coefficientReferences.length === 0) {
-      warnings.push('Nenhum snapshot active de ciap_credit_coefficient encontrado para a competencia.');
-    }
 
     for (const c of credits) {
       const total = Number(c.installments_total) || 48;
@@ -142,17 +97,7 @@ Deno.serve(async (req) => {
       } catch (_) { skipped++; }
     }
 
-    return json({
-      ok: true,
-      dry_run: dryRun,
-      competence,
-      candidates: credits.length,
-      appropriated,
-      concluded,
-      skipped,
-      coefficient_references: coefficientReferences,
-      warnings,
-    });
+    return json({ ok: true, dry_run: dryRun, competence, candidates: credits.length, appropriated, concluded, skipped });
   } catch (_) {
     return json({ error: 'Nao foi possivel apropriar os creditos CIAP.' }, 500);
   }
