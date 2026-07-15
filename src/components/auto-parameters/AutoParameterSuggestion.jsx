@@ -100,6 +100,7 @@ function basisDescription(domain) {
 function shouldShowLowInformationWarning(suggestion) {
   return (
     suggestion?.confidence_level === 'low' ||
+    !!suggestion?.warning ||
     !suggestion?.source_name ||
     (Array.isArray(suggestion?.warnings) && suggestion.warnings.length > 0)
   );
@@ -139,14 +140,10 @@ export default function AutoParameterSuggestion({
 
   const contextKey = useMemo(() => JSON.stringify({
     entity_type: entityType || 'Asset',
-    category: context?.category || '',
-    asset_type: context?.asset_type || '',
-    uf: context?.uf || '',
-    regime_fiscal: context?.regime_fiscal || '',
-    scope_key: context?.scope_key || '',
-    parameter_key: context?.parameter_key || '',
-    asset_description: context?.asset_description || context?.description || '',
-  }), [context, entityType]);
+    field_name: fieldName,
+    domain,
+    context: context || {},
+  }), [context, domain, entityType, fieldName]);
 
   useEffect(() => {
     setStatus('idle');
@@ -366,6 +363,8 @@ export default function AutoParameterSuggestion({
                         <li key={`${fieldName}-warning-${index}`}>{warning}</li>
                       ))}
                     </ul>
+                  ) : suggestion.warning ? (
+                    <p className="mt-1">{suggestion.warning}</p>
                   ) : (
                     <p className="mt-1">
                       Há pouca informação de apoio para esta sugestão. Confirme os dados do bem e a política contábil antes de aplicar.

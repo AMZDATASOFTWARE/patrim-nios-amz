@@ -1,7 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/lib/AuthContext';
-import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
-import AutoParameterSuggestion from '@/components/auto-parameters/AutoParameterSuggestion';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -36,7 +34,6 @@ import {
   Plus,
   Save,
   Sparkles,
-  TrendingDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -44,24 +41,17 @@ import {
   createMonthlyParameterSource,
   currentCompetenceMonth,
   listMonthlyParameterSources,
-  normalizeParameterValue,
   testMonthlyParameterSource,
 } from '@/lib/autoParameters';
-import { logAudit } from '@/lib/audit';
 
-const DEFAULT_RATES = {
-  'Imóveis': { depreciation_rate: 4, useful_life_years: 25 },
-  'Veículos': { depreciation_rate: 20, useful_life_years: 5 },
-  Equipamentos: { depreciation_rate: 10, useful_life_years: 10 },
-  Investimentos: { depreciation_rate: 0, useful_life_years: 0 },
-  Intangíveis: { depreciation_rate: 20, useful_life_years: 5 },
-};
-
-const CATEGORIES = Object.keys(DEFAULT_RATES);
+const CATEGORIES = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
 
 const SUGGESTION_FIELDS = [
-  { value: 'depreciation_rate', label: 'Taxa anual' },
-  { value: 'useful_life_years', label: 'Vida útil' },
+  { value: 'depreciation_rate', label: 'Taxa anual societária/gerencial' },
+  { value: 'useful_life_years', label: 'Vida útil societária/gerencial' },
+  { value: 'fiscal_depreciation_rate', label: 'Taxa fiscal anual' },
+  { value: 'fiscal_useful_life_years', label: 'Vida útil fiscal' },
+  { value: 'residual_value', label: 'Valor residual' },
   { value: 'both', label: 'Ambos' },
 ];
 
@@ -161,21 +151,23 @@ function parserConfigForTrustedSource(source) {
     allowed_domain: source.allowed_domain || hostFromUrl(source.source_url),
     parameter_key: source.parameter_key,
     domain: 'depreciation',
-    entity_type: 'DepreciationConfig',
+    entity_type: 'Asset',
     field_name: 'depreciation_rate',
     scope_key: `policy:${source.id}`,
     extraction_mode: 'suggestion',
-    expected_fields: ['depreciation_rate', 'useful_life_years'],
+    expected_fields: ['depreciation_rate', 'useful_life_years', 'fiscal_depreciation_rate', 'fiscal_useful_life_years', 'residual_value'],
     allowed_categories: CATEGORIES,
     confidence_level: 'medium',
     requires_manual_review: true,
     default_snapshot_status: 'pending_review',
     output_schema: {
       category: 'string',
-      field_name: 'depreciation_rate | useful_life_years',
+      field_name: 'depreciation_rate | useful_life_years | fiscal_depreciation_rate | fiscal_useful_life_years | residual_value',
+      basis: 'societaria_gerencial | fiscal',
+      identified_classification: 'string',
       suggested_value: 'number',
-      value_type: 'percent | decimal',
-      unit: '% | anos',
+      value_type: 'percent | decimal | currency',
+      unit: '% | anos | R$',
       source_name: 'string',
       source_url: 'string',
       reason: 'string',
@@ -214,7 +206,7 @@ function buildSuggestedSiteParserConfig(form) {
     allowed_domain: hostFromUrl(url),
     parameter_key: `depreciation.suggested.${hostFromUrl(url) || 'site'}`,
     domain: 'depreciation',
-    entity_type: 'DepreciationConfig',
+    entity_type: 'Asset',
     field_name: requestedFields[0],
     scope_key: relatedCategory === 'all' ? 'category:all' : buildCategoryScopeKey(relatedCategory),
     extraction_mode: 'suggestion',
@@ -225,17 +217,19 @@ function buildSuggestedSiteParserConfig(form) {
     default_snapshot_status: 'pending_review',
     output_schema: {
       category: 'string',
-      field_name: 'depreciation_rate | useful_life_years',
+      field_name: 'depreciation_rate | useful_life_years | fiscal_depreciation_rate | fiscal_useful_life_years | residual_value',
+      basis: 'societaria_gerencial | fiscal',
+      identified_classification: 'string',
       suggested_value: 'number',
-      value_type: 'percent | decimal',
-      unit: '% | anos',
+      value_type: 'percent | decimal | currency',
+      unit: '% | anos | R$',
       source_name: 'string',
       source_url: 'string',
       reason: 'string',
       confidence_level: 'low | medium',
       warnings: ['string'],
     },
-    prompt: form.description.trim() || 'Identifique referências para taxa anual e vida útil por categoria. Não invente valores.',
+    prompt: form.description.trim() || 'Identifique referências para taxa anual, vida útil, parâmetros fiscais ou valor residual conforme o ativo descrito. Não invente valores.',
   };
 }
 
@@ -277,15 +271,12 @@ function isSuggestedDepreciationSource(source) {
   return (
     source.source_type === 'official_page' &&
     source.domain === 'depreciation' &&
-    config.entity_type === 'DepreciationConfig' &&
+    config.entity_type === 'Asset' &&
     !TRUSTED_DEPRECIATION_SOURCES.some((trustedSource) => sourceMatchesTrusted(source, trustedSource))
   );
 }
 
 export default function Settings() {
-  const [configs, setConfigs] = useState({});
-  const [records, setRecords] = useState({});
-  const [saving, setSaving] = useState(false);
   const [monthlySources, setMonthlySources] = useState([]);
   const [sourceActionId, setSourceActionId] = useState('');
   const [siteDialogOpen, setSiteDialogOpen] = useState(false);
@@ -295,30 +286,7 @@ export default function Settings() {
   const [siteTestLoading, setSiteTestLoading] = useState(false);
 
   const { user } = useAuth();
-  const ConfigEntity = useWorkspaceEntity('DepreciationConfig');
   const canManageSources = canManageMonthlyParameters(user);
-
-  useEffect(() => {
-    ConfigEntity.list().then((data) => {
-      const map = {};
-      const recMap = {};
-      data.forEach((record) => {
-        map[record.category] = {
-          depreciation_rate: record.depreciation_rate,
-          useful_life_years: record.useful_life_years,
-        };
-        recMap[record.category] = record.id;
-      });
-
-      const initial = {};
-      CATEGORIES.forEach((category) => {
-        initial[category] = map[category] || { ...DEFAULT_RATES[category] };
-      });
-
-      setConfigs(initial);
-      setRecords(recMap);
-    });
-  }, [ConfigEntity]);
 
   useEffect(() => {
     loadMonthlySources();
@@ -359,83 +327,6 @@ export default function Settings() {
     () => monthlySources.filter((source) => isSuggestedDepreciationSource(source)),
     [monthlySources],
   );
-
-  const handleChange = (category, field, value) => {
-    const numberValue = parseFloat(value) || 0;
-    setConfigs((previous) => {
-      const updated = { ...previous[category], [field]: numberValue };
-      if (field === 'depreciation_rate') {
-        updated.useful_life_years = numberValue > 0 ? parseFloat((100 / numberValue).toFixed(1)) : 0;
-      }
-      if (field === 'useful_life_years') {
-        updated.depreciation_rate = numberValue > 0 ? parseFloat((100 / numberValue).toFixed(1)) : 0;
-      }
-      return { ...previous, [category]: updated };
-    });
-  };
-
-  const handleApplyConfigAutoSuggestion = async (category, fieldName, suggestion) => {
-    const previousValue = configs[category]?.[fieldName] ?? '';
-    const nextValue = normalizeParameterValue(
-      suggestion?.value,
-      fieldName === 'depreciation_rate' ? 'percent' : 'decimal',
-    );
-
-    setConfigs((previous) => ({
-      ...previous,
-      [category]: {
-        ...previous[category],
-        [fieldName]: nextValue,
-      },
-    }));
-
-    await logAudit({
-      action: 'updated',
-      entity_type: 'DepreciationConfig',
-      entity_id: records[category] || '',
-      entity_label: category,
-      summary: `Aplicou indicacao automatica padrao em "${fieldName}" para a categoria "${category}"`,
-      old_data: {
-        category,
-        field_name: fieldName,
-        previous_value: previousValue,
-      },
-      new_data: {
-        category,
-        field_name: fieldName,
-        suggested_value: nextValue,
-        source_name: suggestion?.source_name || '',
-        snapshot_id: suggestion?.snapshot_id || '',
-        competence_month: suggestion?.competence_month || '',
-      },
-    });
-
-    toast.success('Sugestão aplicada ao padrão da categoria. Revise antes de salvar.');
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      for (const category of CATEGORIES) {
-        const data = {
-          category,
-          depreciation_rate: configs[category].depreciation_rate,
-          useful_life_years: configs[category].useful_life_years,
-        };
-
-        if (records[category]) {
-          await ConfigEntity.update(records[category], data);
-        } else {
-          const created = await ConfigEntity.create(data);
-          setRecords((previous) => ({ ...previous, [category]: created.id }));
-        }
-      }
-
-      toast.success('Configurações salvas.');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   const handleCreateTrustedSource = async (trustedSource) => {
     setSourceActionId(`create:${trustedSource.id}`);
@@ -523,83 +414,8 @@ export default function Settings() {
       <div>
         <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Configurações</h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Defina as taxas de depreciação padrão por categoria
+          Gerencie fontes autorizadas para apoiar sugestões automáticas de depreciação.
         </p>
-      </div>
-
-      <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
-        <div className="flex items-center gap-2 mb-4">
-          <TrendingDown className="h-5 w-5 text-primary" />
-          <h2 className="text-lg font-semibold text-card-foreground">Depreciação por Categoria</h2>
-        </div>
-        <p className="text-sm text-muted-foreground -mt-2">
-          Estes valores são usados como padrão ao cadastrar novos ativos. Alterar aqui não afeta ativos já cadastrados.
-        </p>
-
-        <p className="text-xs text-muted-foreground">
-          A indicação automática consulta a base mensal de parâmetros para sugerir padrões por categoria; ela não aplica nada sem confirmação.
-        </p>
-
-        <div className="divide-y divide-border">
-          {CATEGORIES.map((category) => (
-            <div key={category} className="py-4 grid grid-cols-1 gap-4 md:grid-cols-3 md:items-start">
-              <div>
-                <p className="font-medium text-card-foreground">{category}</p>
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Taxa Anual (%)</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={configs[category]?.depreciation_rate ?? ''}
-                  onChange={(event) => handleChange(category, 'depreciation_rate', event.target.value)}
-                  className="mt-1"
-                />
-                <AutoParameterSuggestion
-                  entityType="DepreciationConfig"
-                  fieldName="depreciation_rate"
-                  domain="depreciation"
-                  context={{
-                    category,
-                    scope_key: buildCategoryScopeKey(category),
-                    parameter_key: 'depreciation_rate',
-                  }}
-                  onApply={(suggestion) => handleApplyConfigAutoSuggestion(category, 'depreciation_rate', suggestion)}
-                />
-              </div>
-              <div>
-                <Label className="text-xs text-muted-foreground">Vida Útil (anos)</Label>
-                <Input
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  value={configs[category]?.useful_life_years ?? ''}
-                  onChange={(event) => handleChange(category, 'useful_life_years', event.target.value)}
-                  className="mt-1"
-                />
-                <AutoParameterSuggestion
-                  entityType="DepreciationConfig"
-                  fieldName="useful_life_years"
-                  domain="depreciation"
-                  context={{
-                    category,
-                    scope_key: buildCategoryScopeKey(category),
-                    parameter_key: 'useful_life_years',
-                  }}
-                  onApply={(suggestion) => handleApplyConfigAutoSuggestion(category, 'useful_life_years', suggestion)}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="flex justify-end pt-2">
-          <Button onClick={handleSave} disabled={saving} className="gap-2">
-            <Save className="h-4 w-4" />
-            {saving ? 'Salvando...' : 'Salvar Configurações'}
-          </Button>
-        </div>
       </div>
 
       {canManageSources && (
@@ -611,7 +427,7 @@ export default function Settings() {
                 <h2 className="text-lg font-semibold text-card-foreground">Fontes da IA para depreciação</h2>
               </div>
               <p className="text-sm text-muted-foreground">
-                A IA consulta fontes confiáveis cadastradas para sugerir taxa anual e vida útil por categoria. Nada é aplicado sem confirmação.
+                A IA consulta fontes confiáveis cadastradas para sugerir taxa anual, vida útil e parâmetros fiscais conforme o ativo e o campo solicitado. Nada é aplicado sem confirmação.
               </p>
             </div>
             <Button type="button" className="gap-2" onClick={openSiteDialog}>
