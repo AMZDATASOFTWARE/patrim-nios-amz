@@ -13,6 +13,21 @@ function extractErrorMessage(error, fallbackMessage) {
   );
 }
 
+function friendlySuggestionError(message) {
+  const raw = String(message || '').trim();
+  const lower = raw.toLowerCase();
+  if (
+    !raw ||
+    lower.includes('request failed') ||
+    lower.includes('status code 404') ||
+    lower.includes('404') ||
+    lower.includes('not found')
+  ) {
+    return 'Ainda não há sugestão aprovada para este campo. Cadastre ou aprove uma fonte para habilitar sugestões.';
+  }
+  return raw;
+}
+
 function numericValueError(valueType) {
   return new Error(`Valor invalido para ${valueType}: informe valor bruto, sem simbolos, unidade ou separador de milhar.`);
 }
@@ -293,7 +308,7 @@ export async function getParameterSuggestion(payload) {
       return {
         ok: false,
         found: false,
-        error: data?.error || 'Nenhuma indicacao automatica vigente encontrada para este campo.',
+        error: friendlySuggestionError(data?.error || 'Ainda não há sugestão aprovada para este campo.'),
         warnings: Array.isArray(data?.warnings) ? data.warnings : [],
         requires_user_confirmation: true,
       };
@@ -318,7 +333,9 @@ export async function getParameterSuggestion(payload) {
       requires_user_confirmation: data.requires_user_confirmation !== false,
     };
   } catch (error) {
-    const message = extractErrorMessage(error, 'Nenhuma indicacao automatica vigente encontrada para este campo.');
+    const message = friendlySuggestionError(
+      extractErrorMessage(error, 'Ainda não há sugestão aprovada para este campo.'),
+    );
 
     return {
       ok: false,

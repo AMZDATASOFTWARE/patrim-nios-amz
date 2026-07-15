@@ -85,7 +85,7 @@ export default function AutoParameterSuggestion({
     const result = await getParameterSuggestion(buildPayload(fieldName, domain, context, entityType));
     if (!result?.ok || !result?.found) {
       setStatus('error');
-      setError(result?.error || 'Nenhuma indicacao automatica vigente encontrada para este campo.');
+      setError(result?.error || 'Ainda não há sugestão aprovada para este campo. Cadastre ou aprove uma fonte para habilitar sugestões.');
       return;
     }
 
