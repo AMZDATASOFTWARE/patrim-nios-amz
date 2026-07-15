@@ -320,6 +320,7 @@ export async function getParameterSuggestion(payload) {
   try {
     const result = await base44.functions.invoke('get-parameter-suggestion', payload);
     const data = unwrap(result);
+    if (!data?.found && data?.message && !data?.error) data.error = data.message;
     if (!data?.found) {
       return {
         ok: false,
