@@ -51,8 +51,16 @@ export function currentCompetenceMonth() {
   return new Date().toISOString().slice(0, 7);
 }
 
+const MONTHLY_PARAMETER_MANAGER_EMAILS = new Set([
+  'johnguimaraesp@gmail.com',
+]);
+
+function normalizeEmail(value) {
+  return String(value || '').trim().toLowerCase();
+}
+
 export function canManageMonthlyParameters(user) {
-  return user?.is_platform_admin === true || user?.role === 'admin';
+  return user?.is_platform_admin === true || MONTHLY_PARAMETER_MANAGER_EMAILS.has(normalizeEmail(user?.email));
 }
 
 export function normalizeParameterValue(value, valueType = 'text') {

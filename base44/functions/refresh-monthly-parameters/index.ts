@@ -27,8 +27,16 @@ type RunStats = {
   sources: Array<Record<string, unknown>>;
 };
 
+const MONTHLY_PARAMETER_MANAGER_EMAILS = new Set([
+  'johnguimaraesp@gmail.com',
+]);
+
+function normalizeEmail(value: unknown): string {
+  return normalizeText(value).toLowerCase();
+}
+
 function canManageMonthlyParameters(user: Record<string, unknown> | null | undefined): boolean {
-  return user?.is_platform_admin === true || normalizeText(user?.role) === 'admin';
+  return user?.is_platform_admin === true || MONTHLY_PARAMETER_MANAGER_EMAILS.has(normalizeEmail(user?.email));
 }
 
 function currentIso() {
