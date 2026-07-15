@@ -307,6 +307,24 @@ function sourceParserPlaceholder(sourceType) {
 }`;
   }
 
+  if (sourceType === 'official_page') {
+    return `{
+  "url": "https://www.cpc.org.br/CPC/Documentos-Emitidos/Pronunciamentos/Pronunciamento?Id=58",
+  "allowed_domain": "cpc.org.br",
+  "parameter_key": "depreciation.cpc27.policy_reference",
+  "domain": "depreciation",
+  "entity_type": "DepreciationConfig",
+  "field_name": "depreciation_policy_reference",
+  "scope_key": "policy:cpc27",
+  "extraction_mode": "summary",
+  "expected_value_type": "text",
+  "unit": "",
+  "confidence_level": "medium",
+  "requires_manual_review": true,
+  "prompt": "Resuma apenas pontos aplicaveis a vida util, valor residual e depreciacao. Nao transforme norma textual em taxa numerica."
+}`;
+  }
+
   return `{
   "items": [
     {
@@ -1608,6 +1626,11 @@ export default function Settings() {
               <p className="mt-2 text-xs text-muted-foreground">
                 Não informe token, senha ou API key em claro. Use apenas nomes de secret, como <span className="font-mono">FIPE_API_KEY</span>.
               </p>
+              {sourceForm.source_type === 'official_page' && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Paginas oficiais usam apenas a URL cadastrada e o allowed_domain informado. A IA nao pesquisa fora da pagina e os snapshots ficam pendentes de revisao.
+                </p>
+              )}
             </div>
 
             <div>

@@ -251,7 +251,9 @@ Deno.serve(async (req) => {
 
     for (const source of sources) {
       stats.checked += 1;
-      const result = await resolveMonthlyParameterSourceSnapshots(source, competenceMonth);
+      const result = await resolveMonthlyParameterSourceSnapshots(source, competenceMonth, {
+        invokeLLM: (input: Record<string, unknown>) => svc.integrations.Core.InvokeLLM(input),
+      });
       if (!result.ok) {
         const error = makeProviderError(source, result.message);
         stats.errors.push(error);

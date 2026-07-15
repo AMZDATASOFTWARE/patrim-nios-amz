@@ -6,9 +6,10 @@ Fontes suportadas nesta fase:
 - `manual_table`
 - `internal_rule`
 - `api`
+- `official_page` restrito a URL oficial cadastrada
 
 Ainda fora do escopo:
-- `official_page`
+- scraping livre fora da URL cadastrada
 - `ai_research`
 - providers especificos de FIPE, tributos ou fontes normativas oficiais
 
@@ -137,6 +138,39 @@ Controles obrigatorios do provider `api`:
 - `field_map` usa caminho simples por ponto, como `payload.value`;
 - item invalido entra em `errors`; itens validos continuam gerando preview/snapshot.
 
+## Exemplo: official_page com IA restrita
+
+Use apenas URL oficial cadastrada pelo administrador. A IA recebe somente o texto limitado dessa pagina, sem busca aberta e sem seguir links externos. Todo snapshot gerado deve ficar `pending_review`.
+
+```json
+{
+  "url": "https://www.cpc.org.br/CPC/Documentos-Emitidos/Pronunciamentos/Pronunciamento?Id=58",
+  "allowed_domain": "cpc.org.br",
+  "parameter_key": "depreciation.cpc27.policy_reference",
+  "domain": "depreciation",
+  "entity_type": "DepreciationConfig",
+  "field_name": "depreciation_policy_reference",
+  "scope_key": "policy:cpc27",
+  "extraction_mode": "summary",
+  "expected_value_type": "text",
+  "unit": "",
+  "confidence_level": "medium",
+  "requires_manual_review": true,
+  "prompt": "Resuma apenas pontos aplicaveis a vida util, valor residual e depreciacao. Nao transforme norma textual em taxa numerica."
+}
+```
+
+Controles obrigatorios do provider `official_page`:
+- chamada feita somente no backend;
+- URL apenas HTTPS;
+- bloqueio de localhost, IPs locais/privados e credenciais embutidas;
+- `allowed_domain` obrigatorio e dentro de dominios oficiais permitidos;
+- redirect permitido somente dentro do mesmo dominio cadastrado;
+- resposta limitada em tamanho, HTML/texto apenas;
+- PDF entra como pendencia de homologacao propria;
+- retorno da IA e validado pelo mesmo contrato `value` bruto, `label` separado e `unit` separado;
+- item invalido entra em `errors`; itens validos seguem para `pending_review`.
+
 ## Checklist de homologacao local
 
 - `manual_table -> snapshot`: `resolveMonthlyParameterSourceSnapshots` retorna candidato valido.
@@ -187,6 +221,6 @@ Automacao mensal:
 - validar URLs e contratos de APIs reais fornecidas pelo cliente;
 - cadastrar secrets reais fora do codigo;
 - definir regras de aprovacao quando fonte exigir revisao;
-- implementar `official_page` somente quando houver fonte oficial definida;
+- homologar fontes `official_page` reais somente quando houver URL oficial e responsavel definidos;
 - implementar `ai_research` somente com politica de revisao manual e baixa confianca por padrao;
 - criar providers especificos, como FIPE ou tributos, apenas com fonte, contrato e credenciais confirmados.

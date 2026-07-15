@@ -260,7 +260,9 @@ Deno.serve(async (req) => {
       });
 
       const competenceMonth = normalizeCompetenceMonth(body.competence_month);
-      const result = await resolveMonthlyParameterSourceSnapshots(normalized, competenceMonth);
+      const result = await resolveMonthlyParameterSourceSnapshots(normalized, competenceMonth, {
+        invokeLLM: (input: Record<string, unknown>) => svc.integrations.Core.InvokeLLM(input),
+      });
       const safeSource = sanitizeSourceForClient(normalized as unknown as Record<string, unknown>);
 
       await writeAudit(

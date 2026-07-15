@@ -1,9 +1,11 @@
 # Fontes oficiais controladas para parametros mensais
 
+Atualizacao official_page: esta fase tambem suporta `official_page` com IA restrita a URL oficial cadastrada. Nao ha busca aberta, nao ha scraping livre e todo snapshot gerado por pagina oficial deve ficar `pending_review` ate aprovacao humana.
+
 Este guia prepara modelos de `MonthlyParameterSource` para depreciação contabil e fiscal usando apenas fontes controladas suportadas nesta fase: `manual_table` e `internal_rule`.
 
 Nao faz parte desta fase:
-- scraping de `official_page`;
+- scraping livre de `official_page` fora da URL cadastrada;
 - `ai_research`;
 - chamada a APIs externas;
 - cadastro no banco remoto;
@@ -33,6 +35,61 @@ Nao faz parte desta fase:
 - Fonte fiscal baseada na IN RFB 1.700/2017 deve ser cadastrada por NCM, referencia fiscal ou categoria validada pelo responsavel fiscal.
 - Todo `value` deve ser bruto: `10`, nao `"10%"`; `5`, nao `"5 anos"`; `1000.5`, nao `"R$ 1.000,50"`.
 - Todo exemplo abaixo e amostra estrutural. Substitua `category`, `scope_key`, `value`, `source_date` e `notes` pela decisao aprovada.
+
+## Modelo official_page com IA restrita
+
+Uso correto:
+- consultar somente a URL oficial cadastrada pelo admin;
+- resumir referencia normativa ou extrair valor bruto quando o texto oficial trouxer o valor de forma clara;
+- enviar todo resultado para `pending_review`.
+
+Limitacao:
+- nao pesquisa em Google/Bing;
+- nao segue links fora do `allowed_domain`;
+- nao transforma CPC 27/CPC 23 em taxa numerica automatica;
+- PDF ainda deve ser tratado como pendencia de homologacao especifica.
+
+Dominios oficiais aceitos inicialmente:
+- `cpc.org.br`;
+- `gov.br`;
+- `receita.fazenda.gov.br`;
+- `normas.receita.fazenda.gov.br`;
+- `planalto.gov.br`;
+- `confaz.fazenda.gov.br`;
+- `sped.rfb.gov.br`;
+- `veiculos.fipe.org.br`;
+- `fipe.org.br`;
+- SEFAZ/Detran somente quando o dominio oficial for cadastrado manualmente.
+
+Exemplo de `MonthlyParameterSource` para referencia normativa textual:
+
+```json
+{
+  "parameter_key": "depreciation.cpc27.policy_reference",
+  "domain": "depreciation",
+  "source_type": "official_page",
+  "source_name": "CPC 27 - referencia normativa de depreciacao",
+  "source_url": "https://www.cpc.org.br/CPC/Documentos-Emitidos/Pronunciamentos/Pronunciamento?Id=58",
+  "priority": 80,
+  "is_active": true,
+  "parser_config_json": {
+    "url": "https://www.cpc.org.br/CPC/Documentos-Emitidos/Pronunciamentos/Pronunciamento?Id=58",
+    "allowed_domain": "cpc.org.br",
+    "parameter_key": "depreciation.cpc27.policy_reference",
+    "domain": "depreciation",
+    "entity_type": "DepreciationConfig",
+    "field_name": "depreciation_policy_reference",
+    "scope_key": "policy:cpc27",
+    "extraction_mode": "summary",
+    "expected_value_type": "text",
+    "unit": "",
+    "confidence_level": "medium",
+    "requires_manual_review": true,
+    "prompt": "Resuma apenas pontos aplicaveis a vida util, valor residual e depreciacao. Nao transforme norma textual em taxa numerica."
+  },
+  "notes": "Snapshot deve ser revisado por responsavel contabil antes de aprovacao."
+}
+```
 
 ## Modelo 1: depreciation_rate contabil por categoria
 

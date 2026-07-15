@@ -34,6 +34,22 @@ const DEFAULT_API_TIMEOUT_MS = 10000;
 const MAX_API_TIMEOUT_MS = 30000;
 const DEFAULT_MAX_RESPONSE_BYTES = 1024 * 1024;
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024;
+const DEFAULT_OFFICIAL_PAGE_TIMEOUT_MS = 10000;
+const MAX_OFFICIAL_PAGE_TIMEOUT_MS = 20000;
+const DEFAULT_OFFICIAL_PAGE_MAX_BYTES = 512 * 1024;
+const OFFICIAL_PAGE_MAX_BYTES = 1024 * 1024;
+const OFFICIAL_PAGE_MAX_CONTENT_CHARS = 30000;
+const OFFICIAL_PAGE_TRUSTED_DOMAINS = [
+  'cpc.org.br',
+  'gov.br',
+  'receita.fazenda.gov.br',
+  'normas.receita.fazenda.gov.br',
+  'planalto.gov.br',
+  'confaz.fazenda.gov.br',
+  'sped.rfb.gov.br',
+  'veiculos.fipe.org.br',
+  'fipe.org.br',
+] as const;
 
 export interface MonthlyParameterSourceRecord {
   id?: string;
@@ -69,6 +85,10 @@ export type ProviderItemError = {
 export type ProviderResolveResult =
   | { ok: true; snapshots: ProviderSnapshot[]; errors: ProviderItemError[] }
   | { ok: false; message: string; provider_implemented: boolean; errors?: ProviderItemError[] };
+
+export type ProviderRuntime = {
+  invokeLLM?: (input: Record<string, unknown>) => Promise<unknown>;
+};
 
 function currentIso() {
   return new Date().toISOString();
@@ -250,6 +270,14 @@ export function normalizeMonthlyParameterSourceInput(
     }
   }
 
+  if (sourceType === 'official_page') {
+    parserConfig.requires_manual_review = true;
+    parserConfig.default_snapshot_status = 'pending_review';
+    if (!normalizeText(parserConfig.default_confidence_level)) {
+      parserConfig.default_confidence_level = 'medium';
+    }
+  }
+
   return {
     workspace_id: options.workspaceId,
     parameter_key: parameterKey,
@@ -337,6 +365,180 @@ function isBlockedPrivateHost(hostname: string): boolean {
   if (/^172\.(1[6-9]|2\d|3[0-1])\./.test(normalized)) return true;
   if (normalized.startsWith('fc') || normalized.startsWith('fd') || normalized.startsWith('fe80:')) return true;
   return false;
+}
+
+function normalizeHostname(value: unknown): string {
+  return normalizeText(value).toLowerCase().replace(/^\.+|\.+$/g, '');
+}
+
+function hostMatchesDomain(hostname: string, allowedDomain: string): boolean {
+  const host = normalizeHostname(hostname);
+  const domain = normalizeHostname(allowedDomain);
+  return Boolean(domain) && (host === domain || host.endsWith(`.${domain}`));
+}
+
+function isTrustedOfficialDomain(allowedDomain: string): boolean {
+  const domain = normalizeHostname(allowedDomain);
+  if (!domain) return false;
+  if (OFFICIAL_PAGE_TRUSTED_DOMAINS.some((trusted) => hostMatchesDomain(domain, trusted))) {
+    return true;
+  }
+
+  // SEFAZ/Detran estaduais entram apenas quando o admin cadastrou explicitamente o dominio.
+  return /(sefaz|detran)/.test(domain) && (domain.endsWith('.gov.br') || domain.endsWith('.br'));
+}
+
+function validateOfficialPageUrl(value: unknown, allowedDomainValue: unknown): URL {
+  const rawUrl = normalizeText(value);
+  if (!rawUrl) throw new Error('url e obrigatoria para fonte official_page.');
+
+  let url: URL;
+  try {
+    url = new URL(rawUrl);
+  } catch {
+    throw new Error('url deve ser uma URL valida para fonte official_page.');
+  }
+
+  if (url.protocol !== 'https:') throw new Error('Fonte official_page deve usar HTTPS.');
+  if (url.username || url.password) {
+    throw new Error('Fonte official_page nao pode conter credenciais embutidas.');
+  }
+  for (const key of url.searchParams.keys()) {
+    if (isSuspiciousSecretKey(key)) {
+      throw new Error('URL official_page nao pode conter parametro sensivel.');
+    }
+  }
+
+  const allowedDomain = normalizeHostname(allowedDomainValue);
+  if (!allowedDomain) throw new Error('allowed_domain e obrigatorio para fonte official_page.');
+  if (!isTrustedOfficialDomain(allowedDomain)) {
+    throw new Error('allowed_domain nao esta na lista de dominios oficiais permitidos.');
+  }
+
+  const hostname = normalizeHostname(url.hostname);
+  if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
+    throw new Error('Fonte official_page nao pode apontar para localhost.');
+  }
+  if (isBlockedPrivateHost(hostname)) {
+    throw new Error('Fonte official_page nao pode apontar para host local ou privado.');
+  }
+  if (!hostMatchesDomain(hostname, allowedDomain)) {
+    throw new Error('URL official_page deve pertencer ao allowed_domain cadastrado.');
+  }
+
+  return url;
+}
+
+function htmlToText(value: string): string {
+  return value
+    .replace(/<script[\s\S]*?<\/script>/gi, ' ')
+    .replace(/<style[\s\S]*?<\/style>/gi, ' ')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, ' ')
+    .replace(/<svg[\s\S]*?<\/svg>/gi, ' ')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;/gi, ' ')
+    .replace(/&amp;/gi, '&')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+async function readLimitedTextResponse(response: Response, maxBytes: number): Promise<string> {
+  const contentType = response.headers.get('content-type') || '';
+  if (/application\/pdf/i.test(contentType)) {
+    throw new Error('PDF em official_page ainda exige tratamento/homologacao propria.');
+  }
+  if (!/text\/html|text\/plain|application\/xhtml\+xml|application\/xml|text\/xml/i.test(contentType)) {
+    throw new Error('Fonte official_page deve retornar HTML ou texto.');
+  }
+
+  if (!response.body) {
+    const text = await response.text();
+    if (new TextEncoder().encode(text).byteLength > maxBytes) {
+      throw new Error('Resposta da pagina oficial excedeu o tamanho maximo permitido.');
+    }
+    return text;
+  }
+
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > maxBytes) {
+      try {
+        await reader.cancel();
+      } catch (_) {
+        // response body cancellation is best-effort
+      }
+      throw new Error('Resposta da pagina oficial excedeu o tamanho maximo permitido.');
+    }
+    chunks.push(value);
+  }
+
+  const body = new Uint8Array(total);
+  let offset = 0;
+  chunks.forEach((chunk) => {
+    body.set(chunk, offset);
+    offset += chunk.byteLength;
+  });
+  return new TextDecoder().decode(body);
+}
+
+async function fetchOfficialPageContent(
+  startUrl: URL,
+  allowedDomain: string,
+  timeoutMs: number,
+  maxBytes: number,
+): Promise<{ finalUrl: URL; text: string; warnings: string[] }> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const warnings: string[] = [];
+  let currentUrl = startUrl;
+
+  try {
+    for (let redirectCount = 0; redirectCount <= 3; redirectCount += 1) {
+      const response = await fetch(currentUrl, {
+        headers: { Accept: 'text/html,text/plain,application/xhtml+xml,application/xml;q=0.8,text/xml;q=0.8' },
+        redirect: 'manual',
+        signal: controller.signal,
+      });
+
+      if (response.status >= 300 && response.status < 400) {
+        const location = response.headers.get('location');
+        if (!location) throw new Error('Pagina oficial retornou redirect sem destino.');
+        const nextUrl = validateOfficialPageUrl(new URL(location, currentUrl).toString(), allowedDomain);
+        if (!hostMatchesDomain(nextUrl.hostname, allowedDomain)) {
+          throw new Error('Redirect de official_page saiu do dominio cadastrado.');
+        }
+        warnings.push(`Redirect validado para ${nextUrl.origin}${nextUrl.pathname}.`);
+        currentUrl = nextUrl;
+        continue;
+      }
+
+      if (!response.ok) throw new Error(`Pagina oficial retornou HTTP ${response.status}.`);
+      const body = await readLimitedTextResponse(response, maxBytes);
+      return {
+        finalUrl: currentUrl,
+        text: htmlToText(body).slice(0, OFFICIAL_PAGE_MAX_CONTENT_CHARS),
+        warnings,
+      };
+    }
+
+    throw new Error('Pagina oficial excedeu o limite de redirects.');
+  } catch (error) {
+    if (String(error?.name || '') === 'AbortError') {
+      throw new Error('Tempo limite excedido ao consultar pagina oficial.');
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 function buildApiUrl(config: Record<string, unknown>, source: Record<string, unknown>, competenceMonth: string): URL {
@@ -509,11 +711,11 @@ function normalizeProviderItem(
     confidence_level: confidenceLevel,
     status: defaultSnapshotStatus(row, config),
     warnings: normalizeWarnings(row.warnings),
-    raw_payload: {
+    raw_payload: row.raw_payload || {
       source_type: source.source_type,
       item: row,
     },
-    created_by_ai: false,
+    created_by_ai: row.created_by_ai === true,
     notes: normalizeText(row.notes || source.notes),
   };
 }
@@ -648,9 +850,196 @@ async function deriveSnapshotsFromApi(
   return { ...deriveSnapshotsFromRows(source, competenceMonth, mappedRows as Record<string, unknown>[]), configured: true };
 }
 
+function parseLlmJsonResponse(value: unknown): Record<string, unknown> {
+  if (isPlainObject(value)) return value;
+
+  const raw = normalizeText(value);
+  if (!raw) throw new Error('IA nao retornou JSON estruturado.');
+
+  try {
+    return parseObject(raw);
+  } catch (_) {
+    const match = raw.match(/\{[\s\S]*\}/);
+    if (match) return parseObject(match[0]);
+    throw new Error('IA nao retornou JSON estruturado.');
+  }
+}
+
+function capOfficialConfidence(value: unknown, allowHighConfidence: boolean): 'low' | 'medium' | 'high' {
+  const confidence = normalizeText(value || 'medium');
+  if (confidence === 'low') return 'low';
+  if (confidence === 'high' && allowHighConfidence) return 'high';
+  return 'medium';
+}
+
+function buildOfficialPagePrompt(
+  source: Record<string, unknown>,
+  config: Record<string, unknown>,
+  competenceMonth: string,
+  pageUrl: string,
+  content: string,
+): string {
+  const extractionMode = normalizeText(config.extraction_mode || 'summary') || 'summary';
+  const expectedValueType = normalizeText(config.expected_value_type || 'text') || 'text';
+  const configuredPrompt = normalizeText(config.prompt);
+
+  return [
+    'Voce extrai parametros mensais para o AMZ Patrimonios usando SOMENTE o conteudo oficial fornecido.',
+    'Nao pesquise na internet, nao siga links, nao use conhecimento externo e nao invente valores ausentes.',
+    'Se o conteudo nao trouxer valor claro para o campo configurado, retorne items vazio e um warning.',
+    'Valores numericos devem ser brutos: 10 para 10%, 1000.5 para moeda. Nunca retorne "10%", "R$ 1.000,00" ou "5 anos" como value numerico.',
+    'Informacoes normativas/textuais devem usar value_type "text". Normas como CPC 27/CPC 23 nao devem virar taxa numerica automaticamente.',
+    'Todo item extraido de official_page deve exigir revisao humana e status pending_review.',
+    '',
+    `Fonte cadastrada: ${normalizeText(source.source_name)}`,
+    `URL cadastrada: ${pageUrl}`,
+    `Competencia: ${competenceMonth}`,
+    `parameter_key padrao: ${normalizeText(config.parameter_key || source.parameter_key)}`,
+    `domain padrao: ${normalizeText(config.domain || source.domain)}`,
+    `entity_type padrao: ${normalizeText(config.entity_type || 'Asset')}`,
+    `field_name padrao: ${normalizeText(config.field_name)}`,
+    `scope_key padrao: ${normalizeText(config.scope_key)}`,
+    `extraction_mode: ${extractionMode}`,
+    `expected_value_type: ${expectedValueType}`,
+    configuredPrompt ? `Instrucao do admin: ${configuredPrompt}` : '',
+    '',
+    'Responda SOMENTE JSON no formato:',
+    '{"items":[{"parameter_key":"","domain":"","entity_type":"","field_name":"","scope_key":"","category":"","asset_type":"","uf":"","regime_fiscal":"","value":"","value_type":"text","unit":"","effective_start_date":"","effective_end_date":"","confidence_level":"medium","notes":"","warnings":[]}],"warnings":[]}',
+    '',
+    `Conteudo oficial limitado:\n${content}`,
+  ].filter(Boolean).join('\n');
+}
+
+function normalizeOfficialPageRows(
+  llmObject: Record<string, unknown>,
+  source: Record<string, unknown>,
+  config: Record<string, unknown>,
+  pageUrl: string,
+  fetchWarnings: string[],
+): Record<string, unknown>[] {
+  const items = asArray<Record<string, unknown>>(llmObject.items);
+  const topWarnings = normalizeWarnings(llmObject.warnings);
+  const defaultValueType = normalizeText(config.expected_value_type || 'text') || 'text';
+  const allowHighConfidence = config.allow_high_confidence === true || config.validated_by_responsible === true;
+  const reviewWarning = 'Revisao humana obrigatoria antes de aprovar snapshot gerado a partir de pagina oficial.';
+
+  return items.map((item) => ({
+    parameter_key: normalizeText(item.parameter_key || config.parameter_key || source.parameter_key),
+    domain: normalizeText(item.domain || config.domain || source.domain),
+    entity_type: normalizeText(item.entity_type || config.entity_type || 'Asset'),
+    field_name: normalizeText(item.field_name || config.field_name),
+    scope_key: normalizeText(item.scope_key || config.scope_key),
+    category: normalizeText(item.category || config.category),
+    asset_type: normalizeText(item.asset_type || config.asset_type),
+    uf: normalizeText(item.uf || config.uf),
+    regime_fiscal: normalizeText(item.regime_fiscal || config.regime_fiscal),
+    value: item.value,
+    value_type: normalizeText(item.value_type || defaultValueType),
+    unit: normalizeText(item.unit || config.unit),
+    source_name: normalizeText(source.source_name),
+    source_url: pageUrl,
+    source_date: normalizeText(item.source_date || config.source_date || currentDate()),
+    effective_start_date: normalizeText(item.effective_start_date || config.effective_start_date || ''),
+    effective_end_date: normalizeText(item.effective_end_date || config.effective_end_date || ''),
+    confidence_level: capOfficialConfidence(item.confidence_level || config.confidence_level, allowHighConfidence),
+    status: 'pending_review',
+    warnings: [
+      reviewWarning,
+      ...fetchWarnings,
+      ...topWarnings,
+      ...normalizeWarnings(item.warnings),
+    ],
+    raw_payload: {
+      source_type: 'official_page',
+      url: pageUrl,
+      extraction_mode: normalizeText(config.extraction_mode || 'summary') || 'summary',
+      llm_item: item,
+    },
+    created_by_ai: true,
+    notes: normalizeText(item.notes || config.notes || source.notes),
+  }));
+}
+
+async function deriveSnapshotsFromOfficialPage(
+  source: Record<string, unknown>,
+  competenceMonth: string,
+  runtime: ProviderRuntime = {},
+): Promise<{ snapshots: ProviderSnapshot[]; errors: ProviderItemError[]; configured: boolean }> {
+  const config = parseObject(source.parser_config_json);
+  const pageUrl = validateOfficialPageUrl(config.url, config.allowed_domain);
+  const timeoutMs = clampInteger(config.timeout_ms, DEFAULT_OFFICIAL_PAGE_TIMEOUT_MS, MAX_OFFICIAL_PAGE_TIMEOUT_MS);
+  const maxBytes = clampInteger(config.max_response_bytes, DEFAULT_OFFICIAL_PAGE_MAX_BYTES, OFFICIAL_PAGE_MAX_BYTES);
+
+  if (!runtime.invokeLLM) {
+    throw new Error('Integracao de IA indisponivel para fonte official_page.');
+  }
+
+  const page = await fetchOfficialPageContent(pageUrl, normalizeHostname(config.allowed_domain), timeoutMs, maxBytes);
+  if (!page.text) {
+    throw new Error('Pagina oficial nao possui texto util para extracao.');
+  }
+
+  const prompt = buildOfficialPagePrompt(
+    source,
+    config,
+    competenceMonth,
+    `${page.finalUrl.origin}${page.finalUrl.pathname}`,
+    page.text,
+  );
+
+  const llmResult = await runtime.invokeLLM({
+    prompt,
+    response_json_schema: {
+      type: 'object',
+      properties: {
+        items: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              parameter_key: { type: 'string' },
+              domain: { type: 'string' },
+              entity_type: { type: 'string' },
+              field_name: { type: 'string' },
+              scope_key: { type: 'string' },
+              category: { type: 'string' },
+              asset_type: { type: 'string' },
+              uf: { type: 'string' },
+              regime_fiscal: { type: 'string' },
+              value: {},
+              value_type: { type: 'string' },
+              unit: { type: 'string' },
+              effective_start_date: { type: 'string' },
+              effective_end_date: { type: 'string' },
+              confidence_level: { type: 'string' },
+              notes: { type: 'string' },
+              warnings: { type: 'array', items: { type: 'string' } },
+            },
+            required: ['field_name', 'value', 'value_type'],
+          },
+        },
+        warnings: { type: 'array', items: { type: 'string' } },
+      },
+      required: ['items'],
+    },
+  });
+
+  const llmObject = parseLlmJsonResponse(llmResult);
+  const rows = normalizeOfficialPageRows(
+    llmObject,
+    source,
+    config,
+    `${page.finalUrl.origin}${page.finalUrl.pathname}`,
+    page.warnings,
+  );
+
+  return { ...deriveSnapshotsFromRows(source, competenceMonth, rows), configured: true };
+}
+
 export async function resolveMonthlyParameterSourceSnapshots(
   source: Record<string, unknown>,
   competenceMonth: string,
+  runtime: ProviderRuntime = {},
 ): Promise<ProviderResolveResult> {
   const sourceType = normalizeText(source.source_type);
 
@@ -715,7 +1104,28 @@ export async function resolveMonthlyParameterSourceSnapshots(
     }
   }
 
-  if (sourceType === 'official_page' || sourceType === 'ai_research') {
+  if (sourceType === 'official_page') {
+    try {
+      const result = await deriveSnapshotsFromOfficialPage(source, competenceMonth, runtime);
+      if (!result.configured || result.snapshots.length === 0) {
+        return {
+          ok: false,
+          message: 'Fonte official_page nao gerou snapshots validos para revisao.',
+          provider_implemented: true,
+          errors: result.errors,
+        };
+      }
+      return { ok: true, snapshots: result.snapshots, errors: result.errors };
+    } catch (error) {
+      return {
+        ok: false,
+        message: String(error?.message || error),
+        provider_implemented: true,
+      };
+    }
+  }
+
+  if (sourceType === 'ai_research') {
     return {
       ok: false,
       message: 'Provider ainda nao implementado para esta fonte.',
