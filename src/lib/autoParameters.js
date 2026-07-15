@@ -23,7 +23,16 @@ function friendlySuggestionError(message) {
     lower.includes('404') ||
     lower.includes('not found')
   ) {
-    return 'Ainda não há sugestão aprovada para este campo. Cadastre ou aprove uma fonte para habilitar sugestões.';
+    return 'Não encontrei uma fonte aprovada suficiente para sugerir este campo com segurança.';
+  }
+  if (
+    lower.includes('status code') ||
+    lower.includes('json') ||
+    lower.includes('provider') ||
+    lower.includes('network') ||
+    lower.includes('timeout')
+  ) {
+    return 'Não foi possível gerar a sugestão agora. Tente novamente em instantes.';
   }
   return raw;
 }
@@ -308,7 +317,7 @@ export async function getParameterSuggestion(payload) {
       return {
         ok: false,
         found: false,
-        error: friendlySuggestionError(data?.error || 'Ainda não há sugestão aprovada para este campo.'),
+        error: friendlySuggestionError(data?.error || 'Não encontrei uma fonte aprovada suficiente para sugerir este campo com segurança.'),
         warnings: Array.isArray(data?.warnings) ? data.warnings : [],
         requires_user_confirmation: true,
       };
@@ -340,7 +349,7 @@ export async function getParameterSuggestion(payload) {
     };
   } catch (error) {
     const message = friendlySuggestionError(
-      extractErrorMessage(error, 'Ainda não há sugestão aprovada para este campo.'),
+      extractErrorMessage(error, 'Não foi possível gerar a sugestão agora. Tente novamente em instantes.'),
     );
 
     return {
