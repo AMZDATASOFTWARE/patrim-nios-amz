@@ -34,7 +34,18 @@ function formatConfidence(value) {
 
 function normalizeSuggestionError(message) {
   const raw = String(message || '').trim();
-  const lower = raw.toLowerCase();
+  const lower = raw
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
+  if (
+    (lower.includes('nenhuma') && lower.includes('indicacao automatica')) ||
+    (lower.includes('indicacao automatica') && lower.includes('vigente')) ||
+    (lower.includes('ainda') && lower.includes('sugestao')) ||
+    lower.includes('sugestao aprovada')
+  ) {
+    return 'Não encontrei uma fonte aprovada suficiente para sugerir este campo com segurança.';
+  }
   if (
     !raw ||
     lower.includes('request failed') ||
@@ -137,6 +148,7 @@ export default function AutoParameterSuggestion({
   const [error, setError] = useState('');
   const [applying, setApplying] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [hasRequested, setHasRequested] = useState(false);
 
   const contextKey = useMemo(() => JSON.stringify({
     entity_type: entityType || 'Asset',
@@ -151,6 +163,7 @@ export default function AutoParameterSuggestion({
     setError('');
     setApplying(false);
     setDetailsOpen(false);
+    setHasRequested(false);
   }, [fieldName, domain, contextKey]);
 
   const hasSuggestion = status === 'success' && !!suggestion;
@@ -160,6 +173,7 @@ export default function AutoParameterSuggestion({
     setError('');
     setSuggestion(null);
     setDetailsOpen(false);
+    setHasRequested(true);
 
     const result = await getParameterSuggestion(buildPayload(fieldName, domain, context, entityType));
     if (!result?.ok || !result?.found) {
@@ -187,6 +201,7 @@ export default function AutoParameterSuggestion({
     setSuggestion(null);
     setError('');
     setDetailsOpen(false);
+    setHasRequested(false);
   };
 
   const simpleSuggestion = hasSuggestion ? formatSimpleSuggestion(suggestion, fieldName) : '';
@@ -216,7 +231,7 @@ export default function AutoParameterSuggestion({
         </Button>
       </div>
 
-      {status === 'error' && (
+      {hasRequested && status === 'error' && (
         <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
           <div className="flex items-start gap-2">
             <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />

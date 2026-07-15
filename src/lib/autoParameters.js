@@ -15,9 +15,16 @@ function extractErrorMessage(error, fallbackMessage) {
 
 function friendlySuggestionError(message) {
   const raw = String(message || '').trim();
-  const lower = raw.toLowerCase();
+  const lower = raw
+    .normalize('NFD')
+    .replace(/\p{Diacritic}/gu, '')
+    .toLowerCase();
   if (
     !raw ||
+    (lower.includes('nenhuma') && lower.includes('indicacao automatica')) ||
+    (lower.includes('indicacao automatica') && lower.includes('vigente')) ||
+    (lower.includes('ainda') && lower.includes('sugestao')) ||
+    lower.includes('sugestao aprovada') ||
     lower.includes('request failed') ||
     lower.includes('status code 404') ||
     lower.includes('404') ||
