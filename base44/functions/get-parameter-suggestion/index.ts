@@ -41,6 +41,105 @@ interface MonthlyParameterSourceRecord {
   notes?: string;
 }
 
+const DEFAULT_OFFICIAL_SOURCES: MonthlyParameterSourceRecord[] = [
+  {
+    id: 'default:receita-federal-depreciacao',
+    workspace_id: 'system',
+    parameter_key: 'official.fiscal.depreciation',
+    domain: 'fiscal',
+    source_type: 'official_page',
+    source_name: 'Receita Federal / legislacao fiscal de depreciacao',
+    source_url: 'https://normas.receita.fazenda.gov.br/sijut2consulta/consulta.action?termoBusca=depreciacao',
+    is_active: true,
+    priority: 120,
+    parser_config_json: {
+      system_default: true,
+      expected_fields: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
+      confidence_level: 'medium',
+      official_reference_summary: 'Referencia fiscal federal para consulta de normas de depreciacao. Use apenas como apoio; classificacao fiscal/tabela aplicavel deve ser validada.',
+      prompt: 'Apoia sugestoes fiscais de taxa e vida util. Nao use para depreciacao societaria/gerencial e nao invente tabela numerica se a classificacao fiscal nao estiver clara.',
+    },
+    notes: 'Fonte oficial padrao para apoio fiscal. Exige revisao fiscal/contabil antes de aplicar.',
+  },
+  {
+    id: 'default:cpc-27-ativo-imobilizado',
+    workspace_id: 'system',
+    parameter_key: 'official.accounting.cpc27',
+    domain: 'depreciation',
+    source_type: 'official_page',
+    source_name: 'CPC 27 - Ativo Imobilizado',
+    source_url: 'https://www.cpc.org.br/CPC/Documentos-Emitidos/Pronunciamentos/Pronunciamento?Id=58',
+    is_active: true,
+    priority: 125,
+    parser_config_json: {
+      system_default: true,
+      expected_fields: ['depreciation_rate', 'useful_life_years', 'residual_value'],
+      confidence_level: 'medium',
+      official_reference_summary: 'Referencia normativa contabil para vida util economica, valor residual e revisao de estimativas. Nao e tabela numerica universal.',
+      prompt: 'Use para sugestoes societarias/gerenciais considerando uso esperado, estado do bem, vida economica e politica contabil. Nao trate como regra fiscal obrigatoria.',
+    },
+    notes: 'Fonte oficial padrao para apoio societario/gerencial. Nao substitui politica contabil aprovada.',
+  },
+  {
+    id: 'default:cvm-cpc-27-pdf',
+    workspace_id: 'system',
+    parameter_key: 'official.accounting.cvm.cpc27',
+    domain: 'depreciation',
+    source_type: 'official_page',
+    source_name: 'CVM / CPC 27 PDF',
+    source_url: 'https://conteudo.cvm.gov.br/export/sites/cvm/menu/regulados/normascontabeis/cpc/CPC_27_rev_12.pdf',
+    is_active: true,
+    priority: 130,
+    parser_config_json: {
+      system_default: true,
+      expected_fields: ['depreciation_rate', 'useful_life_years', 'residual_value'],
+      confidence_level: 'medium',
+      official_reference_summary: 'Referencia CVM/CPC 27 para ativo imobilizado, vida util, valor residual e revisao periodica.',
+      prompt: 'Use como fonte societaria/gerencial complementar. Nao use para regra fiscal e nao invente valor quando faltar classificacao do ativo.',
+    },
+    notes: 'Fonte oficial padrao complementar para apoio contabil.',
+  },
+  {
+    id: 'default:cfc-normas-contabeis',
+    workspace_id: 'system',
+    parameter_key: 'official.accounting.cfc',
+    domain: 'depreciation',
+    source_type: 'official_page',
+    source_name: 'CFC / normas contabeis brasileiras',
+    source_url: '',
+    is_active: true,
+    priority: 135,
+    parser_config_json: {
+      system_default: true,
+      expected_fields: ['depreciation_rate', 'useful_life_years', 'residual_value'],
+      confidence_level: 'medium',
+      official_reference_summary: 'Referencia contabil geral para apoio a politicas e estimativas. URL deve ser cadastrada pelo admin quando houver fonte especifica.',
+      prompt: 'Use apenas como apoio societario/gerencial geral. Nao invente URL, tabela numerica ou regra fiscal.',
+    },
+    notes: 'Fonte contabil padrao sem URL especifica cadastrada. Priorize fonte cadastrada quando existir.',
+  },
+  {
+    id: 'default:fipe-veiculos',
+    workspace_id: 'system',
+    parameter_key: 'official.market.fipe',
+    domain: 'fipe',
+    source_type: 'official_page',
+    source_name: 'Tabela FIPE',
+    source_url: 'https://veiculos.fipe.org.br/',
+    is_active: true,
+    priority: 140,
+    parser_config_json: {
+      system_default: true,
+      expected_fields: ['market_reference_value', 'residual_value'],
+      allowed_categories: ['Veículos'],
+      confidence_level: 'medium',
+      official_reference_summary: 'Referencia de mercado para veiculos. Exige identificacao especifica do veiculo, como codigo FIPE, modelo, ano e combustivel.',
+      prompt: 'Use apenas para veiculos e somente para referencia de mercado/valor residual. Nunca use para taxa ou vida util fiscal.',
+    },
+    notes: 'Fonte oficial padrao para referencia de mercado de veiculos. Nao altera valor contabil.',
+  },
+];
+
 function normalizeConfidence(value: string): 'low' | 'medium' | 'high' {
   if (value === 'high' || value === 'medium') return value;
   return 'low';
@@ -267,7 +366,13 @@ function sourceAllowsCategory(source: MonthlyParameterSourceRecord, category: st
   const config = parseConfig(source.parser_config_json);
   const allowedCategories = listFromUnknown(config.allowed_categories);
   if (allowedCategories.length === 0) return true;
-  return allowedCategories.includes(category);
+  const normalizedCategory = normalizeSearchText(category);
+  return allowedCategories.map(normalizeSearchText).includes(normalizedCategory);
+}
+
+function isDefaultOfficialSource(source: MonthlyParameterSourceRecord): boolean {
+  const config = parseConfig(source.parser_config_json);
+  return source.id?.startsWith('default:') === true || config.system_default === true;
 }
 
 function sourceScore(
@@ -290,7 +395,24 @@ function sourceScore(
   if (confidence === 'medium') score += 3;
   if (confidence === 'low') score += 1;
   score += Math.max(0, 100 - (Number(source.priority) || 100)) / 10;
+  if (isDefaultOfficialSource(source)) score -= 8;
   return score;
+}
+
+function defaultOfficialSourcesFor(query: {
+  domain: string;
+  fieldName: string;
+  category: string;
+}): MonthlyParameterSourceRecord[] {
+  return DEFAULT_OFFICIAL_SOURCES
+    .filter((source) => sourceCompatibleWithDomain(source, query.domain, query.fieldName))
+    .filter((source) => sourceSupportsField(source, query.fieldName))
+    .filter((source) => sourceAllowsCategory(source, query.category))
+    .map((source) => ({
+      ...source,
+      workspace_id: 'system',
+      is_active: true,
+    }));
 }
 
 function sourceSummary(source: MonthlyParameterSourceRecord) {
@@ -306,6 +428,9 @@ function sourceSummary(source: MonthlyParameterSourceRecord) {
     expected_fields: listFromUnknown(config.expected_fields),
     allowed_categories: listFromUnknown(config.allowed_categories),
     prompt: normalizeText(config.prompt),
+    reference_summary: normalizeText(config.official_reference_summary || config.reference_summary || source.notes),
+    system_default: isDefaultOfficialSource(source),
+    web_search_available: false,
     confidence_level: normalizeText(config.confidence_level || 'medium'),
   };
 }
@@ -327,6 +452,11 @@ async function generateSuggestionFromSources(
   const basis = suggestionBasis(input.domain);
   const sources = input.sources.slice(0, 6).map(sourceSummary);
   const prompt = [
+    'A integracao atual desta function nao fornece navegacao web nem busca aberta. Nao simule pesquisa na internet.',
+    'Use fontes cadastradas/aprovadas do workspace como prioridade e fontes oficiais padrao do sistema como apoio controlado.',
+    'Nao use regra fixa por categoria nem tabela padrao inventada. O grupo de patrimonio e apenas uma pista, nunca a unica base.',
+    'Separe obrigatoriamente as bases: fiscal usa Receita/normas fiscais; societaria/gerencial usa CPC/CVM/politica contabil; FIPE usa apenas veiculos e apenas mercado/residual.',
+    'Se as fontes ou o contexto nao sustentarem um valor numerico com seguranca, responda found=false e explique em warning.',
     'Você é um assistente técnico-contábil do sistema AMZ Patrimônios.',
     'Gere UMA sugestão para o campo solicitado usando apenas as fontes aprovadas fornecidas e o contexto do ativo.',
     'As fontes podem ser gerais: norma, lei, política interna, tabela fiscal ou orientação contábil. Fonte específica aumenta confiança, mas fonte geral aprovada pode fundamentar sugestão conservadora.',
@@ -547,11 +677,14 @@ Deno.serve(async (req) => {
         'priority',
         500,
       );
-      const sources = (sourceRows || [])
+      const registeredSources = (sourceRows || [])
         .filter((source: MonthlyParameterSourceRecord) => source.is_active === true)
         .filter((source: MonthlyParameterSourceRecord) => sourceCompatibleWithDomain(source, domain, fieldName))
         .filter((source: MonthlyParameterSourceRecord) => sourceSupportsField(source, fieldName))
         .filter((source: MonthlyParameterSourceRecord) => sourceAllowsCategory(source, category))
+        .map((source: MonthlyParameterSourceRecord) => ({ ...source, id: source.id || `registered:${source.parameter_key || source.source_name}` }));
+      const defaultSources = defaultOfficialSourcesFor({ domain, fieldName, category });
+      const sources = [...registeredSources, ...defaultSources]
         .map((source: MonthlyParameterSourceRecord) => ({
           source,
           score: sourceScore(source, { domain, fieldName, category, assetProfile }),
