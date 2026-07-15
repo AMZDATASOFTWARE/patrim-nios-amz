@@ -27,6 +27,10 @@ type RunStats = {
   sources: Array<Record<string, unknown>>;
 };
 
+function canManageMonthlyParameters(user: Record<string, unknown> | null | undefined): boolean {
+  return user?.is_platform_admin === true || normalizeText(user?.role) === 'admin';
+}
+
 function currentIso() {
   return new Date().toISOString();
 }
@@ -188,8 +192,8 @@ Deno.serve(async (req) => {
 
     if (user) {
       const fresh = (await svc.entities.User.filter({ id: user.id }))[0];
-      if (!fresh?.is_platform_admin) {
-        return json({ error: 'Somente o administrador da plataforma pode executar a atualizacao mensal manualmente.' }, 403);
+      if (!canManageMonthlyParameters(fresh)) {
+        return json({ error: 'Somente administrador pode executar a atualizacao mensal manualmente.' }, 403);
       }
 
       actorId = normalizeText(fresh.id || user.id || 'system');

@@ -203,7 +203,8 @@ Agent a publicar:
 Permissoes e seguranca:
 - confirmar RLS por `workspace_id`;
 - confirmar escrita administrativa/service-role para snapshots e runs;
-- confirmar que `MonthlyParameterSource` so e gerenciada por administrador;
+- confirmar que `MonthlyParameterSource` so e gerenciada por `is_platform_admin === true` ou `role === "admin"`;
+- tratar a gestao de fontes/snapshots como sensivel; etapa futura recomendada: criar permissao granular como `manage_monthly_parameters`;
 - confirmar que o frontend nao exibe `raw_payload` nem secrets.
 
 Secrets necessarios:

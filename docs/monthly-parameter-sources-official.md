@@ -2,6 +2,8 @@
 
 Atualizacao official_page: esta fase tambem suporta `official_page` com IA restrita a URL oficial cadastrada. Nao ha busca aberta, nao ha scraping livre e todo snapshot gerado por pagina oficial deve ficar `pending_review` ate aprovacao humana.
 
+Fontes controladas suportadas para cadastro: `manual_table`, `internal_rule`, `api` e `official_page`. A gestao pode ser feita por `is_platform_admin === true` ou por usuario com `role === "admin"`, sempre com validacao tambem no backend.
+
 Este guia prepara modelos de `MonthlyParameterSource` para depreciação contabil e fiscal usando apenas fontes controladas suportadas nesta fase: `manual_table` e `internal_rule`.
 
 Nao faz parte desta fase:

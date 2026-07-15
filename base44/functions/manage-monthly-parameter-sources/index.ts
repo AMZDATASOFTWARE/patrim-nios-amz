@@ -13,6 +13,10 @@ const cors = {
 
 type AuditAction = 'created' | 'updated';
 
+function canManageMonthlyParameters(user: Record<string, unknown> | null | undefined): boolean {
+  return user?.is_platform_admin === true || normalizeText(user?.role) === 'admin';
+}
+
 function pickComparableSource(source: Record<string, unknown>) {
   return sanitizeSourceForClient({
     id: source.id || '',
@@ -79,7 +83,7 @@ async function requirePlatformAdmin(base44: any) {
 
   const svc = base44.asServiceRole;
   const me = (await svc.entities.User.filter({ id: user.id }))[0];
-  if (!me?.is_platform_admin) {
+  if (!canManageMonthlyParameters(me)) {
     return {
       error: {
         status: 403,
