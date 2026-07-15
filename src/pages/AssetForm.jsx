@@ -9,12 +9,11 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ArrowLeft, Upload, Save } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getDefaultDepreciationRate, getUsefulLifeFromRate } from '@/lib/depreciation';
+import { getUsefulLifeFromRate } from '@/lib/depreciation';
 import SupplierSelect from '@/components/assets/SupplierSelect';
 import AutoParameterSuggestion from '@/components/auto-parameters/AutoParameterSuggestion';
 import FipeMarketReference from '@/components/auto-parameters/FipeMarketReference';
 import { toast } from 'sonner';
-import { useAuth } from '@/lib/AuthContext';
 import { useWorkspace } from '@/lib/WorkspaceContext';
 import { getPlan } from '@/lib/plans';
 import { logAudit } from '@/lib/audit';
@@ -93,9 +92,6 @@ export default function AssetForm() {
   const [branches, setBranches] = useState([]);
   const SectorEntity = useWorkspaceEntity('Sector');
   const [sectors, setSectors] = useState([]);
-  const ConfigEntity = useWorkspaceEntity('DepreciationConfig');
-  const AuditEntity = useWorkspaceEntity('AuditLog');
-  const { user } = useAuth();
   const { workspace } = useWorkspace();
 
   const [form, setForm] = useState({
@@ -110,8 +106,8 @@ export default function AssetForm() {
     acquisition_value: '',
     purchase_date: '',
     depreciation_start_date: '',
-    depreciation_rate: 10,
-    useful_life_years: 10,
+    depreciation_rate: '',
+    useful_life_years: '',
     residual_value: '',
     location: '',
     status: 'Ativo',
@@ -146,11 +142,62 @@ export default function AssetForm() {
     notes: '',
   });
 
-  const autoParameterContext = {
-    category: form.category,
-    asset_type: form.asset_type || '',
-    uf: form.uf || '',
-    regime_fiscal: form.regime_fiscal || '',
+  const deriveAssetType = (category) => {
+    if (category === 'Veículos') return 'vehicle';
+    if (category === 'Imóveis') return 'property';
+    if (category === 'Intangíveis') return 'intangible';
+    if (category === 'Investimentos') return 'investment';
+    return 'equipment';
+  };
+
+  const getBranchName = (id) => branches.find((branch) => branch.id === id)?.name || '';
+  const getSectorName = (id) => sectors.find((sector) => sector.id === id)?.name || '';
+
+  const buildAutoParameterContext = (fieldName, domain) => {
+    const isFiscal = domain === 'fiscal';
+    const isFipe = domain === 'fipe';
+    const isResidual = fieldName === 'residual_value' || fieldName === 'fiscal_residual_value';
+
+    return {
+      asset_name: form.name,
+      asset_description: form.name,
+      description: form.description,
+      category: form.category,
+      asset_group: form.category,
+      asset_type: deriveAssetType(form.category),
+      conservation_state: form.conservation_state,
+      acquisition_value: isResidual ? form.acquisition_value : form.acquisition_value || '',
+      purchase_date: form.purchase_date,
+      depreciation_start_date: isFiscal
+        ? form.fiscal_depreciation_start_date || form.depreciation_start_date
+        : form.depreciation_start_date,
+      account: form.account,
+      cost_center: form.cost_center,
+      branch_id: form.branch_id,
+      branch_name: getBranchName(form.branch_id),
+      sector_id: form.sector_id,
+      sector_name: getSectorName(form.sector_id),
+      location: form.location,
+      notes: form.notes,
+      supplier_id: form.supplier_id,
+      supplier_name: form.supplier_name,
+      fiscal_document: form.fiscal_document,
+      warranty_expiry_date: form.warranty_expiry_date,
+      next_review_date: form.next_review_date,
+      requested_field: fieldName,
+      suggestion_basis: isFipe ? 'fipe' : isFiscal ? 'fiscal' : 'societaria_gerencial',
+      vehicle_plate: form.vehicle_plate,
+      vehicle_renavam: form.vehicle_renavam,
+      vehicle_chassis: form.vehicle_chassis,
+      vehicle_model_year: form.vehicle_model_year,
+      vehicle_fuel_type: form.vehicle_fuel_type,
+      property_registration_number: form.property_registration_number,
+      property_area_m2: form.property_area_m2,
+      property_registration_type: form.property_registration_type,
+      ownership_type: form.ownership_type,
+      is_construction_in_progress: form.is_construction_in_progress,
+      construction_completion_date: form.construction_completion_date,
+    };
   };
 
   const fipeReferenceContext = {
@@ -233,18 +280,8 @@ export default function AssetForm() {
     }
   }, [editId]);
 
-  const handleCategoryChange = async (value) => {
-    // Try to load from saved config first
-    const configs = await ConfigEntity.filter({ category: value });
-    let rate, life;
-    if (configs.length > 0) {
-      rate = configs[0].depreciation_rate;
-      life = configs[0].useful_life_years;
-    } else {
-      rate = getDefaultDepreciationRate(value);
-      life = getUsefulLifeFromRate(rate);
-    }
-    setForm({ ...form, category: value, depreciation_rate: rate, useful_life_years: life });
+  const handleCategoryChange = (value) => {
+    setForm({ ...form, category: value });
   };
 
   const handleFileUpload = async (e, field) => {
@@ -640,7 +677,7 @@ export default function AssetForm() {
               <AutoParameterSuggestion
                 fieldName="depreciation_rate"
                 domain="depreciation"
-                context={autoParameterContext}
+                context={buildAutoParameterContext('depreciation_rate', 'depreciation')}
                 onApply={(suggestion) => handleApplyAutoSuggestion('depreciation_rate', suggestion)}
               />
             </div>
@@ -662,7 +699,7 @@ export default function AssetForm() {
               <AutoParameterSuggestion
                 fieldName="useful_life_years"
                 domain="depreciation"
-                context={autoParameterContext}
+                context={buildAutoParameterContext('useful_life_years', 'depreciation')}
                 onApply={(suggestion) => handleApplyAutoSuggestion('useful_life_years', suggestion)}
               />
             </div>
@@ -680,7 +717,7 @@ export default function AssetForm() {
               <AutoParameterSuggestion
                 fieldName="residual_value"
                 domain="depreciation"
-                context={autoParameterContext}
+                context={buildAutoParameterContext('residual_value', 'depreciation')}
                 onApply={(suggestion) => handleApplyAutoSuggestion('residual_value', suggestion)}
               />
             </div>
@@ -727,7 +764,7 @@ export default function AssetForm() {
               <AutoParameterSuggestion
                 fieldName="fiscal_depreciation_rate"
                 domain="fiscal"
-                context={autoParameterContext}
+                context={buildAutoParameterContext('fiscal_depreciation_rate', 'fiscal')}
                 onApply={(suggestion) => handleApplyAutoSuggestion('fiscal_depreciation_rate', suggestion)}
               />
             </div>
@@ -738,13 +775,19 @@ export default function AssetForm() {
               <AutoParameterSuggestion
                 fieldName="fiscal_useful_life_years"
                 domain="fiscal"
-                context={autoParameterContext}
+                context={buildAutoParameterContext('fiscal_useful_life_years', 'fiscal')}
                 onApply={(suggestion) => handleApplyAutoSuggestion('fiscal_useful_life_years', suggestion)}
               />
             </div>
             <div>
               <Label htmlFor="fiscal_residual_value">Valor Residual Fiscal (R$)</Label>
               <Input id="fiscal_residual_value" type="number" step="0.01" value={form.fiscal_residual_value} onChange={(e) => setForm({ ...form, fiscal_residual_value: e.target.value })} placeholder="0,00" />
+              <AutoParameterSuggestion
+                fieldName="fiscal_residual_value"
+                domain="fiscal"
+                context={buildAutoParameterContext('fiscal_residual_value', 'fiscal')}
+                onApply={(suggestion) => handleApplyAutoSuggestion('fiscal_residual_value', suggestion)}
+              />
             </div>
             <div>
               <Label htmlFor="fiscal_depreciation_start_date">Início da Depreciação Fiscal</Label>
