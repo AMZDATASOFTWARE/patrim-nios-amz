@@ -168,7 +168,7 @@
     },
     {
       "function_name": "get-parameter-suggestion",
-      "description": "Busca a indicacao automatica vigente na base mensal de parametros para um campo patrimonial, fiscal ou de CIAP, retornando fonte, competencia, vigencia e nivel de confianca."
+      "description": "Gera sugestao automatica com base em fontes aprovadas e parametros mensais para um campo patrimonial, fiscal ou de CIAP, retornando fonte, competencia e nivel de confianca."
     },
     {
       "entity_name": "AiBriefing",
