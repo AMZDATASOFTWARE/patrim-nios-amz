@@ -76,7 +76,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "role": "admin"
+            "is_platform_admin": true
           }
         }
       }
@@ -88,7 +88,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "role": "admin"
+            "is_platform_admin": true
           }
         }
       }
@@ -99,7 +99,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "role": "admin"
+            "is_platform_admin": true
           }
         }
       }
@@ -110,7 +110,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "role": "admin"
+            "is_platform_admin": true
           }
         }
       }
@@ -122,7 +122,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "role": "admin"
+            "is_platform_admin": true
           }
         }
       }
@@ -137,7 +137,7 @@
     "//": "Tenant + papel: admin/manager criam/leem transferencias; viewer/user somente leitura. status/decided_at/decision_notes/acceptance_token* tem RLS de CAMPO restrita a is_platform_admin \u2014 so as functions (service-role) gravam a decisao, o solicitante nao pode marcar 'aceito' sozinho. create bloqueado no SDK (passa por requestAssetTransfer).",
     "create": {
       "user_condition": {
-        "role": "admin"
+        "is_platform_admin": true
       }
     },
     "read": {

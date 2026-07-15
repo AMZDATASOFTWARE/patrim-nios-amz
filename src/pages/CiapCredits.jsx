@@ -7,11 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { AlertCircle, CheckCircle2, Landmark, Plus, Download, Pencil, Trash2 } from 'lucide-react';
+import { Landmark, Plus, Download, Pencil, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/depreciation';
-import { getParameterSuggestion } from '@/lib/autoParameters';
 import { toast } from 'sonner';
 import moment from 'moment';
 
@@ -40,34 +39,8 @@ export default function CiapCredits() {
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
-  const [ciapCoefficientRef, setCiapCoefficientRef] = useState({ loading: true, suggestion: null, error: '' });
 
   useEffect(() => { load(); }, []);
-
-  const loadCiapCoefficientReference = async () => {
-    setCiapCoefficientRef({ loading: true, suggestion: null, error: '' });
-    const competence = moment().format('YYYY-MM');
-    const result = await getParameterSuggestion({
-      entity_type: 'CiapCredit',
-      domain: 'ciap',
-      field_name: 'ciap_credit_coefficient',
-      competence_month: competence,
-      context: {
-        calculation_mode: 'simplified_warning_only',
-      },
-    });
-
-    if (!result?.ok || !result?.found) {
-      setCiapCoefficientRef({
-        loading: false,
-        suggestion: null,
-        error: result?.error || 'Coeficiente CIAP vigente nao encontrado para esta competencia.',
-      });
-      return;
-    }
-
-    setCiapCoefficientRef({ loading: false, suggestion: result, error: '' });
-  };
 
   const load = async () => {
     setLoading(true);
@@ -78,7 +51,6 @@ export default function CiapCredits() {
     setCredits(c);
     setAssets(a);
     setLoading(false);
-    loadCiapCoefficientReference();
   };
 
   const openNew = () => { setForm(EMPTY); setEditId(null); setOpen(true); };
@@ -165,54 +137,6 @@ export default function CiapCredits() {
 
       <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 text-sm text-amber-800">
         ⚠️ Os valores default (1/48, alíquotas PIS/COFINS) são uma simplificação. A regra real do CIAP proporciona o crédito pelas saídas tributadas do mês — <strong>revise com seu contador antes de usar para apuração fiscal.</strong> A apropriação mensal roda automaticamente por uma automação agendada.
-      </div>
-
-      <div className="bg-card rounded-xl border border-border p-4 shadow-sm text-sm">
-        <div className="flex items-start justify-between gap-3 flex-wrap">
-          <div>
-            <h2 className="font-semibold text-card-foreground">Coeficiente CIAP da competencia</h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Referencia mensal da base de parametros. Nesta fase, ela nao altera a apropriacao automatica.
-            </p>
-          </div>
-          <span className="text-xs text-muted-foreground">{moment().format('MM/YYYY')}</span>
-        </div>
-
-        <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
-          <div className="flex items-start gap-2">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            <p className="text-xs">
-              Calculo CIAP simplificado em uso: a apropriacao atual usa a parcela simples 1/48. O calculo completo depende do coeficiente de creditamento por competencia, validado pelo responsavel fiscal.
-            </p>
-          </div>
-        </div>
-
-        {ciapCoefficientRef.loading ? (
-          <p className="mt-3 text-xs text-muted-foreground">Buscando parametro mensal CIAP...</p>
-        ) : ciapCoefficientRef.suggestion ? (
-          <div className="mt-3 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-emerald-900">
-            <div className="flex items-start gap-2">
-              <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
-              <div>
-                <p className="font-medium">
-                  Coeficiente de referencia: {ciapCoefficientRef.suggestion.label || ciapCoefficientRef.suggestion.value}
-                </p>
-                <p className="mt-1 text-xs">
-                  Fonte: {ciapCoefficientRef.suggestion.source_name || 'Fonte configurada'} - Competencia: {ciapCoefficientRef.suggestion.competence_month}
-                </p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900">
-            <div className="flex items-start gap-2">
-              <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-              <p className="text-xs">
-                {ciapCoefficientRef.error || 'Coeficiente CIAP vigente nao encontrado. A tela permanece usando a sinalizacao de calculo simplificado.'}
-              </p>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">

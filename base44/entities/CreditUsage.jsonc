@@ -47,22 +47,22 @@
   "rls": {
     "create": {
       "user_condition": {
-        "role": "admin"
+        "is_platform_admin": true
       }
     },
     "read": {
       "user_condition": {
-        "role": "admin"
+        "is_platform_admin": true
       }
     },
     "update": {
       "user_condition": {
-        "role": "admin"
+        "is_platform_admin": true
       }
     },
     "delete": {
       "user_condition": {
-        "role": "admin"
+        "is_platform_admin": true
       }
     }
   }

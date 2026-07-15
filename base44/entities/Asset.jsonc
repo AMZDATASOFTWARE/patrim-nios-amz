@@ -39,7 +39,7 @@
       "rls": {
         "update": {
           "user_condition": {
-            "role": "admin"
+            "is_platform_admin": true
           }
         }
       }
@@ -261,7 +261,7 @@
     "//": "Isolamento por tenant (workspace_id) + papel aplicado no servidor: admin/manager editam; apenas admin exclui; viewer/user s\u00e3o somente-leitura. CREATE \u00e9 bloqueado no SDK do cliente: todo cadastro passa pela function createAsset (service-role), que valida o plano (limite de ativos + status de pagamento) e estampa o workspace_id da sess\u00e3o.",
     "create": {
       "user_condition": {
-        "role": "admin"
+        "is_platform_admin": true
       }
     },
     "read": {

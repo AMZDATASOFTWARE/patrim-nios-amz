@@ -60,7 +60,7 @@
     "//": "Snapshot diario gerado pela function generateDailyBriefings (service-role). Somente leitura por tenant no SDK; create/update/delete bloqueados para qualquer cliente (mesmo padrao de AlertDispatchLog) \u2014 nenhum usuario, nem admin do workspace, escreve aqui diretamente.",
     "create": {
       "user_condition": {
-        "role": "admin"
+        "is_platform_admin": true
       }
     },
     "read": {
@@ -68,12 +68,12 @@
     },
     "update": {
       "user_condition": {
-        "role": "admin"
+        "is_platform_admin": true
       }
     },
     "delete": {
       "user_condition": {
-        "role": "admin"
+        "is_platform_admin": true
       }
     }
   }

@@ -49,7 +49,7 @@
     "//": "Somente leitura por tenant. Escrita exclusiva do service-role (function dispatchExpiryAlerts) \u2014 nenhum cliente grava direto (mesmo padrao de AuditLog).",
     "create": {
       "user_condition": {
-        "role": "admin"
+        "is_platform_admin": true
       }
     },
     "read": {
@@ -57,12 +57,12 @@
     },
     "update": {
       "user_condition": {
-        "role": "admin"
+        "is_platform_admin": true
       }
     },
     "delete": {
       "user_condition": {
-        "role": "admin"
+        "is_platform_admin": true
       }
     }
   }
