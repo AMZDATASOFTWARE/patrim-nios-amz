@@ -43,7 +43,7 @@ function normalizeSuggestionError(message) {
     lower.includes('json') ||
     lower.includes('provider')
   ) {
-    return 'Ainda não há sugestão aprovada para este campo. Cadastre ou aprove uma fonte para habilitar sugestões.';
+    return 'Não foi possível gerar a sugestão agora. Tente novamente em instantes.';
   }
   return raw;
 }
