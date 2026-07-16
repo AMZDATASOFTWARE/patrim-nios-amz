@@ -6,6 +6,7 @@ import {
   DEPRECIATION_SUGGESTION_FIELDS,
   INSUFFICIENT_EVIDENCE_MESSAGE,
   MANAGEMENT_WARNING,
+  SUGGESTION_NOTICE_WARNINGS,
   TRUSTED_AI_SOURCES_INFO,
   applyDepreciationRateInput,
   applySuggestionValue,
@@ -24,6 +25,7 @@ import {
   normalizeSuggestionFunctionResponse,
   requestFieldsForSuggestion,
   sourceTypeLabel,
+  summarizeSuggestionSources,
   uniqueWarningsForSuggestions,
   uniqueSuggestionWarnings,
 } from '../src/lib/assetParameterSuggestions.js';
@@ -216,7 +218,17 @@ test('frontend helper normalizes function response and fiscal reference', () => 
   assert.equal(response.sources_consulted.length, 1);
   assert.equal(response.has_failed_sources, true);
   assert.equal(response.fiscal_reference.value, 10);
+  assert.equal(summarizeSuggestionSources(response, { source_ids: ['cpc'] }), 'CPC');
+  assert.equal(summarizeSuggestionSources(response, { source_ids: ['missing'] }), '');
   assert.deepEqual(normalizeFiscalReference({ found: false }), null);
+});
+
+test('frontend helper exposes concise standard suggestion notices', () => {
+  assert.deepEqual(SUGGESTION_NOTICE_WARNINGS, [
+    'Esta é uma estimativa gerencial e precisa de validação contábil.',
+    'O resultado não é orientação fiscal ou contábil definitiva.',
+    'Nenhuma sugestão pode ser aplicada automaticamente.',
+  ]);
 });
 
 test('frontend helper does not treat empty or malformed responses as valid suggestions', () => {
@@ -292,8 +304,15 @@ test('AssetForm source uses one shared depreciation button and keeps residual se
   assert.equal((source.match(/renderSuggestionButton\('useful_life_years'/g) || []).length, 0);
   assert.equal((source.match(/renderSuggestionButton\('residual_value'/g) || []).length, 1);
   assert.equal(source.includes('Consultando fontes confiáveis e analisando os dados do ativo'), true);
-  assert.equal(source.includes('Fontes consultadas'), true);
-  assert.equal(source.includes('Referência fiscal encontrada'), true);
+  assert.equal(source.includes(`Fonte:</span> {sourceSummary || 'não informada'}`), true);
+  assert.equal(source.includes('Avisos específicos'), true);
+  assert.equal(source.includes('const notices = [...extraWarnings, ...SUGGESTION_NOTICE_WARNINGS]'), false);
+  assert.equal(source.includes('const renderSuggestionNotices = (fields) =>'), true);
+  assert.equal(source.includes('SUGGESTION_NOTICE_WARNINGS'), true);
+  assert.equal(source.includes('{renderSuggestionNotices(DEPRECIATION_SUGGESTION_FIELDS)}'), true);
+  assert.equal(source.includes("{renderSuggestionNotices(['residual_value'])}"), true);
+  assert.equal(source.includes('Referência fiscal:'), true);
+  assert.equal(source.includes('Sugestão gerada com base nos dados informados e nas fontes consultadas.'), false);
   assert.equal(source.includes('if (!payload.ok) {'), true);
   assert.equal(source.includes('Object.assign(new Error(rawPayload?.error'), true);
   assert.equal(source.includes('{ data: rawPayload }'), true);

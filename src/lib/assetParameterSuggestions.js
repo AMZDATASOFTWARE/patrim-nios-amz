@@ -8,6 +8,11 @@ export const DEPRECIATION_SUGGESTION_FIELDS = ['depreciation_rate', 'useful_life
 
 export const MANAGEMENT_WARNING = 'Estimativa gerencial baseada nos dados informados. Valide com o responsável contábil antes de utilizar.';
 export const INSUFFICIENT_EVIDENCE_MESSAGE = 'As fontes foram consultadas, mas não foram encontradas informações suficientes para gerar uma sugestão segura.';
+export const SUGGESTION_NOTICE_WARNINGS = [
+  'Esta é uma estimativa gerencial e precisa de validação contábil.',
+  'O resultado não é orientação fiscal ou contábil definitiva.',
+  'Nenhuma sugestão pode ser aplicada automaticamente.',
+];
 
 export const TRUSTED_AI_SOURCES_INFO = [
   { name: 'CPC', purpose: 'Normas e critérios contábeis.', application: 'Todas as categorias.' },
@@ -176,6 +181,12 @@ export function confidenceLabel(confidence) {
   return 'Confiança baixa';
 }
 
+export function confidenceValueLabel(confidence) {
+  if (confidence === 'high') return 'Alta';
+  if (confidence === 'medium') return 'Média';
+  return 'Baixa';
+}
+
 export function uniqueSuggestionWarnings(warnings) {
   if (!Array.isArray(warnings)) return [];
   const out = [];
@@ -187,7 +198,12 @@ export function uniqueSuggestionWarnings(warnings) {
 }
 
 export function isManagementWarning(warning) {
-  return /estimativa gerencial baseada nos dados informados/i.test(String(warning || ''));
+  return /estimativa gerencial baseada nos dados informados|estimativa gerencial e precisa de valid/i.test(String(warning || ''));
+}
+
+export function isStandardSuggestionNotice(warning) {
+  const text = cleanText(warning, 240).toLowerCase();
+  return SUGGESTION_NOTICE_WARNINGS.some((notice) => notice.toLowerCase() === text) || isManagementWarning(text);
 }
 
 export function uniqueWarningsForSuggestions(suggestions = []) {
@@ -273,6 +289,25 @@ export function normalizeConsultedSources(sources) {
     });
   });
   return Array.from(byKey.values()).slice(0, 6);
+}
+
+export function summarizeSuggestionSources(response, suggestion, maxItems = 2) {
+  const sources = Array.isArray(response?.sources_consulted) ? response.sources_consulted : [];
+  const sourceIds = Array.isArray(suggestion?.source_ids) ? suggestion.source_ids.filter(Boolean) : [];
+  const selected = sourceIds.length > 0
+    ? sources.filter((source) => sourceIds.includes(source.id))
+    : sources;
+
+  const names = [];
+  selected.forEach((source) => {
+    const name = cleanText(source?.name, 80);
+    if (name && !names.includes(name)) names.push(name);
+  });
+
+  if (names.length === 0) return '';
+  const visible = names.slice(0, maxItems).join(', ');
+  const remaining = names.length - maxItems;
+  return remaining > 0 ? `${visible} +${remaining}` : visible;
 }
 
 export function normalizeFiscalReference(reference) {

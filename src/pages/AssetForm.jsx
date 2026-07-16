@@ -24,17 +24,18 @@ import {
   applyUsefulLifeInput,
   buildSuggestAssetParametersPayload,
   buildSuggestionContext,
-  confidenceLabel,
+  confidenceValueLabel,
   createEmptySuggestionState,
   formatSuggestionValue,
   friendlySuggestionError,
   getSuggestionEligibility,
   hasFoundSuggestionForFields,
   INSUFFICIENT_EVIDENCE_MESSAGE,
-  isManagementWarning,
+  isStandardSuggestionNotice,
   normalizeSuggestionFunctionResponse,
   stableStringify,
-  uniqueWarningsForSuggestions,
+  SUGGESTION_NOTICE_WARNINGS,
+  summarizeSuggestionSources,
   uniqueSuggestionWarnings,
 } from '@/lib/assetParameterSuggestions';
 
@@ -306,10 +307,8 @@ export default function AssetForm() {
     const response = getSuggestionResponse(fields);
     if (!response) return null;
     const suggestions = getSuggestionsForFields(fields);
-    const message = hasFoundSuggestionForFields(suggestions, fields)
-      ? 'Sugestão gerada com base nos dados informados e nas fontes consultadas.'
-      : INSUFFICIENT_EVIDENCE_MESSAGE;
-    return <p className={className}>{message}</p>;
+    if (hasFoundSuggestionForFields(suggestions, fields)) return null;
+    return <p className={className}>{INSUFFICIENT_EVIDENCE_MESSAGE}</p>;
   };
 
   const renderSuggestionButton = (field, label) => {
@@ -363,41 +362,17 @@ export default function AssetForm() {
   };
 
   const renderSourcesConsulted = (response) => {
-    const sources = response?.sources_consulted || [];
     const fiscalReference = response?.fiscal_reference;
-    if (sources.length === 0 && !response?.has_failed_sources && !fiscalReference) return null;
+    if (!response?.has_failed_sources && !fiscalReference) return null;
 
     return (
-      <div className="mt-3 space-y-2 rounded-md border border-border bg-muted/20 p-3 text-xs">
-        {sources.length > 0 && (
-          <details>
-            <summary className="cursor-pointer font-medium text-foreground">Fontes consultadas</summary>
-            <div className="mt-2 space-y-2">
-              {sources.map((source) => (
-                <div key={`${source.id}-${source.url}`} className="space-y-0.5">
-                  <div className="flex flex-wrap items-center gap-1">
-                    <span className="font-medium text-foreground">{source.name}</span>
-                    <span className="text-muted-foreground">({source.type})</span>
-                  </div>
-                  {source.title && <p className="text-muted-foreground">{source.title}</p>}
-                  {source.summary && <p className="text-muted-foreground">{source.summary}</p>}
-                  <div className="flex flex-wrap gap-2 text-muted-foreground">
-                    {source.consulted_at && <span>Consultada em {source.consulted_at}</span>}
-                    <a className="font-medium text-primary underline-offset-2 hover:underline" href={source.url} target="_blank" rel="noreferrer noopener">
-                      Abrir fonte
-                    </a>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </details>
-        )}
-        {response?.has_failed_sources && sources.length > 0 && (
+      <div className="mt-2 space-y-2 rounded-md bg-muted/20 p-2 text-xs">
+        {response?.has_failed_sources && (
           <p className="text-muted-foreground">Algumas fontes não puderam ser consultadas.</p>
         )}
         {fiscalReference && (
           <div className="rounded-md bg-background/70 p-2">
-            <p className="font-medium text-foreground">Referência fiscal encontrada: {fiscalReference.value}% ao ano.</p>
+            <p className="font-medium text-foreground">Referência fiscal: {fiscalReference.value}% ao ano</p>
             <p className="text-muted-foreground">{fiscalReference.warning}</p>
           </div>
         )}
@@ -405,19 +380,7 @@ export default function AssetForm() {
     );
   };
 
-  const renderGroupWarnings = (fields) => {
-    const warnings = uniqueWarningsForSuggestions(fields.map((field) => aiSuggestions[field]?.suggestion).filter(Boolean));
-    if (warnings.length === 0) return null;
-    return (
-      <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
-        {warnings.map((warning) => (
-          <p key={warning}>{warning}</p>
-        ))}
-      </div>
-    );
-  };
-
-  const renderSuggestionBox = (field, options = {}) => {
+  const renderSuggestionBox = (field) => {
     const state = aiSuggestions[field];
     const suggestion = state?.suggestion;
     const label = SUGGESTION_PARAMETERS[field].label;
@@ -470,32 +433,61 @@ export default function AssetForm() {
       );
     }
 
-    const warnings = uniqueSuggestionWarnings(suggestion.warnings)
-      .filter((warning) => !(options.hideManagementWarning && isManagementWarning(warning)));
+    const sourceSummary = summarizeSuggestionSources(state.response, suggestion);
+    const extraWarnings = uniqueSuggestionWarnings(suggestion.warnings)
+      .filter((warning) => !isStandardSuggestionNotice(warning))
+      .slice(0, 2);
 
     return (
-      <div className="mt-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-xs">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <p className="font-medium text-foreground">
-              Sugestão da IA: {formatSuggestionValue(field, suggestion.value)}
-            </p>
-            <p className="text-muted-foreground">{confidenceLabel(suggestion.confidence)}</p>
-            {suggestion.reason && <p className="text-muted-foreground">{suggestion.reason}</p>}
-            {warnings.length > 0 && (
-              <ul className="space-y-0.5 text-amber-800">
-                {warnings.map((warning) => (
-                  <li key={warning}>• {warning}</li>
-                ))}
-              </ul>
+      <div className="mt-2 rounded-md border border-primary/20 bg-primary/5 p-3 text-xs">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0 flex-1 space-y-2">
+            <div>
+              <p className="text-[11px] font-medium uppercase text-muted-foreground">Sugestão</p>
+              <p className="text-base font-semibold text-foreground">{formatSuggestionValue(field, suggestion.value)}</p>
+            </div>
+            <div className="grid gap-1 text-muted-foreground sm:grid-cols-2">
+              <p><span className="font-medium text-foreground">Confiança:</span> {confidenceValueLabel(suggestion.confidence)}</p>
+              <p><span className="font-medium text-foreground">Fonte:</span> {sourceSummary || 'não informada'}</p>
+            </div>
+            {suggestion.reason && (
+              <p className="text-muted-foreground">
+                <span className="font-medium text-foreground">Base:</span> {suggestion.reason}
+              </p>
             )}
-            {state.applied && <p className="text-primary">Sugestão aplicada. O campo continua editável.</p>}
+            {extraWarnings.length > 0 && (
+              <div className="rounded-md bg-background/70 p-2">
+                <p className="mb-1 font-medium text-foreground">Avisos específicos</p>
+                <ul className="space-y-1 text-muted-foreground">
+                  {extraWarnings.map((warning) => (
+                    <li key={warning}>• {warning}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {state.applied && <p className="font-medium text-primary">Sugestão aplicada. O campo continua editável.</p>}
           </div>
           <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1" onClick={() => handleApplySuggestion(field)}>
             <Sparkles className="h-3 w-3" />
             Usar sugestão
           </Button>
         </div>
+      </div>
+    );
+  };
+
+  const renderSuggestionNotices = (fields) => {
+    const suggestions = getSuggestionsForFields(fields);
+    if (!hasFoundSuggestionForFields(suggestions, fields)) return null;
+
+    return (
+      <div className="mt-2 rounded-md bg-muted/30 p-2 text-xs">
+        <p className="mb-1 font-medium text-foreground">Avisos</p>
+        <ul className="space-y-1 text-muted-foreground">
+          {SUGGESTION_NOTICE_WARNINGS.map((warning) => (
+            <li key={warning}>• {warning}</li>
+          ))}
+        </ul>
       </div>
     );
   };
@@ -966,7 +958,7 @@ export default function AssetForm() {
                     placeholder="10"
                     className="mt-1"
                   />
-                  {renderSuggestionBox('depreciation_rate', { hideManagementWarning: true })}
+                  {renderSuggestionBox('depreciation_rate')}
                 </div>
 
                 <div>
@@ -980,12 +972,12 @@ export default function AssetForm() {
                     placeholder="10"
                     className="mt-1"
                   />
-                  {renderSuggestionBox('useful_life_years', { hideManagementWarning: true })}
+                  {renderSuggestionBox('useful_life_years')}
                 </div>
               </div>
               {renderDepreciationSuggestionButton()}
               {renderSuggestionOutcome(DEPRECIATION_SUGGESTION_FIELDS)}
-              {renderGroupWarnings(DEPRECIATION_SUGGESTION_FIELDS)}
+              {renderSuggestionNotices(DEPRECIATION_SUGGESTION_FIELDS)}
               {renderSourcesConsulted(getSuggestionResponse(DEPRECIATION_SUGGESTION_FIELDS))}
             </div>
             
@@ -1003,9 +995,9 @@ export default function AssetForm() {
                 />
                 {renderSuggestionButton('residual_value', 'Sugerir valor residual')}
               </div>
-              {renderSuggestionBox('residual_value', { hideManagementWarning: true })}
+              {renderSuggestionBox('residual_value')}
               {renderSuggestionOutcome(['residual_value'], 'mt-2 text-xs text-muted-foreground')}
-              {renderGroupWarnings(['residual_value'])}
+              {renderSuggestionNotices(['residual_value'])}
               {renderSourcesConsulted(getSuggestionResponse(['residual_value']))}
             </div>
           </div>
