@@ -16,30 +16,25 @@ import { useAuth } from '@/lib/AuthContext';
 import { useWorkspace } from '@/lib/WorkspaceContext';
 import { getPlan } from '@/lib/plans';
 import { logAudit } from '@/lib/audit';
+import {
+  DEPRECIATION_SUGGESTION_FIELDS,
+  SUGGESTION_PARAMETERS,
+  applyDepreciationRateInput,
+  applySuggestionValue,
+  applyUsefulLifeInput,
+  buildSuggestAssetParametersPayload,
+  buildSuggestionContext,
+  confidenceLabel,
+  createEmptySuggestionState,
+  formatSuggestionValue,
+  friendlySuggestionError,
+  getSuggestionEligibility,
+  stableStringify,
+  uniqueSuggestionWarnings,
+} from '@/lib/assetParameterSuggestions';
 
 const categories = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
 const statuses = ['Ativo', 'Em Manutenção', 'Inativo', 'Alienado'];
-
-const SUGGESTION_PARAMETERS = {
-  depreciation_rate: { label: 'Taxa de Depreciação Anual', unit: '% ao ano' },
-  useful_life_years: { label: 'Vida Útil', unit: 'anos' },
-  residual_value: { label: 'Valor Residual', unit: 'R$' },
-};
-const DEPRECIATION_SUGGESTION_FIELDS = ['depreciation_rate', 'useful_life_years'];
-
-function emptySuggestionState() {
-  return Object.keys(SUGGESTION_PARAMETERS).reduce((acc, field) => {
-    acc[field] = {
-      loading: false,
-      suggestion: null,
-      error: '',
-      contextKey: '',
-      stale: false,
-      applied: false,
-    };
-    return acc;
-  }, {});
-}
 
 // Campos de identificação única: não fazem sentido replicados em cópias do
 // mesmo lote/duplicação — ficam em branco (exceto plaqueta, que pode ganhar
@@ -125,7 +120,7 @@ export default function AssetForm() {
     fiscal_depreciation_start_date: '',
     notes: '',
   });
-  const [aiSuggestions, setAiSuggestions] = useState(() => emptySuggestionState());
+  const [aiSuggestions, setAiSuggestions] = useState(() => createEmptySuggestionState());
   const aiRequestSeqRef = useRef(0);
   const aiInFlightKeyRef = useRef('');
   const aiCurrentKeyRef = useRef('');
@@ -189,12 +184,7 @@ export default function AssetForm() {
     });
 
     try {
-      const res = await base44.functions.invoke('suggestAssetParameters', {
-        entity_type: 'Asset',
-        asset_id: editId || undefined,
-        requested_parameters: params,
-        asset_context: context,
-      });
+      const res = await base44.functions.invoke('suggestAssetParameters', buildSuggestAssetParametersPayload(editId, params, context));
       if (!aiMountedRef.current || aiRequestSeqRef.current !== requestId || aiCurrentKeyRef.current !== requestKey) return;
 
       const payload = res?.data || res;
@@ -255,7 +245,7 @@ export default function AssetForm() {
   const handleApplySuggestion = (field) => {
     const suggestion = aiSuggestions[field]?.suggestion;
     if (!suggestion?.found || typeof suggestion.value !== 'number') return;
-    setForm((prev) => ({ ...prev, [field]: String(suggestion.value) }));
+    setForm((prev) => applySuggestionValue(prev, field, suggestion));
     setAiSuggestions((prev) => ({
       ...prev,
       [field]: { ...prev[field], applied: true, stale: false },
@@ -282,22 +272,12 @@ export default function AssetForm() {
 
   const handleDepreciationRateChange = (value) => {
     clearAppliedSuggestions(['depreciation_rate', 'useful_life_years']);
-    const numericValue = parseFloat(value);
-    setForm({
-      ...form,
-      depreciation_rate: value,
-      useful_life_years: numericValue > 0 ? (100 / numericValue).toFixed(1) : '',
-    });
+    setForm((prev) => applyDepreciationRateInput(prev, value));
   };
 
   const handleUsefulLifeChange = (value) => {
     clearAppliedSuggestions(['depreciation_rate', 'useful_life_years']);
-    const numericValue = parseFloat(value);
-    setForm({
-      ...form,
-      useful_life_years: value,
-      depreciation_rate: numericValue > 0 ? (100 / numericValue).toFixed(1) : '',
-    });
+    setForm((prev) => applyUsefulLifeInput(prev, value));
   };
 
   const handleResidualValueChange = (value) => {
@@ -1096,119 +1076,4 @@ export default function AssetForm() {
       </form>
     </div>
   );
-}
-
-function stableStringify(value) {
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
-  if (value && typeof value === 'object') {
-    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
-  }
-  return JSON.stringify(value);
-}
-
-function cleanText(value, limit = 300) {
-  const text = String(value || '').trim();
-  return text ? text.slice(0, limit) : '';
-}
-
-function addText(context, key, value, limit = 300) {
-  const text = cleanText(value, limit);
-  if (text) context[key] = text;
-}
-
-function addNumber(context, key, value) {
-  if (value === '' || value === null || value === undefined) return;
-  const num = Number(value);
-  if (Number.isFinite(num) && num >= 0) context[key] = num;
-}
-
-function buildSuggestionContext(form, branches, sectors) {
-  const context = {};
-  addText(context, 'name', form.name, 300);
-  addText(context, 'category', form.category, 300);
-  addText(context, 'description', form.description, 1000);
-  addText(context, 'account', form.account, 300);
-  addNumber(context, 'acquisition_value', form.acquisition_value);
-  addText(context, 'purchase_date', form.purchase_date, 300);
-  addText(context, 'depreciation_start_date', form.depreciation_start_date, 300);
-  addText(context, 'conservation_state', form.conservation_state, 300);
-  addText(context, 'location', form.location, 300);
-
-  const branch = branches.find((item) => item.id === form.branch_id);
-  const sector = sectors.find((item) => item.id === form.sector_id);
-  addText(context, 'branch_name', branch?.name, 300);
-  addText(context, 'sector_name', sector?.name, 300);
-  addText(context, 'supplier_name', form.supplier_name, 300);
-  addText(context, 'vehicle_model_year', form.vehicle_model_year, 300);
-  addText(context, 'vehicle_fuel_type', form.vehicle_fuel_type, 300);
-  addNumber(context, 'property_area_m2', form.property_area_m2);
-  addText(context, 'property_registration_type', form.property_registration_type, 300);
-  addText(context, 'ownership_type', form.ownership_type, 300);
-  context.is_construction_in_progress = form.is_construction_in_progress === true;
-  addText(context, 'construction_completion_date', form.construction_completion_date, 300);
-  addText(context, 'notes', form.notes, 1000);
-  return context;
-}
-
-function getSuggestionEligibility(context) {
-  const hasName = cleanText(context.name).length >= 3;
-  const hasCategory = categories.includes(context.category);
-  const missingBase = [];
-  if (!hasName) missingBase.push('preencha a descrição do bem com pelo menos 3 caracteres');
-  if (!hasCategory) missingBase.push('selecione um grupo patrimonial válido');
-
-  const depreciationEnabled = missingBase.length === 0;
-  const hasAcquisitionValue = typeof context.acquisition_value === 'number' && context.acquisition_value > 0;
-  const residualMissing = [...missingBase];
-  if (!hasAcquisitionValue) residualMissing.push('informe um valor de aquisição maior que zero');
-
-  return {
-    depreciation: {
-      enabled: depreciationEnabled,
-      reason: depreciationEnabled
-        ? ''
-        : `Para sugerir taxa e vida útil, ${missingBase.join(' e ')}.`,
-    },
-    residual: {
-      enabled: residualMissing.length === 0,
-      reason: residualMissing.length === 0
-        ? ''
-        : `Para sugerir valor residual, ${residualMissing.join(' e ')}.`,
-    },
-  };
-}
-
-function formatSuggestionValue(field, value) {
-  if (typeof value !== 'number' || !Number.isFinite(value)) return '';
-  if (field === 'depreciation_rate') return `${value}% ao ano`;
-  if (field === 'useful_life_years') return `${value} anos`;
-  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
-}
-
-function confidenceLabel(confidence) {
-  if (confidence === 'high') return 'alta';
-  if (confidence === 'medium') return 'média';
-  return 'baixa';
-}
-
-function uniqueSuggestionWarnings(warnings) {
-  if (!Array.isArray(warnings)) return [];
-  const out = [];
-  warnings.forEach((warning) => {
-    const text = cleanText(warning, 240);
-    if (text && !out.includes(text)) out.push(text);
-  });
-  return out.slice(0, 3);
-}
-
-function friendlySuggestionError(error) {
-  const message = String(error?.response?.data?.error || error?.message || '').trim();
-  if (!message) return 'Não foi possível gerar a sugestão agora.';
-  if (/permission|permiss|unauthorized|forbidden|403|401/i.test(message)) {
-    return 'Você não tem permissão para gerar sugestões neste cadastro.';
-  }
-  if (/payload|context|category|categoria|parameter|parametro/i.test(message)) {
-    return message;
-  }
-  return 'Não foi possível gerar a sugestão agora. Continue preenchendo manualmente ou tente novamente.';
 }
