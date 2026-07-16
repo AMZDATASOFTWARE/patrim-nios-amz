@@ -3,8 +3,9 @@ import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Save, TrendingDown } from 'lucide-react';
+import { Info, Save, TrendingDown } from 'lucide-react';
 import { toast } from 'sonner';
+import { TRUSTED_AI_SOURCES_INFO } from '@/lib/assetParameterSuggestions';
 
 const DEFAULT_RATES = {
   'Imóveis':      { depreciation_rate: 4,  useful_life_years: 25 },
@@ -112,6 +113,27 @@ export default function Settings() {
             {saving ? 'Salvando...' : 'Salvar Configurações'}
           </Button>
         </div>
+      </div>
+
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm">
+        <details>
+          <summary className="flex cursor-pointer list-none items-center gap-2">
+            <Info className="h-5 w-5 text-primary" />
+            <span className="text-lg font-semibold text-card-foreground">Fontes confiáveis da IA</span>
+          </summary>
+          <p className="mt-3 text-sm text-muted-foreground">
+            A Sugestão de Parâmetros combina os dados informados no cadastro com referências consultadas em fontes oficiais previamente aprovadas.
+          </p>
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {TRUSTED_AI_SOURCES_INFO.map((source) => (
+              <div key={source.name} className="rounded-md border border-border bg-muted/20 p-3">
+                <p className="text-sm font-medium text-card-foreground">{source.name}</p>
+                <p className="mt-1 text-xs text-muted-foreground">{source.purpose}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Aplicação: {source.application}</p>
+              </div>
+            ))}
+          </div>
+        </details>
       </div>
     </div>
   );

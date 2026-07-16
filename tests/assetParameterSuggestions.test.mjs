@@ -4,6 +4,9 @@ import { test } from 'node:test';
 
 import {
   DEPRECIATION_SUGGESTION_FIELDS,
+  INSUFFICIENT_EVIDENCE_MESSAGE,
+  MANAGEMENT_WARNING,
+  TRUSTED_AI_SOURCES_INFO,
   applyDepreciationRateInput,
   applySuggestionValue,
   applyUsefulLifeInput,
@@ -11,12 +14,22 @@ import {
   buildSuggestionContext,
   createEmptySuggestionState,
   friendlySuggestionError,
+  formatConsultedAt,
   getSuggestionEligibility,
+  hasFoundSuggestionForFields,
+  isValidHttpsUrl,
+  normalizeConsultedSources,
+  normalizeFiscalReference,
+  normalizeSourceSummary,
+  normalizeSuggestionFunctionResponse,
   requestFieldsForSuggestion,
+  sourceTypeLabel,
+  uniqueWarningsForSuggestions,
   uniqueSuggestionWarnings,
 } from '../src/lib/assetParameterSuggestions.js';
 
 const ASSET_FORM_PATH = new URL('../src/pages/AssetForm.jsx', import.meta.url);
+const SETTINGS_PATH = new URL('../src/pages/Settings.jsx', import.meta.url);
 
 test('frontend helper initializes suggestions without loading, errors, or auto results', () => {
   const state = createEmptySuggestionState();
@@ -131,15 +144,129 @@ test('frontend helper recalculates paired fields for valid manual input and pres
 
 test('frontend helper deduplicates warnings and limits them to three', () => {
   assert.deepEqual(uniqueSuggestionWarnings(['a', 'a', 'b', 'c', 'd']), ['a', 'b', 'c']);
+  assert.deepEqual(
+    uniqueWarningsForSuggestions([
+      { warnings: [MANAGEMENT_WARNING, 'A referência técnica encontrada é genérica.'] },
+      { warnings: [MANAGEMENT_WARNING, 'Confirme o modelo do equipamento.', 'A referência técnica encontrada é genérica.'] },
+    ]),
+    ['A referência técnica encontrada é genérica.', 'Confirme o modelo do equipamento.', MANAGEMENT_WARNING],
+  );
 });
 
 test('frontend helper converts technical errors to friendly messages', () => {
   assert.match(friendlySuggestionError(new Error('network down')), /Não foi possível gerar/);
   assert.match(friendlySuggestionError({ response: { data: { error: '403 forbidden' } } }), /permissão/);
   assert.equal(
-    friendlySuggestionError({ response: { data: { error: 'Parametro solicitado nao suportado.' } } }),
-    'Parametro solicitado nao suportado.',
+    friendlySuggestionError({ response: { data: { code: 'NO_TRUSTED_SOURCE_AVAILABLE', error: 'NO_TRUSTED_SOURCE_AVAILABLE' } } }),
+    'Não foi possível consultar uma fonte confiável neste momento. Tente novamente ou informe os valores manualmente.',
   );
+  assert.equal(
+    friendlySuggestionError({ response: { data: { error: 'TIMEOUT', sources_failed: [{ reason_code: 'TIMEOUT' }] } } }),
+    'A consulta às fontes demorou mais que o esperado. Tente novamente.',
+  );
+  assert.equal(
+    friendlySuggestionError({ response: { data: { error: 'Parametro solicitado nao suportado.' } } }),
+    'Preencha os dados indicados para gerar uma sugestão mais segura.',
+  );
+});
+
+test('frontend helper normalizes consulted sources defensively', () => {
+  const sources = normalizeConsultedSources([
+    {
+      id: 'cpc',
+      name: 'CPC',
+      type: 'contabil',
+      url: 'https://cpc.org.br/',
+      title: '<b>CPC 27</b>',
+      summary: '<script>x</script> Referência sobre ativo imobilizado '.repeat(10),
+      retrieved_at: '2026-07-15T10:00:00.000Z',
+      used: true,
+    },
+    { id: 'http', name: 'HTTP', type: 'fiscal', url: 'http://example.com', used: true },
+    { id: 'unused', name: 'Unused', type: 'fiscal', url: 'https://example.com', used: false },
+    { id: 'cpc', name: 'CPC', type: 'contabil', url: 'https://cpc.org.br/', used: true },
+  ]);
+
+  assert.equal(sources.length, 1);
+  assert.equal(sources[0].type, 'Contábil');
+  assert.equal(sources[0].url, 'https://cpc.org.br/');
+  assert.equal(sources[0].title.includes('<'), false);
+  assert.equal(sources[0].summary.length <= 220, true);
+  assert.equal(isValidHttpsUrl('https://cpc.org.br/'), true);
+  assert.equal(isValidHttpsUrl('http://cpc.org.br/'), false);
+  assert.equal(sourceTypeLabel('tecnica'), 'Técnica');
+  assert.equal(formatConsultedAt('invalid'), '');
+  assert.equal(normalizeSourceSummary('<b>texto</b>'), 'texto');
+});
+
+test('frontend helper normalizes function response and fiscal reference', () => {
+  const response = normalizeSuggestionFunctionResponse({
+    data: {
+      basis: 'form_and_trusted_sources',
+      suggestions: { depreciation_rate: { found: true, value: 10 } },
+      sources_consulted: [{ id: 'cpc', name: 'CPC', type: 'contabil', url: 'https://cpc.org.br/', used: true }],
+      sources_failed: [{ id: 'cfc', reason_code: 'TIMEOUT' }],
+      fiscal_reference: { found: true, value: 10, unit: 'percent_per_year', warning: 'Fiscal' },
+      requires_user_confirmation: true,
+      generated_at: '2026-07-15T10:00:00.000Z',
+    },
+  });
+
+  assert.equal(response.basis, 'form_and_trusted_sources');
+  assert.equal(response.sources_consulted.length, 1);
+  assert.equal(response.has_failed_sources, true);
+  assert.equal(response.fiscal_reference.value, 10);
+  assert.deepEqual(normalizeFiscalReference({ found: false }), null);
+});
+
+test('frontend helper does not treat empty or malformed responses as valid suggestions', () => {
+  const empty = normalizeSuggestionFunctionResponse({});
+  const malformed = normalizeSuggestionFunctionResponse({ data: { suggestions: [] } });
+  const foundFalse = normalizeSuggestionFunctionResponse({
+    data: {
+      suggestions: {
+        depreciation_rate: { found: false, reason: INSUFFICIENT_EVIDENCE_MESSAGE },
+        useful_life_years: { found: false, reason: INSUFFICIENT_EVIDENCE_MESSAGE },
+      },
+    },
+  });
+  const explicitFailure = normalizeSuggestionFunctionResponse({
+    data: {
+      ok: false,
+      suggestions: {
+        depreciation_rate: { found: true, value: 10 },
+      },
+      sources_consulted: [{ id: 'cpc', name: 'CPC', type: 'contabil', url: 'https://cpc.org.br/', used: true }],
+      fiscal_reference: { found: true, value: 10, unit: 'percent_per_year' },
+    },
+  });
+  const validPartial = normalizeSuggestionFunctionResponse({
+    data: {
+      ok: true,
+      suggestions: {
+        depreciation_rate: { found: true, value: 10 },
+        useful_life_years: { found: false },
+      },
+    },
+  });
+
+  assert.equal(empty.ok, false);
+  assert.deepEqual(empty.suggestions, {});
+  assert.equal(malformed.ok, false);
+  assert.deepEqual(malformed.suggestions, {});
+  assert.equal(explicitFailure.ok, false);
+  assert.deepEqual(explicitFailure.suggestions, {});
+  assert.deepEqual(explicitFailure.sources_consulted, []);
+  assert.equal(explicitFailure.fiscal_reference, null);
+  assert.equal(hasFoundSuggestionForFields(explicitFailure.suggestions, ['depreciation_rate']), false);
+  assert.equal(foundFalse.ok, true);
+  assert.equal(foundFalse.suggestions.depreciation_rate.found, false);
+  assert.equal(hasFoundSuggestionForFields(foundFalse.suggestions, DEPRECIATION_SUGGESTION_FIELDS), false);
+  assert.equal(validPartial.ok, true);
+  assert.equal(validPartial.suggestions.depreciation_rate.found, true);
+  assert.equal(validPartial.suggestions.useful_life_years.found, false);
+  assert.equal(hasFoundSuggestionForFields(validPartial.suggestions, DEPRECIATION_SUGGESTION_FIELDS), true);
+  assert.equal(hasFoundSuggestionForFields({ residual_value: { found: false } }, ['residual_value']), false);
 });
 
 test('AssetForm source does not invoke AI automatically on render or context changes', async () => {
@@ -153,4 +280,35 @@ test('AssetForm source does not invoke AI automatically on render or context cha
     false,
     'useEffect must not call runSuggestionRequest automatically',
   );
+});
+
+test('AssetForm source uses one shared depreciation button and keeps residual separate', async () => {
+  const source = await readFile(ASSET_FORM_PATH, 'utf8');
+
+  assert.equal(source.includes('grid grid-cols-1 md:grid-cols-2'), true);
+  assert.equal(source.includes('Sugerir taxa e vida útil'), true);
+  assert.equal(source.includes('Sugerir valor residual'), true);
+  assert.equal((source.match(/renderSuggestionButton\('depreciation_rate'/g) || []).length, 0);
+  assert.equal((source.match(/renderSuggestionButton\('useful_life_years'/g) || []).length, 0);
+  assert.equal((source.match(/renderSuggestionButton\('residual_value'/g) || []).length, 1);
+  assert.equal(source.includes('Consultando fontes confiáveis e analisando os dados do ativo'), true);
+  assert.equal(source.includes('Fontes consultadas'), true);
+  assert.equal(source.includes('Referência fiscal encontrada'), true);
+  assert.equal(source.includes('if (!payload.ok) {'), true);
+  assert.equal(source.includes('Object.assign(new Error(rawPayload?.error'), true);
+  assert.equal(source.includes('{ data: rawPayload }'), true);
+  assert.equal(source.includes('throw { data: rawPayload }'), false);
+  assert.equal(source.includes('hasFoundSuggestionForFields(suggestions, fields)'), true);
+  assert.equal(source.includes('INSUFFICIENT_EVIDENCE_MESSAGE'), true);
+  assert.equal(source.includes('const reason = suggestion.reason === INSUFFICIENT_EVIDENCE_MESSAGE'), true);
+  assert.equal(source.includes('dangerouslySetInnerHTML'), false);
+});
+
+test('Settings source includes informational trusted sources without management actions', async () => {
+  const source = await readFile(SETTINGS_PATH, 'utf8');
+
+  assert.equal(TRUSTED_AI_SOURCES_INFO.length, 12);
+  assert.equal(source.includes('Fontes confiáveis da IA'), true);
+  assert.equal(source.includes('TRUSTED_AI_SOURCES_INFO.map'), true);
+  assert.equal(/testar fonte|nova fonte|adicionar fonte|editar fonte|remover fonte/i.test(source), false);
 });
