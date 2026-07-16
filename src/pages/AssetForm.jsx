@@ -29,7 +29,12 @@ import {
   formatSuggestionValue,
   friendlySuggestionError,
   getSuggestionEligibility,
+  hasFoundSuggestionForFields,
+  INSUFFICIENT_EVIDENCE_MESSAGE,
+  isManagementWarning,
+  normalizeSuggestionFunctionResponse,
   stableStringify,
+  uniqueWarningsForSuggestions,
   uniqueSuggestionWarnings,
 } from '@/lib/assetParameterSuggestions';
 
@@ -187,8 +192,13 @@ export default function AssetForm() {
       const res = await base44.functions.invoke('suggestAssetParameters', buildSuggestAssetParametersPayload(editId, params, context));
       if (!aiMountedRef.current || aiRequestSeqRef.current !== requestId || aiCurrentKeyRef.current !== requestKey) return;
 
-      const payload = res?.data || res;
-      const received = payload?.suggestions || {};
+      const rawPayload = res?.data || res;
+      const payload = normalizeSuggestionFunctionResponse(res);
+      if (!payload.ok) {
+        const error = Object.assign(new Error(rawPayload?.error || 'Falha ao gerar sugestão.'), { data: rawPayload });
+        throw error;
+      }
+      const received = payload.suggestions || {};
       setAiSuggestions((prev) => {
         const next = { ...prev };
         params.forEach((field) => {
@@ -200,6 +210,7 @@ export default function AssetForm() {
             stale: aiLatestContextKeyRef.current !== requestContextKey,
             contextKey: requestContextKey,
             applied: false,
+            response: payload,
           };
         });
         return next;
@@ -285,7 +296,23 @@ export default function AssetForm() {
     setForm({ ...form, residual_value: value });
   };
 
-  const renderSuggestionButton = (field) => {
+  const getSuggestionResponse = (fields) => fields.map((field) => aiSuggestions[field]?.response).find(Boolean) || null;
+  const getSuggestionsForFields = (fields) => fields.reduce((acc, field) => {
+    if (aiSuggestions[field]?.suggestion) acc[field] = aiSuggestions[field].suggestion;
+    return acc;
+  }, {});
+
+  const renderSuggestionOutcome = (fields, className = 'text-xs text-muted-foreground') => {
+    const response = getSuggestionResponse(fields);
+    if (!response) return null;
+    const suggestions = getSuggestionsForFields(fields);
+    const message = hasFoundSuggestionForFields(suggestions, fields)
+      ? 'Sugestão gerada com base nos dados informados e nas fontes consultadas.'
+      : INSUFFICIENT_EVIDENCE_MESSAGE;
+    return <p className={className}>{message}</p>;
+  };
+
+  const renderSuggestionButton = (field, label) => {
     const isDepreciationPair = DEPRECIATION_SUGGESTION_FIELDS.includes(field);
     const eligibility = isDepreciationPair ? suggestionEligibility.depreciation : suggestionEligibility.residual;
     const fieldLoading = isDepreciationPair
@@ -306,12 +333,91 @@ export default function AssetForm() {
         title={title}
       >
         {fieldLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-        {fieldLoading ? 'Analisando...' : 'Sugerir'}
+        {fieldLoading ? 'Consultando...' : label}
       </Button>
     );
   };
 
-  const renderSuggestionBox = (field) => {
+  const renderDepreciationSuggestionButton = () => {
+    const loading = DEPRECIATION_SUGGESTION_FIELDS.some((field) => aiSuggestions[field]?.loading);
+    const disabled = !suggestionEligibility.depreciation.enabled || hasAiSuggestionLoading;
+
+    return (
+      <div className="pt-1">
+        <Button
+          type="button"
+          variant="outline"
+          className="gap-2"
+          onClick={handleSuggestDepreciationGroup}
+          disabled={disabled}
+          title={suggestionEligibility.depreciation.enabled ? 'Sugerir taxa e vida útil com IA' : suggestionEligibility.depreciation.reason}
+        >
+          {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {loading ? 'Consultando fontes...' : 'Sugerir taxa e vida útil'}
+        </Button>
+        {!suggestionEligibility.depreciation.enabled && (
+          <p className="mt-2 text-xs text-muted-foreground">{suggestionEligibility.depreciation.reason}</p>
+        )}
+      </div>
+    );
+  };
+
+  const renderSourcesConsulted = (response) => {
+    const sources = response?.sources_consulted || [];
+    const fiscalReference = response?.fiscal_reference;
+    if (sources.length === 0 && !response?.has_failed_sources && !fiscalReference) return null;
+
+    return (
+      <div className="mt-3 space-y-2 rounded-md border border-border bg-muted/20 p-3 text-xs">
+        {sources.length > 0 && (
+          <details>
+            <summary className="cursor-pointer font-medium text-foreground">Fontes consultadas</summary>
+            <div className="mt-2 space-y-2">
+              {sources.map((source) => (
+                <div key={`${source.id}-${source.url}`} className="space-y-0.5">
+                  <div className="flex flex-wrap items-center gap-1">
+                    <span className="font-medium text-foreground">{source.name}</span>
+                    <span className="text-muted-foreground">({source.type})</span>
+                  </div>
+                  {source.title && <p className="text-muted-foreground">{source.title}</p>}
+                  {source.summary && <p className="text-muted-foreground">{source.summary}</p>}
+                  <div className="flex flex-wrap gap-2 text-muted-foreground">
+                    {source.consulted_at && <span>Consultada em {source.consulted_at}</span>}
+                    <a className="font-medium text-primary underline-offset-2 hover:underline" href={source.url} target="_blank" rel="noreferrer noopener">
+                      Abrir fonte
+                    </a>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </details>
+        )}
+        {response?.has_failed_sources && sources.length > 0 && (
+          <p className="text-muted-foreground">Algumas fontes não puderam ser consultadas.</p>
+        )}
+        {fiscalReference && (
+          <div className="rounded-md bg-background/70 p-2">
+            <p className="font-medium text-foreground">Referência fiscal encontrada: {fiscalReference.value}% ao ano.</p>
+            <p className="text-muted-foreground">{fiscalReference.warning}</p>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const renderGroupWarnings = (fields) => {
+    const warnings = uniqueWarningsForSuggestions(fields.map((field) => aiSuggestions[field]?.suggestion).filter(Boolean));
+    if (warnings.length === 0) return null;
+    return (
+      <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+        {warnings.map((warning) => (
+          <p key={warning}>{warning}</p>
+        ))}
+      </div>
+    );
+  };
+
+  const renderSuggestionBox = (field, options = {}) => {
     const state = aiSuggestions[field];
     const suggestion = state?.suggestion;
     const label = SUGGESTION_PARAMETERS[field].label;
@@ -320,7 +426,7 @@ export default function AssetForm() {
       return (
         <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
           <RefreshCw className="h-3 w-3 animate-spin" />
-          Analisando dados do ativo...
+          Consultando fontes confiáveis e analisando os dados do ativo...
         </p>
       );
     }
@@ -350,9 +456,10 @@ export default function AssetForm() {
     if (!suggestion) return null;
 
     if (!suggestion.found) {
+      const reason = suggestion.reason === INSUFFICIENT_EVIDENCE_MESSAGE ? '' : suggestion.reason;
       return (
         <div className="mt-2 rounded-md border border-border bg-muted/30 p-2 text-xs text-muted-foreground">
-          <p>Não foi possível sugerir {label.toLowerCase()} com segurança.</p>
+          <p>{reason || `Não foi possível sugerir ${label.toLowerCase()} com segurança.`}</p>
           {Array.isArray(suggestion.missing_data) && suggestion.missing_data.length > 0 && (
             <p className="mt-1">Dados que podem melhorar a análise: {suggestion.missing_data.slice(0, 3).join(', ')}.</p>
           )}
@@ -363,7 +470,8 @@ export default function AssetForm() {
       );
     }
 
-    const warnings = uniqueSuggestionWarnings(suggestion.warnings);
+    const warnings = uniqueSuggestionWarnings(suggestion.warnings)
+      .filter((warning) => !(options.hideManagementWarning && isManagementWarning(warning)));
 
     return (
       <div className="mt-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-xs">
@@ -372,7 +480,7 @@ export default function AssetForm() {
             <p className="font-medium text-foreground">
               Sugestão da IA: {formatSuggestionValue(field, suggestion.value)}
             </p>
-            <p className="text-muted-foreground">Confiança: {confidenceLabel(suggestion.confidence)}</p>
+            <p className="text-muted-foreground">{confidenceLabel(suggestion.confidence)}</p>
             {suggestion.reason && <p className="text-muted-foreground">{suggestion.reason}</p>}
             {warnings.length > 0 && (
               <ul className="space-y-0.5 text-amber-800">
@@ -845,38 +953,40 @@ export default function AssetForm() {
               />
             </div>
             
-            <div>
-              <Label htmlFor="depreciation_rate">Taxa de Depreciação Anual (%)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="depreciation_rate"
-                  type="number"
-                  step="0.1"
-                  value={form.depreciation_rate}
-                  onChange={(e) => handleDepreciationRateChange(e.target.value)}
-                  placeholder="10"
-                  className="min-w-0"
-                />
-                {renderSuggestionButton('depreciation_rate')}
+            <div className="sm:col-span-2 space-y-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="depreciation_rate">Taxa de Depreciação Anual (%)</Label>
+                  <Input
+                    id="depreciation_rate"
+                    type="number"
+                    step="0.1"
+                    value={form.depreciation_rate}
+                    onChange={(e) => handleDepreciationRateChange(e.target.value)}
+                    placeholder="10"
+                    className="mt-1"
+                  />
+                  {renderSuggestionBox('depreciation_rate', { hideManagementWarning: true })}
+                </div>
+
+                <div>
+                  <Label htmlFor="useful_life_years">Vida Útil (anos)</Label>
+                  <Input
+                    id="useful_life_years"
+                    type="number"
+                    step="0.1"
+                    value={form.useful_life_years}
+                    onChange={(e) => handleUsefulLifeChange(e.target.value)}
+                    placeholder="10"
+                    className="mt-1"
+                  />
+                  {renderSuggestionBox('useful_life_years', { hideManagementWarning: true })}
+                </div>
               </div>
-              {renderSuggestionBox('depreciation_rate')}
-            </div>
-            
-            <div>
-              <Label htmlFor="useful_life_years">Vida Útil (anos)</Label>
-              <div className="flex gap-2">
-                <Input
-                  id="useful_life_years"
-                  type="number"
-                  step="0.1"
-                  value={form.useful_life_years}
-                  onChange={(e) => handleUsefulLifeChange(e.target.value)}
-                  placeholder="10"
-                  className="min-w-0"
-                />
-                {renderSuggestionButton('useful_life_years')}
-              </div>
-              {renderSuggestionBox('useful_life_years')}
+              {renderDepreciationSuggestionButton()}
+              {renderSuggestionOutcome(DEPRECIATION_SUGGESTION_FIELDS)}
+              {renderGroupWarnings(DEPRECIATION_SUGGESTION_FIELDS)}
+              {renderSourcesConsulted(getSuggestionResponse(DEPRECIATION_SUGGESTION_FIELDS))}
             </div>
             
             <div>
@@ -891,9 +1001,12 @@ export default function AssetForm() {
                   placeholder="0,00"
                   className="min-w-0"
                 />
-                {renderSuggestionButton('residual_value')}
+                {renderSuggestionButton('residual_value', 'Sugerir valor residual')}
               </div>
-              {renderSuggestionBox('residual_value')}
+              {renderSuggestionBox('residual_value', { hideManagementWarning: true })}
+              {renderSuggestionOutcome(['residual_value'], 'mt-2 text-xs text-muted-foreground')}
+              {renderGroupWarnings(['residual_value'])}
+              {renderSourcesConsulted(getSuggestionResponse(['residual_value']))}
             </div>
           </div>
         </div>

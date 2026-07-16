@@ -6,6 +6,24 @@ export const SUGGESTION_PARAMETERS = {
 
 export const DEPRECIATION_SUGGESTION_FIELDS = ['depreciation_rate', 'useful_life_years'];
 
+export const MANAGEMENT_WARNING = 'Estimativa gerencial baseada nos dados informados. Valide com o responsável contábil antes de utilizar.';
+export const INSUFFICIENT_EVIDENCE_MESSAGE = 'As fontes foram consultadas, mas não foram encontradas informações suficientes para gerar uma sugestão segura.';
+
+export const TRUSTED_AI_SOURCES_INFO = [
+  { name: 'CPC', purpose: 'Normas e critérios contábeis.', application: 'Todas as categorias.' },
+  { name: 'CFC', purpose: 'Normas brasileiras de contabilidade.', application: 'Todas as categorias.' },
+  { name: 'CVM', purpose: 'Normas contábeis consolidadas.', application: 'Investimentos e intangíveis.' },
+  { name: 'Receita Federal', purpose: 'Referências fiscais.', application: 'Contexto fiscal, separadamente da estimativa gerencial.' },
+  { name: 'FIPE', purpose: 'Referência de mercado para veículos.', application: 'Veículos.' },
+  { name: 'FIPE Máquinas', purpose: 'Referência de mercado para máquinas agrícolas.', application: 'Equipamentos agrícolas.' },
+  { name: 'CAIXA / SINAPI', purpose: 'Custos de imóveis, instalações e obras.', application: 'Imóveis e construção.' },
+  { name: 'IBGE / SINAPI', purpose: 'Índices e custos da construção.', application: 'Imóveis e construção.' },
+  { name: 'Patrimônio da União', purpose: 'Referências complementares para imóveis.', application: 'Imóveis.' },
+  { name: 'Anvisa', purpose: 'Identificação de equipamentos médicos e hospitalares.', application: 'Equipamentos de saúde.' },
+  { name: 'Inmetro', purpose: 'Certificação e identificação técnica.', application: 'Equipamentos e veículos.' },
+  { name: 'BNDES', purpose: 'Catálogo de máquinas e equipamentos.', application: 'Equipamentos.' },
+];
+
 const CATEGORIES = ['Im\u00f3veis', 'Ve\u00edculos', 'Equipamentos', 'Investimentos', 'Intang\u00edveis'];
 
 export function createEmptySuggestionState() {
@@ -17,6 +35,7 @@ export function createEmptySuggestionState() {
       contextKey: '',
       stale: false,
       applied: false,
+      response: null,
     };
     return acc;
   }, {});
@@ -31,7 +50,7 @@ export function stableStringify(value) {
 }
 
 export function cleanText(value, limit = 300) {
-  const text = String(value || '').trim();
+  const text = String(value || '').replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
   return text ? text.slice(0, limit) : '';
 }
 
@@ -152,9 +171,9 @@ export function formatSuggestionValue(field, value) {
 }
 
 export function confidenceLabel(confidence) {
-  if (confidence === 'high') return 'alta';
-  if (confidence === 'medium') return 'm\u00e9dia';
-  return 'baixa';
+  if (confidence === 'high') return 'Confiança alta';
+  if (confidence === 'medium') return 'Confiança média';
+  return 'Confiança baixa';
 }
 
 export function uniqueSuggestionWarnings(warnings) {
@@ -167,14 +186,162 @@ export function uniqueSuggestionWarnings(warnings) {
   return out.slice(0, 3);
 }
 
+export function isManagementWarning(warning) {
+  return /estimativa gerencial baseada nos dados informados/i.test(String(warning || ''));
+}
+
+export function uniqueWarningsForSuggestions(suggestions = []) {
+  const nonManagementWarnings = [];
+  let hasManagementWarning = false;
+
+  suggestions.forEach((suggestion) => {
+    const warnings = Array.isArray(suggestion?.warnings) ? suggestion.warnings : [];
+    warnings.forEach((warning) => {
+      const text = cleanText(warning, 240);
+      if (!text) return;
+      if (isManagementWarning(text)) {
+        hasManagementWarning = true;
+        return;
+      }
+      if (!nonManagementWarnings.includes(text)) nonManagementWarnings.push(text);
+    });
+  });
+
+  return [
+    ...nonManagementWarnings.slice(0, 4),
+    ...(hasManagementWarning ? [MANAGEMENT_WARNING] : []),
+  ];
+}
+
+export function hasFoundSuggestion(suggestion) {
+  return suggestion?.found === true;
+}
+
+export function hasFoundSuggestionForFields(suggestionsByField, fields = []) {
+  if (!suggestionsByField || typeof suggestionsByField !== 'object') return false;
+  return fields.some((field) => hasFoundSuggestion(suggestionsByField[field]));
+}
+
+export function sourceTypeLabel(type) {
+  const labels = {
+    contabil: 'Contábil',
+    fiscal: 'Fiscal',
+    tecnica: 'Técnica',
+    mercado: 'Mercado',
+    construcao: 'Construção',
+  };
+  return labels[type] || 'Fonte confiável';
+}
+
+export function isValidHttpsUrl(value) {
+  try {
+    return new URL(value).protocol === 'https:';
+  } catch (_) {
+    return false;
+  }
+}
+
+export function formatConsultedAt(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+export function normalizeSourceSummary(value, limit = 220) {
+  return cleanText(value, limit);
+}
+
+export function normalizeConsultedSources(sources) {
+  if (!Array.isArray(sources)) return [];
+  const byKey = new Map();
+  sources.forEach((source) => {
+    if (!source || source.used !== true || !isValidHttpsUrl(source.url)) return;
+    const key = `${source.id || source.name || ''}:${source.url}`;
+    if (byKey.has(key)) return;
+    byKey.set(key, {
+      id: cleanText(source.id, 80),
+      name: cleanText(source.name, 120) || 'Fonte consultada',
+      type: sourceTypeLabel(source.type),
+      url: source.url,
+      title: cleanText(source.title, 160),
+      summary: normalizeSourceSummary(source.summary),
+      consulted_at: formatConsultedAt(source.retrieved_at),
+    });
+  });
+  return Array.from(byKey.values()).slice(0, 6);
+}
+
+export function normalizeFiscalReference(reference) {
+  if (!reference || reference.found !== true || typeof reference.value !== 'number' || !Number.isFinite(reference.value)) return null;
+  return {
+    value: reference.value,
+    unit: reference.unit === 'percent_per_year' ? '% ao ano' : cleanText(reference.unit, 40),
+    warning: cleanText(reference.warning, 180) || 'Referência fiscal; não substitui a estimativa gerencial ou a análise contábil.',
+  };
+}
+
+export function normalizeSuggestionFunctionResponse(payload) {
+  const data = payload?.data || payload || {};
+  const suggestions = data.suggestions && typeof data.suggestions === 'object' && !Array.isArray(data.suggestions) ? data.suggestions : {};
+  const hasSuggestionPayload = Object.values(suggestions).some((suggestion) => (
+    suggestion && typeof suggestion === 'object' && 'found' in suggestion
+  ));
+  const hasValidShape = Boolean(
+    hasSuggestionPayload
+    || Array.isArray(data.sources_consulted)
+    || Array.isArray(data.sources_failed)
+    || data.fiscal_reference,
+  );
+  const ok = data.ok === true || (data.ok !== false && hasValidShape);
+  if (!ok) {
+    return {
+      ok: false,
+      basis: cleanText(data.basis, 80),
+      suggestions: {},
+      sources_consulted: [],
+      has_failed_sources: Array.isArray(data.sources_failed) && data.sources_failed.length > 0,
+      fiscal_reference: null,
+      requires_user_confirmation: data.requires_user_confirmation !== false,
+      generated_at: data.generated_at || '',
+    };
+  }
+  return {
+    ok,
+    basis: cleanText(data.basis, 80),
+    suggestions,
+    sources_consulted: normalizeConsultedSources(data.sources_consulted),
+    has_failed_sources: Array.isArray(data.sources_failed) && data.sources_failed.length > 0,
+    fiscal_reference: normalizeFiscalReference(data.fiscal_reference),
+    requires_user_confirmation: data.requires_user_confirmation !== false,
+    generated_at: data.generated_at || '',
+  };
+}
+
 export function friendlySuggestionError(error) {
-  const message = String(error?.response?.data?.error || error?.message || '').trim();
-  if (!message) return 'N\u00e3o foi poss\u00edvel gerar a sugest\u00e3o agora.';
+  const data = error?.response?.data || error?.data || {};
+  const message = String(data.error || error?.message || '').trim();
+  const code = String(data.code || '').trim();
+  const failures = Array.isArray(data.sources_failed) ? data.sources_failed : [];
+
+  if (code === 'NO_TRUSTED_SOURCE_AVAILABLE') {
+    return 'Não foi possível consultar uma fonte confiável neste momento. Tente novamente ou informe os valores manualmente.';
+  }
+  if (/timeout|tempo|demorou/i.test(message) || failures.some((item) => /timeout/i.test(String(item?.reason_code || '')))) {
+    return 'A consulta às fontes demorou mais que o esperado. Tente novamente.';
+  }
+  if (!message) return 'Não foi possível gerar a sugestão agora. Você pode tentar novamente ou preencher os valores manualmente.';
   if (/permission|permiss|unauthorized|forbidden|403|401/i.test(message)) {
-    return 'Voc\u00ea n\u00e3o tem permiss\u00e3o para gerar sugest\u00f5es neste cadastro.';
+    return 'Você não tem permissão para gerar sugestões neste cadastro.';
   }
   if (/payload|context|category|categoria|parameter|parametro/i.test(message)) {
-    return message;
+    return 'Preencha os dados indicados para gerar uma sugestão mais segura.';
   }
-  return 'N\u00e3o foi poss\u00edvel gerar a sugest\u00e3o agora. Continue preenchendo manualmente ou tente novamente.';
+  if (/fonte confiavel|fonte confiável|evidencia|evidência/i.test(message)) {
+    return 'As fontes foram consultadas, mas não foram encontradas informações suficientes para gerar uma sugestão segura.';
+  }
+  return 'Não foi possível gerar a sugestão agora. Você pode tentar novamente ou preencher os valores manualmente.';
 }
