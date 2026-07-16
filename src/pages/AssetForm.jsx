@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { base44 } from '@/api/base44Client';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, Upload, Save } from 'lucide-react';
+import { ArrowLeft, Upload, Save, RefreshCw, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getDefaultDepreciationRate, getUsefulLifeFromRate } from '@/lib/depreciation';
 import SupplierSelect from '@/components/assets/SupplierSelect';
@@ -19,6 +19,27 @@ import { logAudit } from '@/lib/audit';
 
 const categories = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
 const statuses = ['Ativo', 'Em Manutenção', 'Inativo', 'Alienado'];
+
+const SUGGESTION_PARAMETERS = {
+  depreciation_rate: { label: 'Taxa de Depreciação Anual', unit: '% ao ano' },
+  useful_life_years: { label: 'Vida Útil', unit: 'anos' },
+  residual_value: { label: 'Valor Residual', unit: 'R$' },
+};
+const DEPRECIATION_SUGGESTION_FIELDS = ['depreciation_rate', 'useful_life_years'];
+
+function emptySuggestionState() {
+  return Object.keys(SUGGESTION_PARAMETERS).reduce((acc, field) => {
+    acc[field] = {
+      loading: false,
+      suggestion: null,
+      error: '',
+      contextKey: '',
+      stale: false,
+      applied: false,
+    };
+    return acc;
+  }, {});
+}
 
 // Campos de identificação única: não fazem sentido replicados em cópias do
 // mesmo lote/duplicação — ficam em branco (exceto plaqueta, que pode ganhar
@@ -104,6 +125,300 @@ export default function AssetForm() {
     fiscal_depreciation_start_date: '',
     notes: '',
   });
+  const [aiSuggestions, setAiSuggestions] = useState(() => emptySuggestionState());
+  const aiRequestSeqRef = useRef(0);
+  const aiInFlightKeyRef = useRef('');
+  const aiCurrentKeyRef = useRef('');
+  const aiLatestContextKeyRef = useRef('');
+  const aiMountedRef = useRef(true);
+
+  const suggestionContext = useMemo(
+    () => buildSuggestionContext(form, branches, sectors),
+    [
+      form.name,
+      form.category,
+      form.description,
+      form.account,
+      form.acquisition_value,
+      form.purchase_date,
+      form.depreciation_start_date,
+      form.conservation_state,
+      form.location,
+      form.branch_id,
+      form.sector_id,
+      form.supplier_name,
+      form.vehicle_model_year,
+      form.vehicle_fuel_type,
+      form.property_area_m2,
+      form.property_registration_type,
+      form.ownership_type,
+      form.is_construction_in_progress,
+      form.construction_completion_date,
+      form.notes,
+      branches,
+      sectors,
+    ]
+  );
+  const suggestionContextKey = useMemo(() => stableStringify(suggestionContext), [suggestionContext]);
+  aiLatestContextKeyRef.current = suggestionContextKey;
+  const suggestionEligibility = useMemo(() => getSuggestionEligibility(suggestionContext), [suggestionContext]);
+  const hasAiSuggestionLoading = Object.values(aiSuggestions).some((state) => state.loading);
+
+  const runSuggestionRequest = async (params, context) => {
+    const requestKey = stableStringify({ params, context });
+    if (aiInFlightKeyRef.current) return;
+
+    const requestId = aiRequestSeqRef.current + 1;
+    aiRequestSeqRef.current = requestId;
+    aiInFlightKeyRef.current = requestKey;
+    aiCurrentKeyRef.current = requestKey;
+    const requestContextKey = stableStringify(context);
+
+    setAiSuggestions((prev) => {
+      const next = { ...prev };
+      params.forEach((field) => {
+        next[field] = {
+          ...next[field],
+          loading: true,
+          error: '',
+          stale: false,
+          contextKey: requestContextKey,
+        };
+      });
+      return next;
+    });
+
+    try {
+      const res = await base44.functions.invoke('suggestAssetParameters', {
+        entity_type: 'Asset',
+        asset_id: editId || undefined,
+        requested_parameters: params,
+        asset_context: context,
+      });
+      if (!aiMountedRef.current || aiRequestSeqRef.current !== requestId || aiCurrentKeyRef.current !== requestKey) return;
+
+      const payload = res?.data || res;
+      const received = payload?.suggestions || {};
+      setAiSuggestions((prev) => {
+        const next = { ...prev };
+        params.forEach((field) => {
+          next[field] = {
+            ...next[field],
+            loading: false,
+            suggestion: received[field] || null,
+            error: '',
+            stale: aiLatestContextKeyRef.current !== requestContextKey,
+            contextKey: requestContextKey,
+            applied: false,
+          };
+        });
+        return next;
+      });
+    } catch (error) {
+      if (!aiMountedRef.current || aiRequestSeqRef.current !== requestId || aiCurrentKeyRef.current !== requestKey) return;
+      setAiSuggestions((prev) => {
+        const next = { ...prev };
+        params.forEach((field) => {
+          next[field] = {
+            ...next[field],
+            loading: false,
+            error: friendlySuggestionError(error),
+            stale: aiLatestContextKeyRef.current !== requestContextKey,
+            contextKey: requestContextKey,
+          };
+        });
+        return next;
+      });
+    } finally {
+      if (aiInFlightKeyRef.current === requestKey) aiInFlightKeyRef.current = '';
+    }
+  };
+
+  const handleSuggestDepreciationGroup = () => {
+    if (!suggestionEligibility.depreciation.enabled) return;
+    runSuggestionRequest(DEPRECIATION_SUGGESTION_FIELDS, suggestionContext);
+  };
+
+  const handleSuggestResidual = () => {
+    if (!suggestionEligibility.residual.enabled) return;
+    runSuggestionRequest(['residual_value'], suggestionContext);
+  };
+
+  const handleRefreshSuggestion = (field) => {
+    if (DEPRECIATION_SUGGESTION_FIELDS.includes(field)) {
+      handleSuggestDepreciationGroup();
+      return;
+    }
+    handleSuggestResidual();
+  };
+
+  const handleApplySuggestion = (field) => {
+    const suggestion = aiSuggestions[field]?.suggestion;
+    if (!suggestion?.found || typeof suggestion.value !== 'number') return;
+    setForm((prev) => ({ ...prev, [field]: String(suggestion.value) }));
+    setAiSuggestions((prev) => ({
+      ...prev,
+      [field]: { ...prev[field], applied: true, stale: false },
+    }));
+    toast.success('Sugestão aplicada. Revise antes de salvar.');
+  };
+
+  const clearAppliedSuggestion = (field) => {
+    setAiSuggestions((prev) => ({
+      ...prev,
+      [field]: { ...prev[field], applied: false },
+    }));
+  };
+
+  const clearAppliedSuggestions = (fields) => {
+    setAiSuggestions((prev) => {
+      const next = { ...prev };
+      fields.forEach((field) => {
+        next[field] = { ...next[field], applied: false };
+      });
+      return next;
+    });
+  };
+
+  const handleDepreciationRateChange = (value) => {
+    clearAppliedSuggestions(['depreciation_rate', 'useful_life_years']);
+    const numericValue = parseFloat(value);
+    setForm({
+      ...form,
+      depreciation_rate: value,
+      useful_life_years: numericValue > 0 ? (100 / numericValue).toFixed(1) : '',
+    });
+  };
+
+  const handleUsefulLifeChange = (value) => {
+    clearAppliedSuggestions(['depreciation_rate', 'useful_life_years']);
+    const numericValue = parseFloat(value);
+    setForm({
+      ...form,
+      useful_life_years: value,
+      depreciation_rate: numericValue > 0 ? (100 / numericValue).toFixed(1) : '',
+    });
+  };
+
+  const handleResidualValueChange = (value) => {
+    clearAppliedSuggestion('residual_value');
+    setForm({ ...form, residual_value: value });
+  };
+
+  const renderSuggestionButton = (field) => {
+    const isDepreciationPair = DEPRECIATION_SUGGESTION_FIELDS.includes(field);
+    const eligibility = isDepreciationPair ? suggestionEligibility.depreciation : suggestionEligibility.residual;
+    const fieldLoading = isDepreciationPair
+      ? DEPRECIATION_SUGGESTION_FIELDS.some((item) => aiSuggestions[item]?.loading)
+      : aiSuggestions[field]?.loading;
+    const disabled = !eligibility.enabled || hasAiSuggestionLoading;
+    const title = eligibility.enabled
+      ? (isDepreciationPair ? 'Sugerir taxa e vida útil com IA' : 'Sugerir valor residual com IA')
+      : eligibility.reason;
+
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className="h-10 shrink-0 gap-2"
+        onClick={isDepreciationPair ? handleSuggestDepreciationGroup : handleSuggestResidual}
+        disabled={disabled}
+        title={title}
+      >
+        {fieldLoading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+        {fieldLoading ? 'Analisando...' : 'Sugerir'}
+      </Button>
+    );
+  };
+
+  const renderSuggestionBox = (field) => {
+    const state = aiSuggestions[field];
+    const suggestion = state?.suggestion;
+    const label = SUGGESTION_PARAMETERS[field].label;
+
+    if (state?.loading) {
+      return (
+        <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+          <RefreshCw className="h-3 w-3 animate-spin" />
+          Analisando dados do ativo...
+        </p>
+      );
+    }
+
+    if (state?.stale) {
+      return (
+        <div className="mt-2 rounded-md border border-dashed border-border bg-muted/30 p-2 text-xs text-muted-foreground">
+          A sugestão foi gerada com dados anteriores.
+          <Button type="button" variant="link" size="sm" className="h-auto px-1 py-0 text-xs" onClick={() => handleRefreshSuggestion(field)}>
+            Gerar nova sugestão
+          </Button>
+        </div>
+      );
+    }
+
+    if (state?.error) {
+      return (
+        <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+          {state.error}
+          <Button type="button" variant="link" size="sm" className="h-auto px-1 py-0 text-xs text-amber-800" onClick={() => handleRefreshSuggestion(field)}>
+            Tentar novamente
+          </Button>
+        </div>
+      );
+    }
+
+    if (!suggestion) return null;
+
+    if (!suggestion.found) {
+      return (
+        <div className="mt-2 rounded-md border border-border bg-muted/30 p-2 text-xs text-muted-foreground">
+          <p>Não foi possível sugerir {label.toLowerCase()} com segurança.</p>
+          {Array.isArray(suggestion.missing_data) && suggestion.missing_data.length > 0 && (
+            <p className="mt-1">Dados que podem melhorar a análise: {suggestion.missing_data.slice(0, 3).join(', ')}.</p>
+          )}
+          <Button type="button" variant="link" size="sm" className="h-auto px-0 py-1 text-xs" onClick={() => handleRefreshSuggestion(field)}>
+            Tentar novamente
+          </Button>
+        </div>
+      );
+    }
+
+    const warnings = uniqueSuggestionWarnings(suggestion.warnings);
+
+    return (
+      <div className="mt-2 rounded-md border border-primary/20 bg-primary/5 p-2 text-xs">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <p className="font-medium text-foreground">
+              Sugestão da IA: {formatSuggestionValue(field, suggestion.value)}
+            </p>
+            <p className="text-muted-foreground">Confiança: {confidenceLabel(suggestion.confidence)}</p>
+            {suggestion.reason && <p className="text-muted-foreground">{suggestion.reason}</p>}
+            {warnings.length > 0 && (
+              <ul className="space-y-0.5 text-amber-800">
+                {warnings.map((warning) => (
+                  <li key={warning}>• {warning}</li>
+                ))}
+              </ul>
+            )}
+            {state.applied && <p className="text-primary">Sugestão aplicada. O campo continua editável.</p>}
+          </div>
+          <Button type="button" variant="outline" size="sm" className="shrink-0 gap-1" onClick={() => handleApplySuggestion(field)}>
+            <Sparkles className="h-3 w-3" />
+            Usar sugestão
+          </Button>
+        </div>
+      </div>
+    );
+  };
+
+  useEffect(() => {
+    aiMountedRef.current = true;
+    return () => {
+      aiMountedRef.current = false;
+      aiRequestSeqRef.current += 1;
+    };
+  }, []);
 
   useEffect(() => {
     BranchEntity.list('-created_date', 200).then(setBranches).catch(() => {});
@@ -175,6 +490,24 @@ export default function AssetForm() {
       loadAsset();
     }
   }, [editId]);
+
+  useEffect(() => {
+    setAiSuggestions((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      Object.keys(next).forEach((field) => {
+        const state = next[field];
+        if (state.suggestion && state.contextKey && state.contextKey !== suggestionContextKey && !state.stale) {
+          next[field] = { ...state, stale: true, applied: false };
+          changed = true;
+        } else if (state.error && state.contextKey && state.contextKey !== suggestionContextKey) {
+          next[field] = { ...state, error: '', applied: false };
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [suggestionContextKey]);
 
   const handleCategoryChange = async (value) => {
     // Try to load from saved config first
@@ -534,46 +867,53 @@ export default function AssetForm() {
             
             <div>
               <Label htmlFor="depreciation_rate">Taxa de Depreciação Anual (%)</Label>
-              <Input
-                id="depreciation_rate"
-                type="number"
-                step="0.1"
-                value={form.depreciation_rate}
-                onChange={(e) => setForm({ 
-                  ...form, 
-                  depreciation_rate: e.target.value,
-                  useful_life_years: e.target.value > 0 ? (100 / parseFloat(e.target.value)).toFixed(1) : 0
-                })}
-                placeholder="10"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="depreciation_rate"
+                  type="number"
+                  step="0.1"
+                  value={form.depreciation_rate}
+                  onChange={(e) => handleDepreciationRateChange(e.target.value)}
+                  placeholder="10"
+                  className="min-w-0"
+                />
+                {renderSuggestionButton('depreciation_rate')}
+              </div>
+              {renderSuggestionBox('depreciation_rate')}
             </div>
             
             <div>
               <Label htmlFor="useful_life_years">Vida Útil (anos)</Label>
-              <Input
-                id="useful_life_years"
-                type="number"
-                step="0.1"
-                value={form.useful_life_years}
-                onChange={(e) => setForm({ 
-                  ...form, 
-                  useful_life_years: e.target.value,
-                  depreciation_rate: e.target.value > 0 ? (100 / parseFloat(e.target.value)).toFixed(1) : 0
-                })}
-                placeholder="10"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="useful_life_years"
+                  type="number"
+                  step="0.1"
+                  value={form.useful_life_years}
+                  onChange={(e) => handleUsefulLifeChange(e.target.value)}
+                  placeholder="10"
+                  className="min-w-0"
+                />
+                {renderSuggestionButton('useful_life_years')}
+              </div>
+              {renderSuggestionBox('useful_life_years')}
             </div>
             
             <div>
               <Label htmlFor="residual_value">Valor Residual (R$)</Label>
-              <Input
-                id="residual_value"
-                type="number"
-                step="0.01"
-                value={form.residual_value}
-                onChange={(e) => setForm({ ...form, residual_value: e.target.value })}
-                placeholder="0,00"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="residual_value"
+                  type="number"
+                  step="0.01"
+                  value={form.residual_value}
+                  onChange={(e) => handleResidualValueChange(e.target.value)}
+                  placeholder="0,00"
+                  className="min-w-0"
+                />
+                {renderSuggestionButton('residual_value')}
+              </div>
+              {renderSuggestionBox('residual_value')}
             </div>
           </div>
         </div>
@@ -756,4 +1096,119 @@ export default function AssetForm() {
       </form>
     </div>
   );
+}
+
+function stableStringify(value) {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (value && typeof value === 'object') {
+    return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`).join(',')}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function cleanText(value, limit = 300) {
+  const text = String(value || '').trim();
+  return text ? text.slice(0, limit) : '';
+}
+
+function addText(context, key, value, limit = 300) {
+  const text = cleanText(value, limit);
+  if (text) context[key] = text;
+}
+
+function addNumber(context, key, value) {
+  if (value === '' || value === null || value === undefined) return;
+  const num = Number(value);
+  if (Number.isFinite(num) && num >= 0) context[key] = num;
+}
+
+function buildSuggestionContext(form, branches, sectors) {
+  const context = {};
+  addText(context, 'name', form.name, 300);
+  addText(context, 'category', form.category, 300);
+  addText(context, 'description', form.description, 1000);
+  addText(context, 'account', form.account, 300);
+  addNumber(context, 'acquisition_value', form.acquisition_value);
+  addText(context, 'purchase_date', form.purchase_date, 300);
+  addText(context, 'depreciation_start_date', form.depreciation_start_date, 300);
+  addText(context, 'conservation_state', form.conservation_state, 300);
+  addText(context, 'location', form.location, 300);
+
+  const branch = branches.find((item) => item.id === form.branch_id);
+  const sector = sectors.find((item) => item.id === form.sector_id);
+  addText(context, 'branch_name', branch?.name, 300);
+  addText(context, 'sector_name', sector?.name, 300);
+  addText(context, 'supplier_name', form.supplier_name, 300);
+  addText(context, 'vehicle_model_year', form.vehicle_model_year, 300);
+  addText(context, 'vehicle_fuel_type', form.vehicle_fuel_type, 300);
+  addNumber(context, 'property_area_m2', form.property_area_m2);
+  addText(context, 'property_registration_type', form.property_registration_type, 300);
+  addText(context, 'ownership_type', form.ownership_type, 300);
+  context.is_construction_in_progress = form.is_construction_in_progress === true;
+  addText(context, 'construction_completion_date', form.construction_completion_date, 300);
+  addText(context, 'notes', form.notes, 1000);
+  return context;
+}
+
+function getSuggestionEligibility(context) {
+  const hasName = cleanText(context.name).length >= 3;
+  const hasCategory = categories.includes(context.category);
+  const missingBase = [];
+  if (!hasName) missingBase.push('preencha a descrição do bem com pelo menos 3 caracteres');
+  if (!hasCategory) missingBase.push('selecione um grupo patrimonial válido');
+
+  const depreciationEnabled = missingBase.length === 0;
+  const hasAcquisitionValue = typeof context.acquisition_value === 'number' && context.acquisition_value > 0;
+  const residualMissing = [...missingBase];
+  if (!hasAcquisitionValue) residualMissing.push('informe um valor de aquisição maior que zero');
+
+  return {
+    depreciation: {
+      enabled: depreciationEnabled,
+      reason: depreciationEnabled
+        ? ''
+        : `Para sugerir taxa e vida útil, ${missingBase.join(' e ')}.`,
+    },
+    residual: {
+      enabled: residualMissing.length === 0,
+      reason: residualMissing.length === 0
+        ? ''
+        : `Para sugerir valor residual, ${residualMissing.join(' e ')}.`,
+    },
+  };
+}
+
+function formatSuggestionValue(field, value) {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return '';
+  if (field === 'depreciation_rate') return `${value}% ao ano`;
+  if (field === 'useful_life_years') return `${value} anos`;
+  return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+}
+
+function confidenceLabel(confidence) {
+  if (confidence === 'high') return 'alta';
+  if (confidence === 'medium') return 'média';
+  return 'baixa';
+}
+
+function uniqueSuggestionWarnings(warnings) {
+  if (!Array.isArray(warnings)) return [];
+  const out = [];
+  warnings.forEach((warning) => {
+    const text = cleanText(warning, 240);
+    if (text && !out.includes(text)) out.push(text);
+  });
+  return out.slice(0, 3);
+}
+
+function friendlySuggestionError(error) {
+  const message = String(error?.response?.data?.error || error?.message || '').trim();
+  if (!message) return 'Não foi possível gerar a sugestão agora.';
+  if (/permission|permiss|unauthorized|forbidden|403|401/i.test(message)) {
+    return 'Você não tem permissão para gerar sugestões neste cadastro.';
+  }
+  if (/payload|context|category|categoria|parameter|parametro/i.test(message)) {
+    return message;
+  }
+  return 'Não foi possível gerar a sugestão agora. Continue preenchendo manualmente ou tente novamente.';
 }
