@@ -527,6 +527,10 @@ test('backend helper validates AI suggestions and never accepts formatted values
     false,
   );
   assert.equal(
+    validateSuggestion('useful_life_years', { ...validAiResponse().suggestions.useful_life_years, value: 0 }, validContext(), allowedFields, ['useful_life_years'], validEvidence()).found,
+    false,
+  );
+  assert.equal(
     validateSuggestion('residual_value', { ...validAiResponse().suggestions.residual_value, value: 6000 }, validContext(), allowedFields, ['residual_value'], validEvidence()).found,
     false,
   );

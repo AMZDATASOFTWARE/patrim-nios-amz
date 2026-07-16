@@ -453,7 +453,7 @@ function validateSuggestion(
     return notFound(parameter, 'Taxa de depreciacao fora do intervalo permitido.', warnings);
   }
 
-  if (parameter === 'useful_life_years' && (value < 0 || value > 100)) {
+  if (parameter === 'useful_life_years' && (value <= 0 || value > 100)) {
     return notFound(parameter, 'Vida util fora do intervalo permitido.', warnings);
   }
 
