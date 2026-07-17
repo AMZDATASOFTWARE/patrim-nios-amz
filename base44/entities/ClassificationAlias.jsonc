@@ -1,0 +1,22 @@
+{
+  "name": "ClassificationAlias",
+  "type": "object",
+  "properties": {
+    "alias_id": { "type": "string", "title": "ID do alias" },
+    "normalized": { "type": "string", "title": "Texto normalizado" },
+    "category": { "type": "string", "title": "Categoria" },
+    "asset_type": { "type": "string", "title": "Tipo de ativo" },
+    "ncm": { "type": "string", "title": "NCM" },
+    "cnae": { "type": "string", "title": "CNAE" },
+    "rule_ids_json": { "type": "string", "title": "Regras (JSON)" },
+    "document_ids_json": { "type": "string", "title": "Documentos (JSON)" }
+  },
+  "required": ["alias_id", "normalized"],
+  "rls": {
+    "//": "Aliases normativos globais mantidos por function service-role; leitura/escrita direta restrita a admin.",
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}
