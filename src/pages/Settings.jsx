@@ -89,6 +89,144 @@ export default function Settings() {
     toast.success('Configurações salvas!');
   };
 
+  const loadTemplates = () => {
+    TemplateEntity.list('-created_date', 500).then(setTemplates).catch(() => {});
+  };
+
+  useEffect(() => { loadTemplates(); }, []);
+
+  const openNewTemplate = () => {
+    setEditingTemplateId(null);
+    setTemplateForm(EMPTY_TEMPLATE_FORM);
+    setTemplateSuggestion(null);
+    setTemplateDialogOpen(true);
+  };
+
+  const openEditTemplate = (t) => {
+    setEditingTemplateId(t.id);
+    setTemplateForm({
+      category: t.category || 'Equipamentos', brand: t.brand || '', model: t.model || '',
+      depreciation_rate: t.depreciation_rate ?? '', useful_life_years: t.useful_life_years ?? '', residual_value: t.residual_value ?? '',
+      fiscal_depreciation_rate: t.fiscal_depreciation_rate ?? '', fiscal_useful_life_years: t.fiscal_useful_life_years ?? '', fiscal_residual_value: t.fiscal_residual_value ?? '',
+      regulatory_registration_type: t.regulatory_registration_type || 'nenhum', regulatory_registration_number: t.regulatory_registration_number || '', notes: t.notes || '',
+    });
+    setTemplateSuggestion(null);
+    setTemplateDialogOpen(true);
+  };
+
+  const handleDeleteTemplate = async (t) => {
+    if (!window.confirm(`Excluir o template de ${t.brand} ${t.model}? Isso não altera os ativos já parametrizados.`)) return;
+    await TemplateEntity.del(t.id);
+    loadTemplates();
+  };
+
+  // Sugestão de IA em modo "template" (sem asset_id) — reaproveita 100% do pipeline já usado
+  // no cadastro de ativos (mesma function, mesmas fontes confiáveis), com o nome sintetizado
+  // a partir de Marca+Modelo para dar contexto suficiente à IA.
+  const handleSuggestTemplate = async () => {
+    if (!templateForm.brand.trim() || !templateForm.model.trim()) {
+      toast.error('Preencha Marca e Modelo antes de pedir uma sugestão.');
+      return;
+    }
+    setTemplateSuggesting(true);
+    setTemplateSuggestion(null);
+    try {
+      const context = {
+        name: `${templateForm.brand.trim()} ${templateForm.model.trim()}`,
+        category: templateForm.category,
+        description: templateForm.notes || '',
+      };
+      const res = await base44.functions.invoke(
+        'suggestAssetParameters',
+        buildSuggestAssetParametersPayload(undefined, ['depreciation_rate', 'useful_life_years'], context),
+      );
+      const payload = normalizeSuggestionFunctionResponse(res);
+      if (!payload.ok) throw Object.assign(new Error('Falha ao gerar sugestão.'), { data: res?.data || res });
+      setTemplateSuggestion(payload);
+    } catch (err) {
+      toast.error(friendlySuggestionError(err));
+    } finally {
+      setTemplateSuggesting(false);
+    }
+  };
+
+  const applyTemplateSuggestion = () => {
+    if (!templateSuggestion) return;
+    const rate = templateSuggestion.suggestions?.depreciation_rate;
+    const life = templateSuggestion.suggestions?.useful_life_years;
+    setTemplateForm((prev) => ({
+      ...prev,
+      depreciation_rate: rate?.found ? rate.value : prev.depreciation_rate,
+      useful_life_years: life?.found ? life.value : prev.useful_life_years,
+      fiscal_depreciation_rate: templateSuggestion.fiscal_reference?.value ?? prev.fiscal_depreciation_rate,
+    }));
+    toast.success('Sugestão aplicada ao formulário. Revise antes de salvar.');
+  };
+
+  const handleSaveTemplate = async (e) => {
+    e.preventDefault();
+    if (!templateForm.brand.trim() || !templateForm.model.trim()) {
+      toast.error('Marca e Modelo são obrigatórios.');
+      return;
+    }
+    setTemplateSaving(true);
+    const data = {
+      category: templateForm.category,
+      brand: templateForm.brand.trim(),
+      model: templateForm.model.trim(),
+      notes: templateForm.notes || '',
+      regulatory_registration_type: templateForm.regulatory_registration_type,
+      regulatory_registration_number: templateForm.regulatory_registration_number || '',
+    };
+    ['depreciation_rate', 'useful_life_years', 'residual_value', 'fiscal_depreciation_rate', 'fiscal_useful_life_years', 'fiscal_residual_value'].forEach((f) => {
+      if (templateForm[f] !== '' && templateForm[f] !== null && templateForm[f] !== undefined) data[f] = parseFloat(templateForm[f]);
+    });
+
+    try {
+      let saved;
+      if (editingTemplateId) {
+        saved = await TemplateEntity.update(editingTemplateId, data);
+        saved = { ...data, id: editingTemplateId };
+      } else {
+        saved = await TemplateEntity.create(data);
+      }
+      setTemplateDialogOpen(false);
+      loadTemplates();
+
+      // Conta quantos ativos já cadastrados casam com esta marca/modelo para oferecer o
+      // bulk-apply — só pergunta se houver pelo menos 1 ativo existente.
+      const matches = await AssetEntity.filter({ category: data.category, brand: data.brand, model: data.model });
+      if (matches.length > 0) {
+        setPendingApply({ template: saved, matchedCount: matches.length });
+      } else {
+        toast.success('Template salvo. Nenhum ativo existente com esta marca/modelo ainda.');
+      }
+    } catch (_) {
+      toast.error('Não foi possível salvar o template.');
+    } finally {
+      setTemplateSaving(false);
+    }
+  };
+
+  const confirmApplyTemplate = async () => {
+    if (!pendingApply) return;
+    setApplying(true);
+    try {
+      const res = await base44.functions.invoke('applyAssetParameterTemplate', { template_id: pendingApply.template.id });
+      const data = res?.data || res;
+      if (data?.ok) {
+        toast.success(`${data.updated_count} ativo(s) atualizado(s) com os novos parâmetros.`);
+      } else {
+        toast.error(data?.error || 'Não foi possível aplicar os parâmetros aos ativos existentes.');
+      }
+    } catch (_) {
+      toast.error('Não foi possível aplicar os parâmetros aos ativos existentes.');
+    } finally {
+      setApplying(false);
+      setPendingApply(null);
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       <div>
