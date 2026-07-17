@@ -161,6 +161,7 @@ const ALLOWED_PARAMETERS = Object.keys(SUGGESTION_PARAMETER_DEFINITIONS) as Para
 type ParameterName = keyof typeof SUGGESTION_PARAMETER_DEFINITIONS;
 type Confidence = typeof CONFIDENCE[number];
 type RequestGroup = typeof SUGGESTION_PARAMETER_DEFINITIONS[ParameterName]['requestGroup'];
+type CanonicalUnit = 'percent_per_year' | 'years' | 'BRL';
 type SanitizedContext = Record<string, string | number | boolean>;
 type CacheStatus = 'hit' | 'miss' | 'bypass';
 type CachedSourceCollection = {
@@ -830,6 +831,44 @@ function parseRequestedParameters(raw: unknown): { params?: ParameterName[]; err
 
 function defaultUnit(parameter: ParameterName): string {
   return SUGGESTION_PARAMETER_DEFINITIONS[parameter].unit;
+}
+
+function normalizeSuggestionUnit(parameter: ParameterName, unit: unknown): CanonicalUnit | null {
+  if (typeof unit !== 'string') return null;
+
+  const compact = unit
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+  const key = compact.replace(/[^a-z0-9%$]+/g, '_').replace(/^_+|_+$/g, '');
+  const expectedUnit = defaultUnit(parameter);
+
+  if (expectedUnit === 'percent_per_year') {
+    if (['percent_per_year', 'percent', 'percentage_per_year', '%', '% ao ano'].includes(compact)
+      || ['percent_per_year', 'percent', 'percentage_per_year', 'ao_ano'].includes(key)) {
+      return 'percent_per_year';
+    }
+    return null;
+  }
+
+  if (expectedUnit === 'years') {
+    if (['years', 'year', 'anos', 'ano'].includes(compact)
+      || ['years', 'year', 'anos', 'ano'].includes(key)) {
+      return 'years';
+    }
+    return null;
+  }
+
+  if (expectedUnit === 'BRL') {
+    if (['brl', 'r$', 'real', 'reais'].includes(compact)
+      || ['brl', 'r$', 'real', 'reais'].includes(key)) {
+      return 'BRL';
+    }
+  }
+
+  return null;
 }
 
 function requestGroupForParameters(params: ParameterName[]): RequestGroup {
@@ -1611,8 +1650,9 @@ function validateSuggestion(
     ]);
   }
 
-  if (rawSuggestion.unit !== expectedUnit) {
-    return notFound(parameter, `Unidade invalida para ${parameter}.`, warnings);
+  const normalizedUnit = normalizeSuggestionUnit(parameter, rawSuggestion.unit);
+  if (normalizedUnit !== expectedUnit) {
+    return notFound(parameter, 'Nao foi possivel validar a unidade retornada pela sugestao. Tente novamente.', warnings);
   }
 
   const value = rawSuggestion.value;
@@ -1660,7 +1700,7 @@ function validateSuggestion(
   return {
     found: true,
     value,
-    unit: expectedUnit,
+    unit: normalizedUnit,
     confidence: finalConfidence,
     reason: reason || 'Estimativa gerencial baseada nos dados informados do ativo.',
     based_on: basedOn,
@@ -1837,6 +1877,7 @@ function buildPrompt(params: ParameterName[], context: SanitizedContext, evidenc
     '- Sugestoes parciais sao permitidas.',
     '- Nao preencha valores apenas para satisfazer o schema.',
     '- Valores devem ser numeros brutos, sem simbolos e sem texto.',
+    '- Unidades devem ser exclusivamente canonicas: depreciation_rate e fiscal_depreciation_rate usam percent_per_year; useful_life_years e fiscal_useful_life_years usam years; residual_value e fiscal_residual_value usam BRL.',
     '- Informe justificativa curta, confianca, dados considerados, dados ausentes e alertas.',
     '- Toda sugestao valida deve avisar que e uma estimativa gerencial e precisa de validacao contabil.',
     '- O resultado nao e orientacao fiscal ou contabil definitiva.',
@@ -1880,7 +1921,7 @@ function responseSchema(params: ParameterName[]) {
     properties: {
       found: { type: 'boolean' },
       value: { type: ['number', 'null'] },
-      unit: { type: 'string' },
+      unit: { type: 'string', enum: ['percent_per_year', 'years', 'BRL'] },
       confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
       reason: { type: 'string' },
       based_on: { type: 'array', items: { type: 'string' } },
@@ -1908,7 +1949,7 @@ function responseSchema(params: ParameterName[]) {
         properties: {
           found: { type: 'boolean' },
           value: { type: ['number', 'null'] },
-          unit: { type: 'string' },
+          unit: { type: 'string', enum: ['percent_per_year', 'years', 'BRL'] },
           source_ids: { type: 'array', items: { type: 'string' } },
           evidence_ids: { type: 'array', items: { type: 'string' } },
           primary_source_id: { type: ['string', 'null'] },
