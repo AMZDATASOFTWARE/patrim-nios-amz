@@ -515,6 +515,12 @@ export default function AssetForm() {
   useEffect(() => {
     BranchEntity.list('-created_date', 200).then(setBranches).catch(() => {});
     SectorEntity.list('name', 500).then((rows) => setSectors(rows.filter((s) => s.status !== 'inativo'))).catch(() => {});
+    // Autocomplete de Marca/Modelo: reaproveita os ativos ja cadastrados (ate 500 mais recentes)
+    // em vez de uma entidade dedicada -- simples, sem custo de manutencao extra.
+    AssetEntity.list('-created_date', 500).then((rows) => {
+      setBrandOptions([...new Set(rows.map((r) => (r.brand || '').trim()).filter(Boolean))].sort());
+      setModelOptions([...new Set(rows.map((r) => (r.model || '').trim()).filter(Boolean))].sort());
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
