@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT — Patrimônios AMZ
 
-> Documento de contexto para futuras sessões. Última atualização: **2026-07-14** (Bug corrigido: scan de QR no Inventário não "bipava" os itens — ver seção 7).
+> Documento de contexto para futuras sessões. Última atualização: **2026-07-17** (Parametrização técnica/regulatória de ativos + templates por Marca/Modelo, ver §3.2).
 > Mantenha este arquivo atualizado ao final de mudanças estruturais.
 
 ---
