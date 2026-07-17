@@ -829,6 +829,53 @@ export default function AssetForm() {
             </div>
 
             <div>
+              <Label htmlFor="brand">Marca/Fabricante</Label>
+              <Input
+                id="brand" list="brand-options" value={form.brand}
+                onChange={(e) => setForm({ ...form, brand: e.target.value })}
+                onBlur={handleBrandModelBlur}
+                placeholder="Ex: Dell, Toyota, Samsung"
+              />
+              <datalist id="brand-options">
+                {brandOptions.map((b) => <option key={b} value={b} />)}
+              </datalist>
+            </div>
+
+            <div>
+              <Label htmlFor="model">Modelo</Label>
+              <Input
+                id="model" list="model-options" value={form.model}
+                onChange={(e) => setForm({ ...form, model: e.target.value })}
+                onBlur={handleBrandModelBlur}
+                placeholder="Ex: Inspiron 15, Corolla, Galaxy Tab"
+              />
+              <datalist id="model-options">
+                {modelOptions.map((m) => <option key={m} value={m} />)}
+              </datalist>
+            </div>
+
+            <div>
+              <Label>Tipo de Registro/Certificação</Label>
+              <Select value={form.regulatory_registration_type} onValueChange={(v) => setForm({ ...form, regulatory_registration_type: v, regulatory_registration_number: v === 'nenhum' ? '' : form.regulatory_registration_number })}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="nenhum">Nenhum</SelectItem>
+                  <SelectItem value="anvisa">Anvisa (equipamento de saúde)</SelectItem>
+                  <SelectItem value="inmetro">Inmetro (certificação compulsória)</SelectItem>
+                  <SelectItem value="bndes_finame">BNDES/FINAME</SelectItem>
+                  <SelectItem value="outro">Outro</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {form.regulatory_registration_type !== 'nenhum' && (
+              <div>
+                <Label htmlFor="regulatory_registration_number">Número de Registro/Certificação</Label>
+                <Input id="regulatory_registration_number" value={form.regulatory_registration_number} onChange={(e) => setForm({ ...form, regulatory_registration_number: e.target.value })} placeholder="Ex: número do registro Anvisa ou do certificado Inmetro" />
+              </div>
+            )}
+
+            <div>
               <Label>Grupo de Patrimônio *</Label>
               <Select value={form.category} onValueChange={handleCategoryChange}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
