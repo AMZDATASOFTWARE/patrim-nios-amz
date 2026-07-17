@@ -18,6 +18,8 @@ import { getPlan } from '@/lib/plans';
 import { logAudit } from '@/lib/audit';
 import {
   DEPRECIATION_SUGGESTION_FIELDS,
+  FISCAL_DEPRECIATION_SUGGESTION_FIELDS,
+  FISCAL_RESIDUAL_SUGGESTION_FIELDS,
   SUGGESTION_PARAMETERS,
   applyDepreciationRateInput,
   applySuggestionValue,
@@ -246,9 +248,27 @@ export default function AssetForm() {
     runSuggestionRequest(['residual_value'], suggestionContext);
   };
 
+  const handleSuggestFiscalDepreciationGroup = () => {
+    if (!suggestionEligibility.fiscalDepreciation.enabled) return;
+    runSuggestionRequest(FISCAL_DEPRECIATION_SUGGESTION_FIELDS, suggestionContext);
+  };
+
+  const handleSuggestFiscalResidual = () => {
+    if (!suggestionEligibility.fiscalResidual.enabled) return;
+    runSuggestionRequest(FISCAL_RESIDUAL_SUGGESTION_FIELDS, suggestionContext);
+  };
+
   const handleRefreshSuggestion = (field) => {
     if (DEPRECIATION_SUGGESTION_FIELDS.includes(field)) {
       handleSuggestDepreciationGroup();
+      return;
+    }
+    if (FISCAL_DEPRECIATION_SUGGESTION_FIELDS.includes(field)) {
+      handleSuggestFiscalDepreciationGroup();
+      return;
+    }
+    if (FISCAL_RESIDUAL_SUGGESTION_FIELDS.includes(field)) {
+      handleSuggestFiscalResidual();
       return;
     }
     handleSuggestResidual();
@@ -295,6 +315,21 @@ export default function AssetForm() {
   const handleResidualValueChange = (value) => {
     clearAppliedSuggestion('residual_value');
     setForm({ ...form, residual_value: value });
+  };
+
+  const handleFiscalDepreciationRateChange = (value) => {
+    clearAppliedSuggestions(FISCAL_DEPRECIATION_SUGGESTION_FIELDS);
+    setForm({ ...form, fiscal_depreciation_rate: value });
+  };
+
+  const handleFiscalUsefulLifeChange = (value) => {
+    clearAppliedSuggestions(FISCAL_DEPRECIATION_SUGGESTION_FIELDS);
+    setForm({ ...form, fiscal_useful_life_years: value });
+  };
+
+  const handleFiscalResidualValueChange = (value) => {
+    clearAppliedSuggestion('fiscal_residual_value');
+    setForm({ ...form, fiscal_residual_value: value });
   };
 
   const getSuggestionResponse = (fields) => fields.map((field) => aiSuggestions[field]?.response).find(Boolean) || null;
@@ -357,6 +392,60 @@ export default function AssetForm() {
         {!suggestionEligibility.depreciation.enabled && (
           <p className="mt-2 text-xs text-muted-foreground">{suggestionEligibility.depreciation.reason}</p>
         )}
+      </div>
+    );
+  };
+
+  const renderFiscalDepreciationSuggestionButton = () => {
+    const loading = FISCAL_DEPRECIATION_SUGGESTION_FIELDS.some((field) => aiSuggestions[field]?.loading);
+    const disabled = !suggestionEligibility.fiscalDepreciation.enabled || hasAiSuggestionLoading;
+
+    return (
+      <div className="pt-1">
+        <Button
+          type="button"
+          variant="outline"
+          className="gap-2"
+          onClick={handleSuggestFiscalDepreciationGroup}
+          disabled={disabled}
+          title={suggestionEligibility.fiscalDepreciation.enabled ? 'Sugerir taxa e vida útil fiscal com IA' : suggestionEligibility.fiscalDepreciation.reason}
+        >
+          {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {loading ? 'Consultando fontes fiscais...' : 'Sugerir taxa e vida útil fiscal'}
+        </Button>
+        {!suggestionEligibility.fiscalDepreciation.enabled && (
+          <p className="mt-2 text-xs text-muted-foreground">{suggestionEligibility.fiscalDepreciation.reason}</p>
+        )}
+      </div>
+    );
+  };
+
+  const renderFiscalResidualSuggestionButton = () => {
+    const loading = FISCAL_RESIDUAL_SUGGESTION_FIELDS.some((field) => aiSuggestions[field]?.loading);
+    const disabled = !suggestionEligibility.fiscalResidual.enabled || hasAiSuggestionLoading;
+
+    return (
+      <Button
+        type="button"
+        variant="outline"
+        className="h-10 shrink-0 gap-2"
+        onClick={handleSuggestFiscalResidual}
+        disabled={disabled}
+        title={suggestionEligibility.fiscalResidual.enabled ? 'Sugerir valor residual fiscal com IA' : suggestionEligibility.fiscalResidual.reason}
+      >
+        {loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+        {loading ? 'Consultando...' : 'Sugerir residual fiscal'}
+      </Button>
+    );
+  };
+
+  const renderFiscalSuggestionGuidance = (fields) => {
+    const suggestions = getSuggestionsForFields(fields);
+    if (!hasFoundSuggestionForFields(suggestions, fields)) return null;
+
+    return (
+      <div className="mt-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-900">
+        Referência fiscal separada dos parâmetros contábeis. Exige validação profissional e não substitui a taxa, vida útil ou valor residual societário/gerencial.
       </div>
     );
   };
@@ -1035,20 +1124,61 @@ export default function AssetForm() {
             <h2 className="text-lg font-semibold text-card-foreground">Depreciação Fiscal (opcional)</h2>
             <p className="text-sm text-muted-foreground">Preencha apenas se a taxa fiscal (Receita Federal) diferir da societária/gerencial acima. Em branco, o livro fiscal espelha o societário.</p>
           </div>
+          <div className="sm:col-span-2 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="fiscal_depreciation_rate">Taxa Fiscal Anual (%)</Label>
+                <Input
+                  id="fiscal_depreciation_rate"
+                  type="number"
+                  step="0.1"
+                  value={form.fiscal_depreciation_rate}
+                  onChange={(e) => handleFiscalDepreciationRateChange(e.target.value)}
+                  placeholder="Ex: 25"
+                  className="mt-1"
+                />
+                {renderSuggestionBox('fiscal_depreciation_rate')}
+              </div>
+              <div>
+                <Label htmlFor="fiscal_useful_life_years">Vida Útil Fiscal (anos)</Label>
+                <Input
+                  id="fiscal_useful_life_years"
+                  type="number"
+                  step="0.1"
+                  value={form.fiscal_useful_life_years}
+                  onChange={(e) => handleFiscalUsefulLifeChange(e.target.value)}
+                  placeholder="Ex: 4"
+                  className="mt-1"
+                />
+                {renderSuggestionBox('fiscal_useful_life_years')}
+              </div>
+            </div>
+            {renderFiscalDepreciationSuggestionButton()}
+            {renderSuggestionOutcome(FISCAL_DEPRECIATION_SUGGESTION_FIELDS)}
+            {renderFiscalSuggestionGuidance(FISCAL_DEPRECIATION_SUGGESTION_FIELDS)}
+            {renderSuggestionNotices(FISCAL_DEPRECIATION_SUGGESTION_FIELDS)}
+            {renderSourcesConsulted(getSuggestionResponse(FISCAL_DEPRECIATION_SUGGESTION_FIELDS))}
+          </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
-              <Label htmlFor="fiscal_depreciation_rate">Taxa Fiscal Anual (%)</Label>
-              <Input id="fiscal_depreciation_rate" type="number" step="0.1" value={form.fiscal_depreciation_rate}
-                onChange={(e) => setForm({ ...form, fiscal_depreciation_rate: e.target.value, fiscal_useful_life_years: e.target.value > 0 ? (100 / parseFloat(e.target.value)).toFixed(1) : '' })} placeholder="Ex: 25" />
-            </div>
-            <div>
-              <Label htmlFor="fiscal_useful_life_years">Vida Útil Fiscal (anos)</Label>
-              <Input id="fiscal_useful_life_years" type="number" step="0.1" value={form.fiscal_useful_life_years}
-                onChange={(e) => setForm({ ...form, fiscal_useful_life_years: e.target.value, fiscal_depreciation_rate: e.target.value > 0 ? (100 / parseFloat(e.target.value)).toFixed(1) : '' })} placeholder="Ex: 4" />
-            </div>
-            <div>
               <Label htmlFor="fiscal_residual_value">Valor Residual Fiscal (R$)</Label>
-              <Input id="fiscal_residual_value" type="number" step="0.01" value={form.fiscal_residual_value} onChange={(e) => setForm({ ...form, fiscal_residual_value: e.target.value })} placeholder="0,00" />
+              <div className="flex gap-2">
+                <Input
+                  id="fiscal_residual_value"
+                  type="number"
+                  step="0.01"
+                  value={form.fiscal_residual_value}
+                  onChange={(e) => handleFiscalResidualValueChange(e.target.value)}
+                  placeholder="0,00"
+                  className="min-w-0"
+                />
+                {renderFiscalResidualSuggestionButton()}
+              </div>
+              {renderSuggestionBox('fiscal_residual_value')}
+              {renderSuggestionOutcome(FISCAL_RESIDUAL_SUGGESTION_FIELDS, 'mt-2 text-xs text-muted-foreground')}
+              {renderFiscalSuggestionGuidance(FISCAL_RESIDUAL_SUGGESTION_FIELDS)}
+              {renderSuggestionNotices(FISCAL_RESIDUAL_SUGGESTION_FIELDS)}
+              {renderSourcesConsulted(getSuggestionResponse(FISCAL_RESIDUAL_SUGGESTION_FIELDS))}
             </div>
             <div>
               <Label htmlFor="fiscal_depreciation_start_date">Início da Depreciação Fiscal</Label>

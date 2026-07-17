@@ -1,10 +1,139 @@
-export const SUGGESTION_PARAMETERS = {
-  depreciation_rate: { label: 'Taxa de Deprecia\u00e7\u00e3o Anual', unit: '% ao ano' },
-  useful_life_years: { label: 'Vida \u00datil', unit: 'anos' },
-  residual_value: { label: 'Valor Residual', unit: 'R$' },
+export const FISCAL_AI_SUGGESTIONS_ENABLED = true;
+
+export const SUGGESTION_PARAMETER_DEFINITIONS = {
+  depreciation_rate: {
+    key: 'depreciation_rate',
+    formField: 'depreciation_rate',
+    label: 'Taxa de Deprecia\u00e7\u00e3o Anual',
+    domain: 'accounting',
+    requestGroup: 'accounting_depreciation',
+    valueType: 'number',
+    unit: 'percent_per_year',
+    displayUnit: '% ao ano',
+    minimum: 0,
+    maximum: 100,
+    decimalPlaces: 2,
+    requiredContext: ['name', 'category'],
+    dependencies: [],
+    preferredSourceRoles: ['accounting', 'technical'],
+    forbiddenSourceRoles: [],
+    requiresUserConfirmation: true,
+    insufficiencyMessage: 'Dados insuficientes para sugerir taxa anual com seguran\u00e7a.',
+  },
+  useful_life_years: {
+    key: 'useful_life_years',
+    formField: 'useful_life_years',
+    label: 'Vida \u00datil',
+    domain: 'accounting',
+    requestGroup: 'accounting_depreciation',
+    valueType: 'number',
+    unit: 'years',
+    displayUnit: 'anos',
+    minimum: 0,
+    maximum: 100,
+    decimalPlaces: 2,
+    requiredContext: ['name', 'category'],
+    dependencies: [],
+    preferredSourceRoles: ['accounting', 'technical'],
+    forbiddenSourceRoles: [],
+    requiresUserConfirmation: true,
+    insufficiencyMessage: 'Dados insuficientes para sugerir vida \u00fatil com seguran\u00e7a.',
+  },
+  residual_value: {
+    key: 'residual_value',
+    formField: 'residual_value',
+    label: 'Valor Residual',
+    domain: 'accounting',
+    requestGroup: 'accounting_residual',
+    valueType: 'number',
+    unit: 'BRL',
+    displayUnit: 'R$',
+    minimum: 0,
+    maximum: 'acquisition_value',
+    decimalPlaces: 2,
+    requiredContext: ['name', 'category', 'acquisition_value'],
+    dependencies: ['acquisition_value'],
+    preferredSourceRoles: ['accounting', 'market', 'technical'],
+    forbiddenSourceRoles: [],
+    requiresUserConfirmation: true,
+    insufficiencyMessage: 'Dados insuficientes para sugerir valor residual com seguran\u00e7a.',
+  },
+  fiscal_depreciation_rate: {
+    key: 'fiscal_depreciation_rate',
+    formField: 'fiscal_depreciation_rate',
+    label: 'Taxa Fiscal Anual',
+    domain: 'fiscal',
+    requestGroup: 'fiscal_depreciation',
+    valueType: 'number',
+    unit: 'percent_per_year',
+    displayUnit: '% ao ano',
+    minimum: 0,
+    maximum: 100,
+    decimalPlaces: 2,
+    requiredContext: ['name', 'category'],
+    dependencies: [],
+    preferredSourceRoles: ['fiscal', 'fiscal_legal'],
+    forbiddenSourceRoles: ['market'],
+    requiresUserConfirmation: true,
+    insufficiencyMessage: 'Dados insuficientes para sugerir taxa fiscal com seguran\u00e7a.',
+  },
+  fiscal_useful_life_years: {
+    key: 'fiscal_useful_life_years',
+    formField: 'fiscal_useful_life_years',
+    label: 'Vida \u00datil Fiscal',
+    domain: 'fiscal',
+    requestGroup: 'fiscal_depreciation',
+    valueType: 'number',
+    unit: 'years',
+    displayUnit: 'anos',
+    minimum: 0,
+    maximum: 100,
+    decimalPlaces: 2,
+    requiredContext: ['name', 'category'],
+    dependencies: [],
+    preferredSourceRoles: ['fiscal', 'fiscal_legal'],
+    forbiddenSourceRoles: ['market'],
+    requiresUserConfirmation: true,
+    insufficiencyMessage: 'Dados insuficientes para sugerir vida \u00fatil fiscal com seguran\u00e7a.',
+  },
+  fiscal_residual_value: {
+    key: 'fiscal_residual_value',
+    formField: 'fiscal_residual_value',
+    label: 'Valor Residual Fiscal',
+    domain: 'fiscal',
+    requestGroup: 'fiscal_residual',
+    valueType: 'number',
+    unit: 'BRL',
+    displayUnit: 'R$',
+    minimum: 0,
+    maximum: 'acquisition_value',
+    decimalPlaces: 2,
+    requiredContext: ['name', 'category', 'acquisition_value'],
+    dependencies: ['acquisition_value'],
+    preferredSourceRoles: ['fiscal', 'fiscal_legal'],
+    forbiddenSourceRoles: ['market'],
+    requiresUserConfirmation: true,
+    insufficiencyMessage: 'Dados insuficientes para sugerir valor residual fiscal com seguran\u00e7a.',
+  },
 };
 
-export const DEPRECIATION_SUGGESTION_FIELDS = ['depreciation_rate', 'useful_life_years'];
+export const SUGGESTION_REQUEST_GROUPS = {
+  accounting_depreciation: ['depreciation_rate', 'useful_life_years'],
+  accounting_residual: ['residual_value'],
+  fiscal_depreciation: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
+  fiscal_residual: ['fiscal_residual_value'],
+};
+
+export const SUGGESTION_PARAMETERS = Object.fromEntries(
+  Object.entries(SUGGESTION_PARAMETER_DEFINITIONS).map(([key, definition]) => [
+    key,
+    { label: definition.label, unit: definition.displayUnit },
+  ]),
+);
+
+export const DEPRECIATION_SUGGESTION_FIELDS = SUGGESTION_REQUEST_GROUPS.accounting_depreciation;
+export const FISCAL_DEPRECIATION_SUGGESTION_FIELDS = SUGGESTION_REQUEST_GROUPS.fiscal_depreciation;
+export const FISCAL_RESIDUAL_SUGGESTION_FIELDS = SUGGESTION_REQUEST_GROUPS.fiscal_residual;
 
 export const MANAGEMENT_WARNING = 'Estimativa gerencial baseada nos dados informados. Valide com o responsável contábil antes de utilizar.';
 export const INSUFFICIENT_EVIDENCE_MESSAGE = 'As fontes foram consultadas, mas não foram encontradas informações suficientes para gerar uma sugestão segura.';
@@ -123,6 +252,18 @@ export function getSuggestionEligibility(context) {
         ? ''
         : `Para sugerir valor residual, ${residualMissing.join(' e ')}.`,
     },
+    fiscalDepreciation: {
+      enabled: depreciationEnabled,
+      reason: depreciationEnabled
+        ? ''
+        : `Para sugerir taxa e vida útil fiscal, ${missingBase.join(' e ')}.`,
+    },
+    fiscalResidual: {
+      enabled: residualMissing.length === 0,
+      reason: residualMissing.length === 0
+        ? ''
+        : `Para sugerir valor residual fiscal, ${residualMissing.join(' e ')}.`,
+    },
   };
 }
 
@@ -136,9 +277,9 @@ export function buildSuggestAssetParametersPayload(editId, params, context) {
 }
 
 export function requestFieldsForSuggestion(field) {
-  return DEPRECIATION_SUGGESTION_FIELDS.includes(field)
-    ? DEPRECIATION_SUGGESTION_FIELDS
-    : [field];
+  const definition = SUGGESTION_PARAMETER_DEFINITIONS[field];
+  if (!definition) return [field];
+  return SUGGESTION_REQUEST_GROUPS[definition.requestGroup] || [field];
 }
 
 export function applySuggestionValue(form, field, suggestion) {
@@ -170,8 +311,9 @@ export function applyUsefulLifeInput(form, value) {
 
 export function formatSuggestionValue(field, value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '';
-  if (field === 'depreciation_rate') return `${value}% ao ano`;
-  if (field === 'useful_life_years') return `${value} anos`;
+  const unit = SUGGESTION_PARAMETER_DEFINITIONS[field]?.unit;
+  if (unit === 'percent_per_year') return `${value}% ao ano`;
+  if (unit === 'years') return `${value} anos`;
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 
@@ -240,10 +382,20 @@ export function hasFoundSuggestionForFields(suggestionsByField, fields = []) {
 
 export function sourceTypeLabel(type) {
   const labels = {
+    accounting: 'Contábil',
     contabil: 'Contábil',
     fiscal: 'Fiscal',
-    tecnica: 'Técnica',
+    fiscal_legal: 'Fiscal legal',
+    fiscal_secondary: 'Fiscal secundária',
+    market: 'Mercado',
     mercado: 'Mercado',
+    classification: 'Classificação',
+    technical: 'Técnica',
+    tecnica: 'Técnica',
+    technical_regulatory: 'Técnica regulatória',
+    technical_cost: 'Custo técnico',
+    public_asset_management: 'Gestão patrimonial pública',
+    financing: 'Financiamento',
     construcao: 'Construção',
   };
   return labels[type] || 'Fonte confiável';
