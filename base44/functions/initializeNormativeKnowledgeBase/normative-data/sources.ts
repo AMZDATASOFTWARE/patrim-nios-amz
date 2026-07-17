@@ -1,7 +1,0 @@
-export const NORMATIVE_SOURCES_DATA = [
-  { source_id: 'cpc', name: 'Comite de Pronunciamentos Contabeis', authority: 'CPC', official_base_url: 'https://www.cpc.org.br/', domain: 'accounting', update_strategy: 'official_document', active: true, last_checked_at: '2026-07-17T00:00:00-03:00' },
-  { source_id: 'receita_sijut2', name: 'Receita Federal - Sijut2', authority: 'Receita Federal', official_base_url: 'https://normas.receita.fazenda.gov.br/sijut2consulta/', domain: 'fiscal', update_strategy: 'official_document', active: true, last_checked_at: '2026-07-17T00:00:00-03:00' },
-  { source_id: 'dou_imprensa_nacional', name: 'Diario Oficial da Uniao - Imprensa Nacional', authority: 'Imprensa Nacional', official_base_url: 'https://www.in.gov.br/', domain: 'fiscal', update_strategy: 'official_document', active: true, last_checked_at: '2026-07-17T00:00:00-03:00' },
-  { source_id: 'planalto', name: 'Portal da Legislacao do Planalto', authority: 'Presidencia da Republica', official_base_url: 'https://www.planalto.gov.br/', domain: 'fiscal', update_strategy: 'official_document', active: true, last_checked_at: '2026-07-17T00:00:00-03:00' },
-  { source_id: 'siscomex_ncm', name: 'Receita Federal/Siscomex - NCM', authority: 'Receita Federal/Siscomex', official_base_url: 'https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias/ncm', domain: 'classification', update_strategy: 'classification_table', active: true, last_checked_at: '2026-07-17T00:00:00-03:00' },
-] as const;

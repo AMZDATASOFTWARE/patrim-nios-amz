@@ -1,5 +1,0 @@
-{
-  "name": "initializeNormativeKnowledgeBase",
-  "description": "Inicializa ou atualiza manualmente a base normativa local versionada, sem consulta externa.",
-  "runtime": "deno"
-}

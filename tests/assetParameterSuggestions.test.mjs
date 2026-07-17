@@ -4,14 +4,9 @@ import { test } from 'node:test';
 
 import {
   DEPRECIATION_SUGGESTION_FIELDS,
-  FISCAL_AI_SUGGESTIONS_ENABLED,
-  FISCAL_DEPRECIATION_SUGGESTION_FIELDS,
-  FISCAL_RESIDUAL_SUGGESTION_FIELDS,
   INSUFFICIENT_EVIDENCE_MESSAGE,
   MANAGEMENT_WARNING,
   SUGGESTION_NOTICE_WARNINGS,
-  SUGGESTION_PARAMETER_DEFINITIONS,
-  SUGGESTION_REQUEST_GROUPS,
   TRUSTED_AI_SOURCES_INFO,
   applyDepreciationRateInput,
   applySuggestionValue,
@@ -40,7 +35,7 @@ const SETTINGS_PATH = new URL('../src/pages/Settings.jsx', import.meta.url);
 
 test('frontend helper initializes suggestions without loading, errors, or auto results', () => {
   const state = createEmptySuggestionState();
-  assert.deepEqual(Object.keys(state).sort(), Object.keys(SUGGESTION_PARAMETER_DEFINITIONS).sort());
+  assert.deepEqual(Object.keys(state).sort(), ['depreciation_rate', 'residual_value', 'useful_life_years'].sort());
   for (const item of Object.values(state)) {
     assert.equal(item.loading, false);
     assert.equal(item.suggestion, null);
@@ -119,64 +114,24 @@ test('frontend helper builds suggestAssetParameters payload for creation and edi
 });
 
 test('frontend helper maps clicked fields to the expected request fields', () => {
-  assert.equal(FISCAL_AI_SUGGESTIONS_ENABLED, true);
-  assert.deepEqual(Object.keys(SUGGESTION_PARAMETER_DEFINITIONS).sort(), [
-    'depreciation_rate',
-    'fiscal_depreciation_rate',
-    'fiscal_residual_value',
-    'fiscal_useful_life_years',
-    'residual_value',
-    'useful_life_years',
-  ].sort());
-  assert.deepEqual(SUGGESTION_REQUEST_GROUPS.accounting_depreciation, ['depreciation_rate', 'useful_life_years']);
-  assert.deepEqual(SUGGESTION_REQUEST_GROUPS.accounting_residual, ['residual_value']);
-  assert.deepEqual(SUGGESTION_REQUEST_GROUPS.fiscal_depreciation, ['fiscal_depreciation_rate', 'fiscal_useful_life_years']);
-  assert.deepEqual(SUGGESTION_REQUEST_GROUPS.fiscal_residual, ['fiscal_residual_value']);
-  assert.deepEqual(FISCAL_DEPRECIATION_SUGGESTION_FIELDS, ['fiscal_depreciation_rate', 'fiscal_useful_life_years']);
-  assert.deepEqual(FISCAL_RESIDUAL_SUGGESTION_FIELDS, ['fiscal_residual_value']);
-  assert.equal(SUGGESTION_PARAMETER_DEFINITIONS.fiscal_depreciation_rate.domain, 'fiscal');
-  assert.equal(SUGGESTION_PARAMETER_DEFINITIONS.fiscal_useful_life_years.unit, 'years');
-  assert.equal(SUGGESTION_PARAMETER_DEFINITIONS.fiscal_residual_value.maximum, 'acquisition_value');
   assert.deepEqual(requestFieldsForSuggestion('depreciation_rate'), ['depreciation_rate', 'useful_life_years']);
   assert.deepEqual(requestFieldsForSuggestion('useful_life_years'), ['depreciation_rate', 'useful_life_years']);
   assert.deepEqual(requestFieldsForSuggestion('residual_value'), ['residual_value']);
-  assert.deepEqual(requestFieldsForSuggestion('fiscal_depreciation_rate'), ['fiscal_depreciation_rate', 'fiscal_useful_life_years']);
-  assert.deepEqual(requestFieldsForSuggestion('fiscal_useful_life_years'), ['fiscal_depreciation_rate', 'fiscal_useful_life_years']);
-  assert.deepEqual(requestFieldsForSuggestion('fiscal_residual_value'), ['fiscal_residual_value']);
 });
 
 test('frontend helper applies each suggestion only to the target field', () => {
-  const form = {
-    depreciation_rate: '10',
-    useful_life_years: '10',
-    residual_value: '0',
-    fiscal_depreciation_rate: '25',
-    fiscal_useful_life_years: '4',
-    fiscal_residual_value: '0',
-  };
+  const form = { depreciation_rate: '10', useful_life_years: '10', residual_value: '0' };
   assert.deepEqual(
     applySuggestionValue(form, 'depreciation_rate', { found: true, value: 20 }),
-    { ...form, depreciation_rate: '20' },
+    { depreciation_rate: '20', useful_life_years: '10', residual_value: '0' },
   );
   assert.deepEqual(
     applySuggestionValue(form, 'useful_life_years', { found: true, value: 5 }),
-    { ...form, useful_life_years: '5' },
+    { depreciation_rate: '10', useful_life_years: '5', residual_value: '0' },
   );
   assert.deepEqual(
     applySuggestionValue(form, 'residual_value', { found: true, value: 1000 }),
-    { ...form, residual_value: '1000' },
-  );
-  assert.deepEqual(
-    applySuggestionValue(form, 'fiscal_depreciation_rate', { found: true, value: 12 }),
-    { ...form, fiscal_depreciation_rate: '12' },
-  );
-  assert.deepEqual(
-    applySuggestionValue(form, 'fiscal_useful_life_years', { found: true, value: 8 }),
-    { ...form, fiscal_useful_life_years: '8' },
-  );
-  assert.deepEqual(
-    applySuggestionValue(form, 'fiscal_residual_value', { found: true, value: 250 }),
-    { ...form, fiscal_residual_value: '250' },
+    { depreciation_rate: '10', useful_life_years: '10', residual_value: '1000' },
   );
   assert.equal(applySuggestionValue(form, 'residual_value', { found: false, value: null }), form);
 });
@@ -222,7 +177,7 @@ test('frontend helper normalizes consulted sources defensively', () => {
     {
       id: 'cpc',
       name: 'CPC',
-      type: 'accounting',
+      type: 'contabil',
       url: 'https://cpc.org.br/',
       title: '<b>CPC 27</b>',
       summary: '<script>x</script> Referência sobre ativo imobilizado '.repeat(10),
@@ -231,7 +186,7 @@ test('frontend helper normalizes consulted sources defensively', () => {
     },
     { id: 'http', name: 'HTTP', type: 'fiscal', url: 'http://example.com', used: true },
     { id: 'unused', name: 'Unused', type: 'fiscal', url: 'https://example.com', used: false },
-    { id: 'cpc', name: 'CPC', type: 'accounting', url: 'https://cpc.org.br/', used: true },
+    { id: 'cpc', name: 'CPC', type: 'contabil', url: 'https://cpc.org.br/', used: true },
   ]);
 
   assert.equal(sources.length, 1);
@@ -242,7 +197,6 @@ test('frontend helper normalizes consulted sources defensively', () => {
   assert.equal(isValidHttpsUrl('https://cpc.org.br/'), true);
   assert.equal(isValidHttpsUrl('http://cpc.org.br/'), false);
   assert.equal(sourceTypeLabel('tecnica'), 'Técnica');
-  assert.equal(sourceTypeLabel('technical_regulatory'), 'Técnica regulatória');
   assert.equal(formatConsultedAt('invalid'), '');
   assert.equal(normalizeSourceSummary('<b>texto</b>'), 'texto');
 });
@@ -252,7 +206,7 @@ test('frontend helper normalizes function response and fiscal reference', () => 
     data: {
       basis: 'form_and_trusted_sources',
       suggestions: { depreciation_rate: { found: true, value: 10 } },
-      sources_consulted: [{ id: 'cpc', name: 'CPC', type: 'accounting', url: 'https://cpc.org.br/', used: true }],
+      sources_consulted: [{ id: 'cpc', name: 'CPC', type: 'contabil', url: 'https://cpc.org.br/', used: true }],
       sources_failed: [{ id: 'cfc', reason_code: 'TIMEOUT' }],
       fiscal_reference: { found: true, value: 10, unit: 'percent_per_year', warning: 'Fiscal' },
       requires_user_confirmation: true,
@@ -294,7 +248,7 @@ test('frontend helper does not treat empty or malformed responses as valid sugge
       suggestions: {
         depreciation_rate: { found: true, value: 10 },
       },
-      sources_consulted: [{ id: 'cpc', name: 'CPC', type: 'accounting', url: 'https://cpc.org.br/', used: true }],
+      sources_consulted: [{ id: 'cpc', name: 'CPC', type: 'contabil', url: 'https://cpc.org.br/', used: true }],
       fiscal_reference: { found: true, value: 10, unit: 'percent_per_year' },
     },
   });
@@ -367,33 +321,6 @@ test('AssetForm source uses one shared depreciation button and keeps residual se
   assert.equal(source.includes('INSUFFICIENT_EVIDENCE_MESSAGE'), true);
   assert.equal(source.includes('const reason = suggestion.reason === INSUFFICIENT_EVIDENCE_MESSAGE'), true);
   assert.equal(source.includes('dangerouslySetInnerHTML'), false);
-});
-
-test('AssetForm source exposes fiscal suggestions only by click and keeps accounting fields separate', async () => {
-  const source = await readFile(ASSET_FORM_PATH, 'utf8');
-
-  assert.equal(source.includes('Fiscal (opcional)'), true);
-  assert.equal(source.includes('Sugerir taxa e vida'), true);
-  assert.equal(source.includes('Sugerir residual fiscal'), true);
-  assert.equal(source.includes('handleSuggestFiscalDepreciationGroup'), true);
-  assert.equal(source.includes('runSuggestionRequest(FISCAL_DEPRECIATION_SUGGESTION_FIELDS, suggestionContext)'), true);
-  assert.equal(source.includes('runSuggestionRequest(FISCAL_RESIDUAL_SUGGESTION_FIELDS, suggestionContext)'), true);
-  assert.equal(source.includes("{renderSuggestionBox('fiscal_depreciation_rate')}"), true);
-  assert.equal(source.includes("{renderSuggestionBox('fiscal_useful_life_years')}"), true);
-  assert.equal(source.includes("{renderSuggestionBox('fiscal_residual_value')}"), true);
-  assert.equal(source.includes('handleFiscalDepreciationRateChange'), true);
-  assert.equal(source.includes('handleFiscalUsefulLifeChange'), true);
-  assert.equal(source.includes('handleFiscalResidualValueChange'), true);
-  assert.equal(source.includes('fiscal_useful_life_years: e.target.value > 0'), false);
-  assert.equal(source.includes('fiscal_depreciation_rate: e.target.value > 0'), false);
-  assert.equal(source.includes('fiscal separada dos'), true);
-
-  const useEffectBlocks = [...source.matchAll(/useEffect\(\(\) => \{[\s\S]*?\n  \}, \[[^\]]*\]\);/g)].map((match) => match[0]);
-  assert.equal(
-    useEffectBlocks.some((block) => block.includes('handleSuggestFiscal') || block.includes('FISCAL_DEPRECIATION_SUGGESTION_FIELDS')),
-    false,
-    'useEffect must not call fiscal suggestions automatically',
-  );
 });
 
 test('Settings source includes informational trusted sources without management actions', async () => {
