@@ -75,9 +75,14 @@ export default function AssetForm() {
   const SectorEntity = useWorkspaceEntity('Sector');
   const [sectors, setSectors] = useState([]);
   const ConfigEntity = useWorkspaceEntity('DepreciationConfig');
+  const TemplateEntity = useWorkspaceEntity('AssetParameterTemplate');
   const AuditEntity = useWorkspaceEntity('AuditLog');
   const { user } = useAuth();
   const { workspace } = useWorkspace();
+  const [brandOptions, setBrandOptions] = useState([]);
+  const [modelOptions, setModelOptions] = useState([]);
+  const [sinapiReference, setSinapiReference] = useState(null);
+  const [sinapiLoading, setSinapiLoading] = useState(false);
 
   const [form, setForm] = useState({
     name: '',
