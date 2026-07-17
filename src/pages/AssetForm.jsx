@@ -628,6 +628,49 @@ export default function AssetForm() {
     setForm({ ...form, category: value, depreciation_rate: rate, useful_life_years: life });
   };
 
+  // Cadeia de defaults ao preencher Marca+Modelo num ativo NOVO: casa um AssetParameterTemplate
+  // (mais especifico) antes de manter o que handleCategoryChange ja preencheu por categoria.
+  // So roda na criacao -- nunca sobrescreve silenciosamente um ativo ja salvo so por perder o foco.
+  const handleBrandModelBlur = async () => {
+    if (editId || !form.category || !form.brand.trim() || !form.model.trim()) return;
+    try {
+      const templates = await TemplateEntity.filter({ category: form.category, brand: form.brand.trim(), model: form.model.trim() });
+      if (templates.length === 0) return;
+      const t = templates[0];
+      setForm((prev) => ({
+        ...prev,
+        depreciation_rate: t.depreciation_rate ?? prev.depreciation_rate,
+        useful_life_years: t.useful_life_years ?? prev.useful_life_years,
+        residual_value: t.residual_value ?? prev.residual_value,
+        fiscal_depreciation_rate: t.fiscal_depreciation_rate ?? prev.fiscal_depreciation_rate,
+        fiscal_useful_life_years: t.fiscal_useful_life_years ?? prev.fiscal_useful_life_years,
+        fiscal_residual_value: t.fiscal_residual_value ?? prev.fiscal_residual_value,
+        regulatory_registration_type: t.regulatory_registration_type || prev.regulatory_registration_type,
+        regulatory_registration_number: t.regulatory_registration_number || prev.regulatory_registration_number,
+      }));
+      toast.success(`Parametros de ${t.brand} ${t.model} aplicados a partir do template cadastrado.`);
+    } catch (_) {
+      // Autocompletar defaults e best-effort -- falha silenciosa, usuario continua preenchendo normalmente.
+    }
+  };
+
+  // Referencia informativa de custo de construcao (IBGE/SIDRA, SINAPI) para Imoveis -- nao
+  // sobrescreve acquisition_value sozinha, so exibe um comparativo ao lado do campo.
+  const handleFetchSinapiReference = async () => {
+    if (!form.property_area_m2 || !form.property_state) return;
+    setSinapiLoading(true);
+    setSinapiReference(null);
+    try {
+      const res = await base44.functions.invoke('sinapiCostReference', { uf: form.property_state, area_m2: parseFloat(form.property_area_m2) });
+      const data = res?.data || res;
+      setSinapiReference(data?.found ? data : { found: false });
+    } catch (_) {
+      setSinapiReference({ found: false });
+    } finally {
+      setSinapiLoading(false);
+    }
+  };
+
   const handleFileUpload = async (e, field) => {
     const file = e.target.files[0];
     if (!file) return;
