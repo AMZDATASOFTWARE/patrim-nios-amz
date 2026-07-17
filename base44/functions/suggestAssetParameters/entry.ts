@@ -3,6 +3,10 @@ import {
   collectTrustedSourceEvidence,
   type SourceEvidence,
 } from './trustedAssetSources.ts';
+import {
+  lookupReceitaFederalDepreciation,
+  toFiscalReference,
+} from './receitaFederalDepreciationTable.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -673,18 +677,46 @@ Deno.serve(async (req) => {
     const sanitized = sanitizeContext(body.asset_context);
     if (sanitized.error || !sanitized.context) return json({ error: sanitized.error }, 400);
 
+    // Referencia fiscal deterministica (Anexo III da IN RFB 1.700/2017) -- nao depende de
+    // scraping/LLM, entao e calculada antes de qualquer chamada externa e usada com prioridade
+    // sobre a estimativa da IA quando houver casamento com a tabela estatica.
+    const staticFiscalEntry = lookupReceitaFederalDepreciation(
+      String(sanitized.context.category || ''),
+      String(sanitized.context.name || ''),
+      String(sanitized.context.description || ''),
+    );
+    const staticFiscalReference = staticFiscalEntry ? toFiscalReference(staticFiscalEntry) : null;
+
     const sourceResult = await collectTrustedSourceEvidence(sanitized.context);
     if (sourceResult.evidence.length === 0) {
+      if (!staticFiscalReference) {
+        return json({
+          ok: false,
+          code: 'NO_TRUSTED_SOURCE_AVAILABLE',
+          error: 'Nao foi possivel consultar uma fonte confiavel neste momento.',
+          retryable: true,
+          sources_consulted: [],
+          sources_failed: sourceResult.failed,
+          requires_user_confirmation: true,
+          generated_at: new Date().toISOString(),
+        }, 503);
+      }
+      // Sem evidencia web para a estimativa gerencial, mas ha referencia fiscal deterministica
+      // (Anexo III) disponivel -- devolve isso mesmo assim, em vez de falhar por completo.
+      const fallbackSuggestions: Partial<Record<ParameterName, Suggestion>> = {};
+      for (const param of parsedParams.params) {
+        fallbackSuggestions[param] = notFound(param, 'Fonte confiavel indisponivel neste momento para a estimativa gerencial.');
+      }
       return json({
-        ok: false,
-        code: 'NO_TRUSTED_SOURCE_AVAILABLE',
-        error: 'Nao foi possivel consultar uma fonte confiavel neste momento.',
-        retryable: true,
+        ok: true,
+        basis: 'static_fiscal_table_only',
+        suggestions: fallbackSuggestions,
         sources_consulted: [],
         sources_failed: sourceResult.failed,
+        fiscal_reference: staticFiscalReference,
         requires_user_confirmation: true,
         generated_at: new Date().toISOString(),
-      }, 503);
+      });
     }
 
     const prompt = buildPrompt(parsedParams.params, sanitized.context, sourceResult.evidence);
@@ -715,7 +747,10 @@ Deno.serve(async (req) => {
       );
     }
     enforceRateLifeCoherence(suggestions);
-    const fiscalReference = validateFiscalReference(aiResponse.fiscal_reference, sourceResult.evidence);
+    const llmFiscalReference = validateFiscalReference(aiResponse.fiscal_reference, sourceResult.evidence);
+    // Static (Anexo III) tem prioridade sobre a inferencia da IA quando disponivel -- e
+    // deterministica e nao depende da qualidade do scraping feito nesta chamada.
+    const fiscalReference = staticFiscalReference || llmFiscalReference;
 
     return json({
       ok: true,
