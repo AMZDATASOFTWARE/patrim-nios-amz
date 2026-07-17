@@ -22,7 +22,9 @@ const ALL_COLS = [
   'is_construction_in_progress', 'construction_completion_date',
   'fiscal_depreciation_rate', 'fiscal_useful_life_years', 'fiscal_residual_value', 'fiscal_depreciation_start_date',
   'external_link', 'registry_link', 'photo_url', 'invoice_url',
-  'notes'
+  'notes',
+  'brand', 'model', 'regulatory_registration_type', 'regulatory_registration_number',
+  'vehicle_fipe_code', 'property_rip_number', 'property_state',
 ];
 
 const COL_LABELS = {
@@ -74,17 +76,25 @@ const COL_LABELS = {
   photo_url: 'URL da Foto',
   invoice_url: 'URL da Nota Fiscal (Arquivo)',
   notes: 'Observações',
+  brand: 'Marca/Fabricante',
+  model: 'Modelo',
+  regulatory_registration_type: 'Tipo de Registro/Certificação (nenhum/anvisa/inmetro/bndes_finame/outro)',
+  regulatory_registration_number: 'Número de Registro/Certificação',
+  vehicle_fipe_code: 'Código FIPE (Veículo)',
+  property_rip_number: 'RIP — Registro Imobiliário Patrimonial (Imóvel)',
+  property_state: 'UF do Imóvel',
 };
 
 const SAMPLE_ROWS = [
-  ['Notebook Dell Inspiron 15', 'Equipamentos', '4500', '2023-06-01', '20', 'PAT-001', 'Uso administrativo', '', '', '', '5', '450', '2023-06-01', 'Escritório Central', 'Ativo', 'Bom', 'SN-12345', '', 'NF-001', '2025-06-01', '', '', 'Dell Brasil', '', '', '', '', '', '', '', '', '', '', '', 'proprio', '', '', 'não', '', '', '', '', '', '', '', '', '', ''],
-  ['Veículo Toyota Corolla', 'Veículos', '95000', '2022-03-15', '20', 'PAT-002', 'Uso da diretoria', '', '', '', '5', '9500', '2022-03-15', 'Garagem', 'Ativo', 'Ótimo', '', '', 'NF-002', '', '', '', '', '', '', '', '', '', 'ABC1D234', '', '', '', 'Flex', '2022/2023', 'proprio', '', '', 'não', '', '', '', '', '', '', '', '', '', ''],
+  ['Notebook Dell Inspiron 15', 'Equipamentos', '4500', '2023-06-01', '20', 'PAT-001', 'Uso administrativo', '', '', '', '5', '450', '2023-06-01', 'Escritório Central', 'Ativo', 'Bom', 'SN-12345', '', 'NF-001', '2025-06-01', '', '', 'Dell Brasil', '', '', '', '', '', '', '', '', '', '', '', 'proprio', '', '', 'não', '', '', '', '', '', '', '', '', '', '', 'Dell', 'Inspiron 15', '', '', '', '', ''],
+  ['Veículo Toyota Corolla', 'Veículos', '95000', '2022-03-15', '20', 'PAT-002', 'Uso da diretoria', '', '', '', '5', '9500', '2022-03-15', 'Garagem', 'Ativo', 'Ótimo', '', '', 'NF-002', '', '', '', '', '', '', '', '', '', 'ABC1D234', '', '', '', 'Flex', '2022/2023', 'proprio', '', '', 'não', '', '', '', '', '', '', '', '', '', '', 'Toyota', 'Corolla', '', '', '', '', ''],
 ];
 
 const VALID_CATEGORIES = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
 const VALID_STATUSES = ['Ativo', 'Em Manutenção', 'Inativo', 'Alienado'];
 const VALID_STATES = ['Novo', 'Ótimo', 'Bom', 'Regular', 'Ruim'];
 const VALID_OWNERSHIP = ['proprio', 'terceiros', 'locado', 'comodato'];
+const VALID_REGULATORY_TYPES = ['nenhum', 'anvisa', 'inmetro', 'bndes_finame', 'outro'];
 
 function parseCSV(text) {
   const lines = text.trim().split('\n').map(l => l.replace(/\r$/, ''));
@@ -111,6 +121,7 @@ function validateRow(row, index) {
   if (row.status && !VALID_STATUSES.includes(row.status)) errors.push(`Status inválido: "${row.status}"`);
   if (row.conservation_state && !VALID_STATES.includes(row.conservation_state)) errors.push(`Estado inválido: "${row.conservation_state}"`);
   if (row.ownership_type && !VALID_OWNERSHIP.includes(row.ownership_type)) errors.push(`Tipo de titularidade inválido: "${row.ownership_type}". Use: ${VALID_OWNERSHIP.join(', ')}`);
+  if (row.regulatory_registration_type && !VALID_REGULATORY_TYPES.includes(row.regulatory_registration_type)) errors.push(`Tipo de registro/certificação inválido: "${row.regulatory_registration_type}". Use: ${VALID_REGULATORY_TYPES.join(', ')}`);
 
   return errors;
 }
@@ -170,6 +181,13 @@ function rowToAsset(row) {
     photo_url: row.photo_url?.trim() || undefined,
     invoice_url: row.invoice_url?.trim() || undefined,
     notes: row.notes?.trim() || undefined,
+    brand: row.brand?.trim() || undefined,
+    model: row.model?.trim() || undefined,
+    regulatory_registration_type: VALID_REGULATORY_TYPES.includes(row.regulatory_registration_type?.trim()) ? row.regulatory_registration_type.trim() : 'nenhum',
+    regulatory_registration_number: row.regulatory_registration_number?.trim() || undefined,
+    vehicle_fipe_code: row.vehicle_fipe_code?.trim() || undefined,
+    property_rip_number: row.property_rip_number?.trim() || undefined,
+    property_state: row.property_state?.trim() || undefined,
   };
 }
 
