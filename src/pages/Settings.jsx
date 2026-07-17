@@ -1,11 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
+import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Info, Save, TrendingDown } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { Info, Save, TrendingDown, Tag, Plus, Trash2, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
-import { TRUSTED_AI_SOURCES_INFO } from '@/lib/assetParameterSuggestions';
+import {
+  TRUSTED_AI_SOURCES_INFO,
+  buildSuggestAssetParametersPayload,
+  normalizeSuggestionFunctionResponse,
+  friendlySuggestionError,
+} from '@/lib/assetParameterSuggestions';
 
 const DEFAULT_RATES = {
   'Imóveis':      { depreciation_rate: 4,  useful_life_years: 25 },
