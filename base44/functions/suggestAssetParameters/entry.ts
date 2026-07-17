@@ -847,7 +847,7 @@ function normalizeSuggestionUnit(parameter: ParameterName, unit: unknown): Canon
 
   if (expectedUnit === 'percent_per_year') {
     if (['percent_per_year', 'percent', 'percentage_per_year', '%', '% ao ano'].includes(compact)
-      || ['percent_per_year', 'percent', 'percentage_per_year', 'ao_ano'].includes(key)) {
+      || ['percent_per_year', 'percent', 'percentage_per_year'].includes(key)) {
       return 'percent_per_year';
     }
     return null;
@@ -1738,6 +1738,9 @@ function validateFiscalReference(raw: unknown, evidence: SourceEvidence[]): Fisc
 
   if (binding.selectedEvidence.some((item) => item.source_id === 'planalto_lei_14871_2024')) return notFoundReference();
 
+  const normalizedUnit = normalizeSuggestionUnit('fiscal_depreciation_rate', raw.unit);
+  if (normalizedUnit !== 'percent_per_year') return notFoundReference();
+
   const value = raw.value;
   if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 100) {
     return {
@@ -1754,7 +1757,7 @@ function validateFiscalReference(raw: unknown, evidence: SourceEvidence[]): Fisc
   return {
     found: true,
     value,
-    unit: raw.unit === 'percent_per_year' ? 'percent_per_year' : 'percent_per_year',
+    unit: normalizedUnit,
     source_ids: binding.sourceIds,
     evidence_ids: binding.evidenceIds,
     primary_source_id: binding.primarySourceId,
