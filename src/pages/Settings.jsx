@@ -27,11 +27,29 @@ const DEFAULT_RATES = {
 
 const CATEGORIES = Object.keys(DEFAULT_RATES);
 
+const EMPTY_TEMPLATE_FORM = {
+  category: 'Equipamentos', brand: '', model: '',
+  depreciation_rate: '', useful_life_years: '', residual_value: '',
+  fiscal_depreciation_rate: '', fiscal_useful_life_years: '', fiscal_residual_value: '',
+  regulatory_registration_type: 'nenhum', regulatory_registration_number: '', notes: '',
+};
+
 export default function Settings() {
   const [configs, setConfigs] = useState({});
   const [records, setRecords] = useState({});
   const [saving, setSaving] = useState(false);
   const ConfigEntity = useWorkspaceEntity('DepreciationConfig');
+  const TemplateEntity = useWorkspaceEntity('AssetParameterTemplate');
+  const AssetEntity = useWorkspaceEntity('Asset');
+  const [templates, setTemplates] = useState([]);
+  const [templateDialogOpen, setTemplateDialogOpen] = useState(false);
+  const [editingTemplateId, setEditingTemplateId] = useState(null);
+  const [templateForm, setTemplateForm] = useState(EMPTY_TEMPLATE_FORM);
+  const [templateSaving, setTemplateSaving] = useState(false);
+  const [templateSuggesting, setTemplateSuggesting] = useState(false);
+  const [templateSuggestion, setTemplateSuggestion] = useState(null);
+  const [pendingApply, setPendingApply] = useState(null); // { template, matchedCount }
+  const [applying, setApplying] = useState(false);
 
   useEffect(() => {
     ConfigEntity.list().then((data) => {
