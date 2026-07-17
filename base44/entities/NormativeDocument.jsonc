@@ -1,0 +1,31 @@
+{
+  "name": "NormativeDocument",
+  "type": "object",
+  "properties": {
+    "document_id": { "type": "string", "title": "ID do documento" },
+    "title": { "type": "string", "title": "Titulo" },
+    "authority": { "type": "string", "title": "Orgao" },
+    "document_type": { "type": "string", "title": "Tipo" },
+    "number": { "type": "string", "title": "Numero" },
+    "year": { "type": "number", "title": "Ano" },
+    "domain": { "type": "string", "enum": ["accounting", "fiscal", "classification"], "title": "Dominio" },
+    "status": { "type": "string", "enum": ["vigente", "revogado", "substituido"], "title": "Situacao" },
+    "effective_start": { "type": "string", "format": "date", "title": "Inicio da vigencia" },
+    "effective_end": { "type": "string", "format": "date", "title": "Fim da vigencia" },
+    "official_url": { "type": "string", "title": "URL oficial" },
+    "version": { "type": "string", "title": "Versao vigente" },
+    "content_hash": { "type": "string", "title": "Hash do conteudo" },
+    "last_checked_at": { "type": "string", "format": "date-time", "title": "Ultima verificacao" },
+    "replaces_document_id": { "type": "string", "title": "Substitui" },
+    "amended_by_document_ids_json": { "type": "string", "title": "Alterado por (JSON)" },
+    "normalized_text": { "type": "string", "title": "Texto normalizado" }
+  },
+  "required": ["document_id", "title", "authority", "document_type", "domain", "status", "official_url", "version", "content_hash"],
+  "rls": {
+    "//": "Base normativa global mantida por function service-role; leitura/escrita direta restrita a admin.",
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}
