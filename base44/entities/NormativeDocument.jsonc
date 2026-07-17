@@ -3,6 +3,7 @@
   "type": "object",
   "properties": {
     "document_id": { "type": "string", "title": "ID do documento" },
+    "source_id": { "type": "string", "title": "Fonte normativa" },
     "title": { "type": "string", "title": "Titulo" },
     "authority": { "type": "string", "title": "Orgao" },
     "document_type": { "type": "string", "title": "Tipo" },
@@ -18,7 +19,9 @@
     "last_checked_at": { "type": "string", "format": "date-time", "title": "Ultima verificacao" },
     "replaces_document_id": { "type": "string", "title": "Substitui" },
     "amended_by_document_ids_json": { "type": "string", "title": "Alterado por (JSON)" },
-    "normalized_text": { "type": "string", "title": "Texto normalizado" }
+    "normalized_text": { "type": "string", "title": "Texto normalizado" },
+    "purpose": { "type": "string", "title": "Uso na base" },
+    "related_document_ids_json": { "type": "string", "title": "Documentos relacionados (JSON)" }
   },
   "required": ["document_id", "title", "authority", "document_type", "domain", "status", "official_url", "version", "content_hash"],
   "rls": {

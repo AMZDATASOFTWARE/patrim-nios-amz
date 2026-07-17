@@ -6,6 +6,7 @@ import vm from 'node:vm';
 import ts from 'typescript';
 
 const ENTRY_PATH = new URL('../base44/functions/suggestAssetParameters/entry.ts', import.meta.url);
+const INIT_ENTRY_PATH = new URL('../base44/functions/initializeNormativeKnowledgeBase/entry.ts', import.meta.url);
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -36,11 +37,9 @@ async function loadFunctionModule() {
   const trustedSourcesPath = trustedSourcesPathFromEntry(source);
   const normativeKnowledgePath = normativeKnowledgePathFromEntry(source);
   const trustedSourcesSource = await readFile(trustedSourcesPath, 'utf8');
-  const normativeKnowledgeSource = await readFile(normativeKnowledgePath, 'utf8');
   const shared = trustedSourcesSource
     .replace(/^export /gm, '');
-  const normativeShared = normativeKnowledgeSource
-    .replace(/^export /gm, '');
+  const normativeShared = await inlineLocalTsModule(normativeKnowledgePath);
   const trustedImportPath = trustedSourcesImportPath(source);
   const normativeImportPath = normativeKnowledgeImportPath(source);
   const withoutImports = source
@@ -137,6 +136,75 @@ globalThis.__testExports = {
   };
 }
 
+async function loadInitializeFunctionModule() {
+  const source = await readFile(INIT_ENTRY_PATH, 'utf8');
+  const normativeImport = source.match(/^import \{[\s\S]*?\} from '(\.\/normativeKnowledgeBase\.ts)';\s*/m);
+  assert.ok(normativeImport, 'initializeNormativeKnowledgeBase must import normativeKnowledgeBase.ts locally');
+  const normativeShared = await inlineLocalTsModule(new URL(normativeImport[1], INIT_ENTRY_PATH));
+  const withoutImports = source
+    .replace(/^import \{ createClientFromRequest \} from 'npm:@base44\/sdk@0\.8\.35';\s*/m, '')
+    .replace(new RegExp(`^import \\{[\\s\\S]*?\\} from '${escapeRegExp(normativeImport[1])}';\\s*`, 'm'), '');
+  const instrumented = `${normativeShared}
+${withoutImports}
+globalThis.__initTestExports = {
+  NORMATIVE_KNOWLEDGE_SEED,
+  handler: globalThis.__initHandler,
+};`;
+
+  const js = ts.transpileModule(instrumented, {
+    compilerOptions: {
+      module: ts.ModuleKind.ES2022,
+      target: ts.ScriptTarget.ES2022,
+    },
+  }).outputText;
+
+  const context = {
+    console,
+    Date,
+    JSON,
+    Number,
+    Object,
+    RegExp,
+    Response,
+    Set,
+    String,
+    URL,
+    globalThis: null,
+    __initHandler: null,
+    __createClientFromRequest: null,
+  };
+  context.globalThis = context;
+  context.Deno = {
+    serve(handler) {
+      context.__initHandler = handler;
+    },
+  };
+  context.createClientFromRequest = (...args) => context.__createClientFromRequest(...args);
+
+  vm.createContext(context);
+  vm.runInContext(js, context, { filename: 'initializeNormativeKnowledgeBase.entry.test.js' });
+  return {
+    context,
+    ...context.__initTestExports,
+    handler: context.__initHandler,
+  };
+}
+
+async function inlineLocalTsModule(fileUrl, seen = new Set()) {
+  const key = fileUrl.href;
+  if (seen.has(key)) return '';
+  seen.add(key);
+  const source = await readFile(fileUrl, 'utf8');
+  const localDependencyRegex = /^(?:import|export)\s+\{[\s\S]*?\}\s+from\s+'(\.\/[^']+\.ts)';\s*$/gm;
+  let dependencies = '';
+  for (const match of source.matchAll(localDependencyRegex)) {
+    dependencies += await inlineLocalTsModule(new URL(match[1], fileUrl), seen);
+  }
+  return `${dependencies}\n${source
+    .replace(localDependencyRegex, '')
+    .replace(/^export /gm, '')}`;
+}
+
 function validContext(overrides = {}) {
   return {
     name: 'Notebook Dell Latitude',
@@ -206,6 +274,7 @@ function validAiResponse(overrides = {}) {
         source_ids: ['receita_normas'],
         evidence_ids: ['receita-evidence-1'],
         primary_source_id: 'receita_normas',
+        selected_rule_id: 'anexo_iii:geradores_8502:curated-2026-07-17',
         ...overrides.fiscal_depreciation_rate,
       },
       fiscal_useful_life_years: {
@@ -220,6 +289,7 @@ function validAiResponse(overrides = {}) {
         source_ids: ['receita_normas'],
         evidence_ids: ['receita-evidence-1'],
         primary_source_id: 'receita_normas',
+        selected_rule_id: 'anexo_iii:geradores_8502:curated-2026-07-17',
         ...overrides.fiscal_useful_life_years,
       },
       fiscal_residual_value: {
@@ -338,6 +408,46 @@ function makeEntityStore(initial = []) {
       if (index >= 0) rows[index] = { ...rows[index], ...data };
       return rows[index];
     },
+  };
+}
+
+function configureInitializeBase44(context, options = {}) {
+  const {
+    user = { id: 'admin-1' },
+    fresh = { id: 'admin-1', is_platform_admin: true },
+    stores = null,
+  } = options;
+  const entityStores = stores || {
+    User: { filter: async () => (fresh ? [fresh] : []) },
+    NormativeSource: makeEntityStore(),
+    NormativeDocument: makeEntityStore(),
+    NormativeVersion: makeEntityStore(),
+    NormativeChunk: makeEntityStore(),
+    DepreciationRule: makeEntityStore(),
+    ClassificationAlias: makeEntityStore(),
+  };
+  if (!entityStores.User) entityStores.User = { filter: async () => (fresh ? [fresh] : []) };
+  context.__createClientFromRequest = () => ({
+    auth: {
+      me: async () => user,
+    },
+    asServiceRole: {
+      entities: entityStores,
+    },
+  });
+  return entityStores;
+}
+
+async function callInitializeHandler(handler, body = {}, method = 'POST') {
+  const req = new Request('https://local.test/initializeNormativeKnowledgeBase', {
+    method,
+    headers: { 'content-type': 'application/json' },
+    body: method === 'POST' ? JSON.stringify(body) : undefined,
+  });
+  const response = await handler(req);
+  return {
+    status: response.status,
+    body: await response.json().catch(() => null),
   };
 }
 
@@ -507,11 +617,127 @@ test('normative knowledge seed is loaded from the same path imported by the func
   const { NORMATIVE_KNOWLEDGE_SEED } = await loadFunctionModule();
 
   assert.equal(catalogPath.href.endsWith('/base44/functions/suggestAssetParameters/normativeKnowledgeBase.ts'), true);
-  assert.equal(NORMATIVE_KNOWLEDGE_SEED.sources.length, 7);
-  assert.equal(NORMATIVE_KNOWLEDGE_SEED.documents.length >= 19, true);
+  assert.equal(NORMATIVE_KNOWLEDGE_SEED.sources.length >= 5, true);
+  assert.equal(NORMATIVE_KNOWLEDGE_SEED.documents.length >= 11, true);
   assert.equal(NORMATIVE_KNOWLEDGE_SEED.versions.some((item) => item.status === 'revogado'), true);
-  assert.equal(NORMATIVE_KNOWLEDGE_SEED.chunks.length >= 8, true);
-  assert.equal(NORMATIVE_KNOWLEDGE_SEED.depreciation_rules.some((item) => item.rule_id === 'anexo_iii:maquinas_equipamentos'), true);
+  assert.equal(NORMATIVE_KNOWLEDGE_SEED.chunks.length >= 19, true);
+  assert.equal(NORMATIVE_KNOWLEDGE_SEED.depreciation_rules.some((item) => item.rule_id === 'anexo_iii:geradores_8502:curated-2026-07-17'), true);
+  assert.equal(NORMATIVE_KNOWLEDGE_SEED.classification_aliases.some((item) => item.alias_id === 'alias:monitor_multiparametrico:curated-2026-07-17'), true);
+});
+
+test('normative fiscal seed corrects critical Anexo III rates and traceability', async () => {
+  const { NORMATIVE_KNOWLEDGE_SEED } = await loadFunctionModule();
+  const rules = new Map(NORMATIVE_KNOWLEDGE_SEED.depreciation_rules.map((item) => [item.rule_id, item]));
+  const rule = (id) => rules.get(`anexo_iii:${id}:curated-2026-07-17`);
+
+  assert.equal(rule('impressoras_scanners_8443').depreciation_rate, 10);
+  assert.equal(rule('impressoras_scanners_8443').useful_life_years, 10);
+  assert.equal(rule('onibus_8702').depreciation_rate, 25);
+  assert.equal(rule('onibus_8702').useful_life_years, 4);
+  assert.equal(rule('caminhoes_8704').depreciation_rate, 25);
+  assert.equal(rule('caminhoes_8704').useful_life_years, 4);
+  assert.equal(rule('tratores_8701').depreciation_rate, 25);
+  assert.equal(rule('tratores_8701').useful_life_years, 4);
+
+  for (const fiscalRule of NORMATIVE_KNOWLEDGE_SEED.depreciation_rules.filter((item) => item.domain === 'fiscal' && item.status === 'vigente')) {
+    assert.equal(Boolean(fiscalRule.classification_type), true, `missing classification_type ${fiscalRule.rule_id}`);
+    assert.equal(Boolean(fiscalRule.official_description), true, `missing official_description ${fiscalRule.rule_id}`);
+    assert.equal(Boolean(fiscalRule.source_url), true, `missing source_url ${fiscalRule.rule_id}`);
+    assert.equal(Boolean(fiscalRule.raw_reference), true, `missing raw_reference ${fiscalRule.rule_id}`);
+    assert.equal(Boolean(fiscalRule.source_section), true, `missing source_section ${fiscalRule.rule_id}`);
+    assert.equal(Array.isArray(fiscalRule.match_terms) && fiscalRule.match_terms.length > 0, true, `missing match_terms ${fiscalRule.rule_id}`);
+    assert.equal(Boolean(fiscalRule.document_id), true, `missing document_id ${fiscalRule.rule_id}`);
+    assert.equal(Boolean(fiscalRule.version), true, `missing version ${fiscalRule.rule_id}`);
+    assert.equal(/[\/-]/.test(String(fiscalRule.ncm || '')), false, `grouped NCM ${fiscalRule.rule_id}`);
+  }
+
+  assert.equal(rule('maquinas_agricolas_8432').aliases.some((alias) => alias.includes('trator')), false);
+  assert.equal(rule('maquinas_agricolas_8433').aliases.some((alias) => alias.includes('trator')), false);
+});
+
+test('normative aliases keep monitors and brand clues conservative', async () => {
+  const { NORMATIVE_KNOWLEDGE_SEED } = await loadFunctionModule();
+  const alias = (id) => NORMATIVE_KNOWLEDGE_SEED.classification_aliases.find((item) => item.alias_id === `${id}:curated-2026-07-17`);
+  const computerMonitor = alias('alias:monitor_computador');
+  const patientMonitor = alias('alias:monitor_multiparametrico');
+  const macbook = alias('alias:macbook');
+
+  assert.equal(Boolean(computerMonitor), true);
+  assert.equal(computerMonitor.ncm, undefined);
+  assert.equal(computerMonitor.rule_ids.some((ruleId) => ruleId.includes('computadores_8471')), false);
+  assert.equal(computerMonitor.rule_ids.some((ruleId) => ruleId.includes('cpc_27_general')), true);
+  assert.equal(patientMonitor.ncm, '9018');
+  assert.equal(macbook.match_type, 'partial');
+  assert.equal(macbook.priority < 95, true);
+});
+
+test('initializeNormativeKnowledgeBase validates, dry-runs and imports the local seed idempotently', async () => {
+  const loaded = await loadInitializeFunctionModule();
+  const source = await readFile(INIT_ENTRY_PATH, 'utf8');
+  assert.match(source, /from '\.\/normativeKnowledgeBase\.ts'/);
+  assert.doesNotMatch(source, /\.\.\//);
+
+  const stores = configureInitializeBase44(loaded.context);
+  const dryRun = await callInitializeHandler(loaded.handler, { dry_run: true });
+  assert.equal(dryRun.status, 200);
+  assert.equal(dryRun.body.dry_run, true);
+  assert.equal(dryRun.body.created > 0, true);
+  assert.equal(stores.NormativeSource.rows.length, 0);
+
+  const firstImport = await callInitializeHandler(loaded.handler, { dry_run: false });
+  assert.equal(firstImport.status, 200);
+  assert.equal(firstImport.body.dry_run, false);
+  assert.equal(firstImport.body.created > 0, true);
+  const createdCount = stores.NormativeSource.rows.length
+    + stores.NormativeDocument.rows.length
+    + stores.NormativeVersion.rows.length
+    + stores.NormativeChunk.rows.length
+    + stores.DepreciationRule.rows.length
+    + stores.ClassificationAlias.rows.length;
+
+  const secondImport = await callInitializeHandler(loaded.handler, { dry_run: false });
+  assert.equal(secondImport.status, 200);
+  assert.equal(secondImport.body.created, 0);
+  assert.equal(secondImport.body.unchanged > 0, true);
+  const finalCount = stores.NormativeSource.rows.length
+    + stores.NormativeDocument.rows.length
+    + stores.NormativeVersion.rows.length
+    + stores.NormativeChunk.rows.length
+    + stores.DepreciationRule.rows.length
+    + stores.ClassificationAlias.rows.length;
+  assert.equal(finalCount, createdCount);
+});
+
+test('initializeNormativeKnowledgeBase is restricted to platform admin', async () => {
+  const loaded = await loadInitializeFunctionModule();
+  configureInitializeBase44(loaded.context, { fresh: { id: 'user-1', is_platform_admin: false } });
+  const result = await callInitializeHandler(loaded.handler, { dry_run: true });
+
+  assert.equal(result.status, 403);
+});
+
+test('normative knowledge seed has internally consistent document, rule and alias references', async () => {
+  const { NORMATIVE_KNOWLEDGE_SEED } = await loadFunctionModule();
+  const documentIds = new Set(NORMATIVE_KNOWLEDGE_SEED.documents.map((item) => item.document_id));
+  const currentVersions = new Map(NORMATIVE_KNOWLEDGE_SEED.documents.map((item) => [item.document_id, item.version]));
+  const ruleIds = new Set(NORMATIVE_KNOWLEDGE_SEED.depreciation_rules.map((item) => item.rule_id));
+
+  for (const source of NORMATIVE_KNOWLEDGE_SEED.sources) {
+    assert.equal(Boolean(source.source_id), true);
+    assert.equal(/^https:\/\//.test(source.official_base_url), true);
+  }
+  for (const chunk of NORMATIVE_KNOWLEDGE_SEED.chunks) {
+    assert.equal(documentIds.has(chunk.document_id), true, `missing document for chunk ${chunk.chunk_id}`);
+    assert.equal(currentVersions.get(chunk.document_id), chunk.version, `chunk ${chunk.chunk_id} must target current version`);
+  }
+  for (const rule of NORMATIVE_KNOWLEDGE_SEED.depreciation_rules.filter((item) => item.status === 'vigente')) {
+    assert.equal(documentIds.has(rule.document_id), true, `missing document for rule ${rule.rule_id}`);
+    assert.equal(currentVersions.get(rule.document_id), rule.version, `rule ${rule.rule_id} must target current version`);
+  }
+  for (const alias of NORMATIVE_KNOWLEDGE_SEED.classification_aliases) {
+    for (const ruleId of alias.rule_ids) assert.equal(ruleIds.has(ruleId), true, `missing rule ${ruleId} for alias ${alias.alias_id}`);
+    for (const documentId of alias.document_ids) assert.equal(documentIds.has(documentId), true, `missing document ${documentId} for alias ${alias.alias_id}`);
+  }
 });
 
 test('local normative retrieval consults Anexo III and ignores revoked rules', async () => {
@@ -528,18 +754,46 @@ test('local normative retrieval consults Anexo III and ignores revoked rules', a
   );
 
   assert.equal(result.documents.some((doc) => doc.document_id === 'in_rfb_1700_2017_anexo_iii'), true);
-  assert.equal(result.rules.some((rule) => rule.rule_id === 'anexo_iii:maquinas_equipamentos'), true);
+  assert.equal(result.rules.some((rule) => rule.rule_id === 'anexo_iii:geradores_8502:curated-2026-07-17'), true);
   assert.equal(result.rules.some((rule) => rule.status !== 'vigente'), false);
   assert.equal(result.rules.some((rule) => rule.rule_id === 'historical:maquinas_equipamentos_revogada'), false);
-  assert.equal(result.rules.length <= 30, true);
+  assert.equal(result.rules.length <= 15, true);
   assert.equal(result.chunks.length <= 20, true);
+});
+
+test('local normative retrieval differentiates ambiguous asset aliases', async () => {
+  const { NORMATIVE_KNOWLEDGE_SEED, retrieveNormativeKnowledge } = await loadFunctionModule();
+  const notebook = retrieveNormativeKnowledge(
+    NORMATIVE_KNOWLEDGE_SEED,
+    validContext({ name: 'MacBook Pro 14', category: 'Equipamentos', account: 'Equipamentos de informatica' }),
+    ['fiscal_depreciation_rate'],
+    { type: 'computer_equipment' },
+  );
+  assert.equal(notebook.rules.some((rule) => rule.rule_id === 'anexo_iii:computadores_8471:curated-2026-07-17'), true);
+
+  const medicalMonitor = retrieveNormativeKnowledge(
+    NORMATIVE_KNOWLEDGE_SEED,
+    validContext({ name: 'Monitor multiparametrico M100', category: 'Equipamentos', account: 'Equipamentos hospitalares' }),
+    ['fiscal_depreciation_rate'],
+    { type: 'medical_equipment' },
+  );
+  assert.equal(medicalMonitor.rules.some((rule) => rule.rule_id === 'anexo_iii:instrumentos_medicos_9018:curated-2026-07-17'), true);
+  assert.equal(medicalMonitor.rules.some((rule) => rule.rule_id === 'anexo_iii:computadores_8471:curated-2026-07-17'), false);
+
+  const land = retrieveNormativeKnowledge(
+    NORMATIVE_KNOWLEDGE_SEED,
+    validContext({ name: 'Terreno rural sem edificacao', category: 'Imóveis', account: 'Terrenos' }),
+    ['depreciation_rate'],
+    { type: 'property' },
+  );
+  assert.equal(land.rules.some((rule) => rule.rule_id === 'accounting:cpc_27_land:curated-2026-07-17'), true);
 });
 
 test('backend handler reads persisted normative entities before falling back to seed', async () => {
   const loaded = await loadFunctionModule();
   const persistedData = structuredClone(loaded.NORMATIVE_KNOWLEDGE_SEED);
   persistedData.depreciation_rules = persistedData.depreciation_rules.map((rule) => (
-    rule.rule_id === 'anexo_iii:maquinas_equipamentos'
+    rule.rule_id === 'anexo_iii:geradores_8502:curated-2026-07-17'
       ? { ...rule, depreciation_rate: 12, useful_life_years: 8, notes: 'Regra persistida alterada para teste.' }
       : rule
   ));
@@ -561,6 +815,7 @@ test('backend handler reads persisted normative entities before falling back to 
             missing_data: [],
             warnings: [],
             normative_references: [evidence.normative_reference],
+            selected_rule_id: evidence.normative_reference.rule_id,
           },
         },
       };
@@ -706,6 +961,7 @@ test('backend handler paginates normative rules beyond one thousand records', as
             missing_data: [],
             warnings: [],
             normative_references: [evidence.normative_reference],
+            selected_rule_id: evidence.normative_reference.rule_id,
           },
         },
       };
@@ -720,6 +976,56 @@ test('backend handler paginates normative rules beyond one thousand records', as
 
   assert.equal(result.status, 200);
   assert.equal(result.body.suggestions.fiscal_depreciation_rate.value, 11);
+});
+
+test('backend handler uses one controlled AI search retry and derives fiscal values from the selected local rule', async () => {
+  const loaded = await loadFunctionModule();
+  let llmCalls = 0;
+  const fetchMock = makeMockFetch();
+  configureBase44(loaded.context, {
+    fetchMock,
+    aiResponse: ({ prompt }) => {
+      llmCalls += 1;
+      if (prompt.includes('Gere termos curtos para uma nova busca')) {
+        return {
+          asset_type: 'generator',
+          search_terms: ['gerador diesel', 'https://evil.example', '8502', 'acesse o site'],
+        };
+      }
+      const evidence = evidenceFromPrompt(prompt, 'in_rfb_1700_2017_anexo_iii');
+      assert.equal(Boolean(evidence?.normative_reference?.rule_id), true);
+      return {
+        suggestions: {
+          fiscal_depreciation_rate: {
+            found: true,
+            value: 999,
+            unit: 'percent_per_year',
+            confidence: 'high',
+            reason: 'Regra fiscal local selecionada.',
+            based_on: ['name', 'category'],
+            missing_data: [],
+            warnings: [],
+            normative_references: [],
+            selected_rule_id: evidence.normative_reference.rule_id,
+          },
+        },
+      };
+    },
+  });
+
+  const result = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['fiscal_depreciation_rate'],
+    asset_context: validContext({ name: 'Bem patrimonial', category: 'Equipamentos', account: 'Maquinas e Equipamentos' }),
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(llmCalls, 2);
+  assert.equal(fetchMock.calls.length, 0);
+  assert.equal(result.body.normative_counts.refined_search, true);
+  assert.equal(result.body.suggestions.fiscal_depreciation_rate.found, true);
+  assert.equal(result.body.suggestions.fiscal_depreciation_rate.value, 10);
+  assert.equal(result.body.suggestions.fiscal_depreciation_rate.source_ids.includes('in_rfb_1700_2017_anexo_iii'), true);
 });
 
 test('asset classification catalog covers the initial deterministic types', async () => {
@@ -2558,6 +2864,14 @@ test('backend helper enforces strict evidence compatibility before accepting AI 
     source_type: 'fiscal',
     source_official: true,
     source_secondary: false,
+    normative_rule_id: 'anexo_iii:geradores_8502:curated-2026-07-17',
+    structured_references: [{
+      kind: 'normative_depreciation_rule',
+      rule_id: 'anexo_iii:geradores_8502:curated-2026-07-17',
+      depreciation_rate: 10,
+      useful_life_years: 10,
+      match_status: 'exact',
+    }],
   });
   const secondaryFiscalEvidence = evidence('normas_legais_in_rfb_1700_anexo_iii', 'normas-legais-evidence-1', {
     source_name: 'Normas Legais - Anexo III IN RFB 1700/2017',
@@ -2643,6 +2957,10 @@ test('backend helper enforces strict evidence compatibility before accepting AI 
   assert.equal(
     validateSuggestion('fiscal_depreciation_rate', suggestion('fiscal_depreciation_rate', 'receita_normas', 'receita-evidence-1', { unit: 'percent_per_year', value: 10 }), baseContext, allowedFields, ['fiscal_depreciation_rate'], officialFiscalEvidence).found,
     true,
+  );
+  assert.equal(
+    validateSuggestion('fiscal_depreciation_rate', suggestion('fiscal_depreciation_rate', 'receita_normas', 'receita-evidence-1', { unit: 'percent_per_year', value: 10, selected_rule_id: 'invented-rule' }), baseContext, allowedFields, ['fiscal_depreciation_rate'], officialFiscalEvidence).found,
+    false,
   );
   assert.equal(
     validateSuggestion('fiscal_depreciation_rate', suggestion('fiscal_depreciation_rate', 'normas_legais_in_rfb_1700_anexo_iii', 'normas-legais-evidence-1', { unit: 'percent_per_year', value: 10 }), baseContext, allowedFields, ['fiscal_depreciation_rate'], secondaryFiscalEvidence).found,
@@ -2991,6 +3309,7 @@ test('backend handler validates request payload before invoking AI', async () =>
             evidence_ids: [fiscalEvidence.evidence_id],
             primary_source_id: 'in_rfb_1700_2017_anexo_iii',
             normative_references: [fiscalEvidence.normative_reference],
+            selected_rule_id: fiscalEvidence.normative_reference.rule_id,
           },
         },
       };

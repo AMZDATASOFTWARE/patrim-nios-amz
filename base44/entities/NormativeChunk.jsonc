@@ -9,7 +9,11 @@
     "domain": { "type": "string", "enum": ["accounting", "fiscal", "classification"], "title": "Dominio" },
     "status": { "type": "string", "enum": ["vigente", "revogado", "substituido"], "title": "Situacao" },
     "text": { "type": "string", "title": "Texto" },
-    "keywords_json": { "type": "string", "title": "Palavras-chave (JSON)" }
+    "keywords_json": { "type": "string", "title": "Palavras-chave (JSON)" },
+    "content_type": { "type": "string", "title": "Tipo de conteudo" },
+    "themes_json": { "type": "string", "title": "Temas (JSON)" },
+    "scope": { "type": "string", "title": "Escopo" },
+    "source_url": { "type": "string", "title": "URL fonte" }
   },
   "required": ["chunk_id", "document_id", "version", "section", "domain", "status", "text"],
   "rls": {

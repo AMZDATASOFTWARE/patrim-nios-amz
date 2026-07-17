@@ -14,7 +14,7 @@
     "update_strategy": {
       "type": "string",
       "title": "Estrategia de atualizacao",
-      "enum": ["official_document", "catalog", "classification_table"]
+      "enum": ["official_document", "catalog", "classification_table", "manual_curated"]
     },
     "active": { "type": "boolean", "title": "Ativa", "default": true },
     "last_checked_at": { "type": "string", "format": "date-time", "title": "Ultima verificacao" }
