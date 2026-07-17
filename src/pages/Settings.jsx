@@ -281,6 +281,175 @@ export default function Settings() {
         </div>
       </div>
 
+      <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Tag className="h-5 w-5 text-primary" />
+            <h2 className="text-lg font-semibold text-card-foreground">Parâmetros por Marca/Modelo</h2>
+          </div>
+          <Dialog open={templateDialogOpen} onOpenChange={setTemplateDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="gap-2" onClick={openNewTemplate}>
+                <Plus className="h-4 w-4" /> Novo Template
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>{editingTemplateId ? 'Editar Template' : 'Novo Template de Parâmetros'}</DialogTitle>
+              </DialogHeader>
+              <form onSubmit={handleSaveTemplate} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Grupo de Patrimônio</Label>
+                    <Select value={templateForm.category} onValueChange={(v) => setTemplateForm({ ...templateForm, category: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div />
+                  <div>
+                    <Label>Marca/Fabricante *</Label>
+                    <Input value={templateForm.brand} onChange={(e) => setTemplateForm({ ...templateForm, brand: e.target.value })} required placeholder="Ex: Dell" />
+                  </div>
+                  <div>
+                    <Label>Modelo *</Label>
+                    <Input value={templateForm.model} onChange={(e) => setTemplateForm({ ...templateForm, model: e.target.value })} required placeholder="Ex: Inspiron 15" />
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <Button type="button" variant="outline" size="sm" className="gap-2" disabled={templateSuggesting} onClick={handleSuggestTemplate}>
+                    <Sparkles className="h-4 w-4" />
+                    {templateSuggesting ? 'Consultando fontes confiáveis...' : 'Sugerir com IA'}
+                  </Button>
+                  {templateSuggestion && (
+                    <Button type="button" variant="ghost" size="sm" onClick={applyTemplateSuggestion}>Aplicar sugestão</Button>
+                  )}
+                </div>
+                {templateSuggestion && (
+                  <p className="text-xs text-muted-foreground">
+                    {templateSuggestion.suggestions?.depreciation_rate?.found
+                      ? `Sugerido: ${templateSuggestion.suggestions.depreciation_rate.value}% ao ano / ${templateSuggestion.suggestions.useful_life_years?.value ?? '?'} anos.`
+                      : 'As fontes foram consultadas, mas não houve sugestão segura o suficiente.'}
+                    {' '}Estimativa gerencial — valide com o contador antes de aplicar.
+                  </p>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Taxa Anual (%)</Label>
+                    <Input type="number" step="0.1" min="0" value={templateForm.depreciation_rate} onChange={(e) => setTemplateForm({ ...templateForm, depreciation_rate: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Vida Útil (anos)</Label>
+                    <Input type="number" step="0.1" min="0" value={templateForm.useful_life_years} onChange={(e) => setTemplateForm({ ...templateForm, useful_life_years: e.target.value })} />
+                  </div>
+                  <div>
+                    <Label className="text-xs text-muted-foreground">Valor Residual (R$)</Label>
+                    <Input type="number" step="0.01" min="0" value={templateForm.residual_value} onChange={(e) => setTemplateForm({ ...templateForm, residual_value: e.target.value })} />
+                  </div>
+                </div>
+
+                <details>
+                  <summary className="cursor-pointer text-sm font-medium text-card-foreground">Depreciação fiscal (opcional)</summary>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-3">
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Taxa Fiscal (%)</Label>
+                      <Input type="number" step="0.1" min="0" value={templateForm.fiscal_depreciation_rate} onChange={(e) => setTemplateForm({ ...templateForm, fiscal_depreciation_rate: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Vida Útil Fiscal (anos)</Label>
+                      <Input type="number" step="0.1" min="0" value={templateForm.fiscal_useful_life_years} onChange={(e) => setTemplateForm({ ...templateForm, fiscal_useful_life_years: e.target.value })} />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground">Valor Residual Fiscal (R$)</Label>
+                      <Input type="number" step="0.01" min="0" value={templateForm.fiscal_residual_value} onChange={(e) => setTemplateForm({ ...templateForm, fiscal_residual_value: e.target.value })} />
+                    </div>
+                  </div>
+                </details>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <Label>Tipo de Registro/Certificação</Label>
+                    <Select value={templateForm.regulatory_registration_type} onValueChange={(v) => setTemplateForm({ ...templateForm, regulatory_registration_type: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="nenhum">Nenhum</SelectItem>
+                        <SelectItem value="anvisa">Anvisa</SelectItem>
+                        <SelectItem value="inmetro">Inmetro</SelectItem>
+                        <SelectItem value="bndes_finame">BNDES/FINAME</SelectItem>
+                        <SelectItem value="outro">Outro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  {templateForm.regulatory_registration_type !== 'nenhum' && (
+                    <div>
+                      <Label>Número de Registro/Certificação</Label>
+                      <Input value={templateForm.regulatory_registration_number} onChange={(e) => setTemplateForm({ ...templateForm, regulatory_registration_number: e.target.value })} />
+                    </div>
+                  )}
+                </div>
+
+                <div>
+                  <Label>Observações</Label>
+                  <Textarea rows={2} value={templateForm.notes} onChange={(e) => setTemplateForm({ ...templateForm, notes: e.target.value })} />
+                </div>
+
+                <DialogFooter>
+                  <Button type="submit" disabled={templateSaving}>{templateSaving ? 'Salvando...' : 'Salvar Template'}</Button>
+                </DialogFooter>
+              </form>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <p className="text-sm text-muted-foreground -mt-2">
+          Defina parâmetros por marca e modelo especificos. Ao salvar, você pode aplicar os valores imediatamente a todos os ativos existentes que casarem com a mesma marca/modelo — isso sobrescreve os parâmetros desses ativos.
+        </p>
+
+        {templates.length === 0 ? (
+          <p className="text-sm text-muted-foreground py-4">Nenhum template cadastrado ainda.</p>
+        ) : (
+          <div className="divide-y divide-border">
+            {templates.map((t) => (
+              <div key={t.id} className="py-3 flex items-center justify-between gap-3">
+                <div>
+                  <p className="font-medium text-card-foreground">{t.brand} {t.model}</p>
+                  <p className="text-xs text-muted-foreground">{t.category} • {t.depreciation_rate ?? '?'}% / {t.useful_life_years ?? '?'} anos{t.regulatory_registration_type && t.regulatory_registration_type !== 'nenhum' ? ` • ${t.regulatory_registration_type.toUpperCase()}: ${t.regulatory_registration_number || '-'}` : ''}</p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button variant="ghost" size="sm" onClick={() => openEditTemplate(t)}>Editar</Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteTemplate(t)}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <AlertDialog open={!!pendingApply} onOpenChange={(open) => !open && setPendingApply(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Aplicar aos ativos existentes?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {pendingApply && (
+                <>Existe(m) {pendingApply.matchedCount} ativo(s) de {pendingApply.template.brand} {pendingApply.template.model} já cadastrado(s) neste workspace. Aplicar agora vai sobrescrever os parâmetros (taxa, vida útil, valor residual e registro/certificação) desses ativos com os valores deste template. Esta ação não pode ser desfeita automaticamente.</>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={applying}>Agora não</AlertDialogCancel>
+            <AlertDialogAction disabled={applying} onClick={confirmApplyTemplate}>
+              {applying ? 'Aplicando...' : 'Aplicar a todos'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm">
         <details>
           <summary className="flex cursor-pointer list-none items-center gap-2">
