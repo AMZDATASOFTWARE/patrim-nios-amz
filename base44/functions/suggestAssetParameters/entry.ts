@@ -1172,6 +1172,85 @@ function normativeEvidenceFromKnowledge(knowledge: NormativeRetrievalResult): So
   };
 }
 
+function hasEnoughNormativeCandidates(knowledge: NormativeRetrievalResult, params: ParameterName[]): boolean {
+  if (params.some((param) => param === 'fiscal_depreciation_rate' || param === 'fiscal_useful_life_years')) {
+    return knowledge.rules.some((rule) => rule.domain === 'fiscal' && rule.status === 'vigente');
+  }
+  if (params.some((param) => param === 'fiscal_residual_value')) return true;
+  return knowledge.rules.length > 0 || knowledge.chunks.length > 0;
+}
+
+function sanitizeNormativeSearchTerm(value: unknown): string {
+  const text = cleanUserText(value, 90)
+    .replace(/https?:\/\/\S+/gi, ' ')
+    .replace(/\b(?:www\.|[a-z0-9.-]+\.(?:com|gov|org|net|br))\S*/gi, ' ')
+    .replace(/[{}[\]<>`$\\]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!text || text.length < 3) return '';
+  const normalized = normalizeText(text);
+  if (/\b\d{4,8}\b/.test(normalized)) return '';
+  if (/\b(ignore|instrucao|instrucoes|classifique|acesse|url|site|retorne|force|execute|codigo|script|ncm)\b/.test(normalized)) return '';
+  return text;
+}
+
+function sanitizeNormativeSearchTerms(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const item of value) {
+    const term = sanitizeNormativeSearchTerm(item);
+    if (!term) continue;
+    const key = normalizeText(term);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(term);
+    if (out.length >= 5) break;
+  }
+  return out;
+}
+
+function buildNormativeSearchPrompt(
+  params: ParameterName[],
+  context: SanitizedContext,
+  classification: AssetClassification,
+): string {
+  const compactContext = {
+    name: context.name,
+    category: context.category,
+    description: context.description,
+    account: context.account,
+    conservation_state: context.conservation_state,
+    vehicle_model_year: context.vehicle_model_year,
+    vehicle_fuel_type: context.vehicle_fuel_type,
+    property_registration_type: context.property_registration_type,
+    ownership_type: context.ownership_type,
+    is_construction_in_progress: context.is_construction_in_progress,
+  };
+  return [
+    'Gere termos curtos para uma nova busca na base normativa local ja cadastrada.',
+    'Use somente o contexto sanitizado, a classificacao deterministica e os parametros solicitados.',
+    'Nao informe URLs, codigos NCM, comandos, instrucoes, scripts ou nomes de sites.',
+    'Nao invente classificacao fiscal. Retorne termos descritivos do bem e do uso.',
+    'Responda somente JSON com asset_type e search_terms.',
+    '',
+    `Parametros: ${JSON.stringify(params)}`,
+    `Contexto: ${JSON.stringify(compactContext)}`,
+    `Classificacao: ${JSON.stringify(classification)}`,
+  ].join('\n');
+}
+
+function normativeSearchResponseSchema() {
+  return {
+    type: 'object',
+    properties: {
+      asset_type: { type: 'string' },
+      search_terms: { type: 'array', items: { type: 'string' } },
+    },
+    required: ['asset_type', 'search_terms'],
+  };
+}
+
 function hasContextValue(context: SanitizedContext, field?: string): boolean {
   if (!field) return false;
   const value = context[field];
@@ -1623,13 +1702,18 @@ function suggestionWithEvidenceFromNormativeReferences(rawSuggestion: Record<str
     return rawSuggestion;
   }
   const refs = sanitizeNormativeReferences(rawSuggestion.normative_references, evidence);
-  if (!refs.length) return rawSuggestion;
+  const selectedRuleId = typeof rawSuggestion.selected_rule_id === 'string' ? rawSuggestion.selected_rule_id.trim() : '';
+  const selectedRuleEvidence = selectedRuleId
+    ? evidence.find((item) => evidenceNormativeRuleId(item) === selectedRuleId)
+    : null;
+  if (!refs.length && !selectedRuleEvidence) return rawSuggestion;
   const matchedEvidence = refs
     .map((ref) => evidence.find((item) => (
       item.source_id === ref.document_id
       && (!ref.rule_id || evidenceNormativeRuleId(item) === ref.rule_id)
       && (!ref.section || item.section_label === ref.section)
     )))
+    .concat(selectedRuleEvidence ? [selectedRuleEvidence] : [])
     .filter((item): item is SourceEvidence => !!item);
   if (!matchedEvidence.length) return rawSuggestion;
   return {
@@ -1647,6 +1731,24 @@ function sourceRole(item: SourceEvidence): string {
 function hasStructuredReference(item: SourceEvidence, predicate: (reference: Record<string, unknown>) => boolean): boolean {
   const references = Array.isArray(item.structured_references) ? item.structured_references : [];
   return references.some((reference) => isPlainObject(reference) && predicate(reference));
+}
+
+function fiscalValueFromRule(parameter: ParameterName, evidenceItems: SourceEvidence[], selectedRuleId = ''): { value: number; unit: CanonicalUnit } | null {
+  if (parameter !== 'fiscal_depreciation_rate' && parameter !== 'fiscal_useful_life_years') return null;
+  for (const item of evidenceItems) {
+    if (selectedRuleId && evidenceNormativeRuleId(item) !== selectedRuleId) continue;
+    const references = Array.isArray(item.structured_references) ? item.structured_references : [];
+    for (const reference of references) {
+      if (!isPlainObject(reference) || reference.kind !== 'normative_depreciation_rule') continue;
+      const value = parameter === 'fiscal_depreciation_rate' ? reference.depreciation_rate : reference.useful_life_years;
+      if (typeof value !== 'number' || !Number.isFinite(value)) continue;
+      return {
+        value,
+        unit: parameter === 'fiscal_depreciation_rate' ? 'percent_per_year' : 'years',
+      };
+    }
+  }
+  return null;
 }
 
 function hasUnmatchedReference(item: SourceEvidence): boolean {
@@ -1839,6 +1941,16 @@ function validateSuggestion(
   const binding = validateEvidenceBinding(normalizedRawSuggestion.source_ids, normalizedRawSuggestion.evidence_ids, normalizedRawSuggestion.primary_source_id, evidence);
   if (!binding.ok) return notFound(parameter, binding.reason, warnings);
 
+  const selectedRuleId = typeof normalizedRawSuggestion.selected_rule_id === 'string' ? normalizedRawSuggestion.selected_rule_id.trim() : '';
+  if (parameter === 'fiscal_depreciation_rate' || parameter === 'fiscal_useful_life_years') {
+    if (!selectedRuleId) {
+      return notFound(parameter, 'A IA nao selecionou uma regra fiscal local validada para este parametro.', warnings);
+    }
+    if (!binding.selectedEvidence.some((item) => evidenceNormativeRuleId(item) === selectedRuleId)) {
+      return notFound(parameter, 'A regra fiscal selecionada nao corresponde as evidencias citadas.', warnings);
+    }
+  }
+
   const evidenceCompatibility = validateEvidenceCompatibility(parameter, binding.selectedEvidence);
   if (!evidenceCompatibility.ok) {
     return notFound(parameter, evidenceCompatibility.reason || 'Evidencia incompativel com o parametro solicitado.', [
@@ -1847,12 +1959,18 @@ function validateSuggestion(
     ]);
   }
 
-  const normalizedUnit = normalizeSuggestionUnit(parameter, normalizedRawSuggestion.unit);
+  const fiscalRuleValue = fiscalValueFromRule(parameter, binding.selectedEvidence, selectedRuleId);
+  if ((parameter === 'fiscal_depreciation_rate' || parameter === 'fiscal_useful_life_years') && !fiscalRuleValue) {
+    return notFound(parameter, 'Nao foi encontrada regra fiscal local validada para este parametro.', warnings);
+  }
+
+  const rawUnit = fiscalRuleValue?.unit ?? normalizedRawSuggestion.unit;
+  const normalizedUnit = normalizeSuggestionUnit(parameter, rawUnit);
   if (normalizedUnit !== expectedUnit) {
     return notFound(parameter, 'Nao foi possivel validar a unidade retornada pela sugestao. Tente novamente.', warnings);
   }
 
-  const value = normalizedRawSuggestion.value;
+  const value = fiscalRuleValue?.value ?? normalizedRawSuggestion.value;
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return notFound(parameter, `Valor invalido para ${parameter}; esperado numero bruto.`, warnings);
   }
@@ -1999,6 +2117,12 @@ function compactStructuredReferences(item: SourceEvidence): Array<Record<string,
       const out: Record<string, unknown> = {};
       for (const key of [
         'kind',
+        'rule_id',
+        'document_id',
+        'section',
+        'depreciation_rate',
+        'useful_life_years',
+        'residual_guidance',
         'asset_type',
         'value',
         'currency',
@@ -2123,6 +2247,8 @@ function buildPrompt(
     '- Norma contabil, tecnica ou de mercado nao deve fundamentar parametro fiscal.',
     '- Informacao fiscal deve ficar em parametros fiscais ou fiscal_reference e nao substituir taxa gerencial.',
     '- Taxa e vida util fiscal exigem fonte fiscal oficial.',
+    '- Para fiscal_depreciation_rate e fiscal_useful_life_years, escolha apenas selected_rule_id entre os rule_id enviados em regras estruturadas locais; nao crie taxa, vida util, NCM ou referencia fiscal.',
+    '- Se nenhum rule_id local for aplicavel com seguranca ao ativo, retorne found:false para o parametro fiscal.',
     '- Fonte secundaria fiscal so pode apoiar quando tambem houver fonte fiscal oficial.',
     '- Lei 14.871 trata depreciacao acelerada especifica e nao substitui depreciacao fiscal comum sem evidencia de aplicabilidade.',
     '- fiscal_residual_value deve ser found:false se nao houver fundamento fiscal explicito.',
@@ -2185,6 +2311,7 @@ function responseSchema(params: ParameterName[]) {
       source_ids: { type: 'array', items: { type: 'string' } },
       evidence_ids: { type: 'array', items: { type: 'string' } },
       primary_source_id: { type: ['string', 'null'] },
+      selected_rule_id: { type: 'string' },
     },
     required: ['found', 'value', 'unit', 'confidence', 'reason', 'based_on', 'missing_data', 'warnings', 'normative_references'],
   };
@@ -2263,6 +2390,7 @@ function mapNormativeChunk(record: Record<string, unknown>): NormativeChunk {
   return {
     ...(stripRecord(record) as unknown as NormativeChunk),
     keywords: parseJsonArray(record.keywords_json || record.keywords),
+    themes: parseJsonArray(record.themes_json || record.themes),
   };
 }
 
@@ -2270,14 +2398,17 @@ function mapDepreciationRule(record: Record<string, unknown>): DepreciationRule 
   return {
     ...(stripRecord(record) as unknown as DepreciationRule),
     aliases: parseJsonArray(record.aliases_json || record.aliases),
+    match_terms: parseJsonArray(record.match_terms_json || record.match_terms),
   };
 }
 
 function mapClassificationAlias(record: Record<string, unknown>): ClassificationAlias {
   return {
     ...(stripRecord(record) as unknown as ClassificationAlias),
-    rule_ids: parseJsonArray(record.rule_ids_json || record.rule_ids),
+    rule_ids: parseJsonArray(record.target_rule_ids_json || record.rule_ids_json || record.rule_ids),
     document_ids: parseJsonArray(record.document_ids_json || record.document_ids),
+    context_terms: parseJsonArray(record.context_terms_json || record.context_terms),
+    excluded_terms: parseJsonArray(record.excluded_terms_json || record.excluded_terms),
   };
 }
 
@@ -2346,9 +2477,31 @@ Deno.serve(async (req) => {
     if (contextError) return json({ error: contextError }, 400);
 
     const classification = classifyAssetContext(sanitized.context);
-    const requestGroup = requestGroupForParameters(parsedParams.params);
     const normativeDatabase = await loadNormativeKnowledgeData(svc.entities as NormativeEntityRegistry);
-    const normativeKnowledge = retrieveNormativeKnowledge(normativeDatabase.data, sanitized.context, parsedParams.params, classification);
+    let normativeKnowledge = retrieveNormativeKnowledge(normativeDatabase.data, sanitized.context, parsedParams.params, classification);
+    let normativeSearchRefined = false;
+    if (!hasEnoughNormativeCandidates(normativeKnowledge, parsedParams.params)) {
+      try {
+        const searchResponse = await svc.integrations.Core.InvokeLLM({
+          prompt: buildNormativeSearchPrompt(parsedParams.params, sanitized.context, classification),
+          response_json_schema: normativeSearchResponseSchema(),
+        });
+        if (isPlainObject(searchResponse)) {
+          const searchTerms = sanitizeNormativeSearchTerms(searchResponse.search_terms);
+          if (searchTerms.length > 0) {
+            normativeSearchRefined = true;
+            normativeKnowledge = retrieveNormativeKnowledge(
+              normativeDatabase.data,
+              { ...sanitized.context, normative_search_terms: searchTerms.join(' ') },
+              parsedParams.params,
+              classification,
+            );
+          }
+        }
+      } catch (_) {
+        normativeSearchRefined = false;
+      }
+    }
     const sourceResult = normativeEvidenceFromKnowledge(normativeKnowledge);
     const cache_status: CacheStatus = 'bypass';
     if (sourceResult.evidence.length === 0) {
@@ -2415,6 +2568,7 @@ Deno.serve(async (req) => {
         versions: normativeKnowledge.versions.length,
         chunks: normativeKnowledge.chunks.length,
         rules: normativeKnowledge.rules.length,
+        refined_search: normativeSearchRefined,
       },
       suggestions,
       sources_consulted: sourceResult.evidence.map((item) => ({

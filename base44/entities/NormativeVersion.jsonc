@@ -10,7 +10,9 @@
     "effective_end": { "type": "string", "format": "date", "title": "Fim da vigencia" },
     "official_url": { "type": "string", "title": "URL oficial" },
     "content_hash": { "type": "string", "title": "Hash do conteudo" },
-    "checked_at": { "type": "string", "format": "date-time", "title": "Verificado em" }
+    "checked_at": { "type": "string", "format": "date-time", "title": "Verificado em" },
+    "notes": { "type": "string", "title": "Notas" },
+    "amendments_json": { "type": "string", "title": "Alteracoes (JSON)" }
   },
   "required": ["version_id", "document_id", "version", "status", "official_url", "content_hash", "checked_at"],
   "rls": {

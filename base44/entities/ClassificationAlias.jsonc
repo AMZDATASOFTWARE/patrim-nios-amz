@@ -9,7 +9,14 @@
     "ncm": { "type": "string", "title": "NCM" },
     "cnae": { "type": "string", "title": "CNAE" },
     "rule_ids_json": { "type": "string", "title": "Regras (JSON)" },
-    "document_ids_json": { "type": "string", "title": "Documentos (JSON)" }
+    "target_rule_ids_json": { "type": "string", "title": "Regras alvo (JSON)" },
+    "document_ids_json": { "type": "string", "title": "Documentos (JSON)" },
+    "match_type": { "type": "string", "enum": ["exact", "partial", "keyword"], "title": "Tipo de correspondencia" },
+    "priority": { "type": "number", "title": "Prioridade" },
+    "context_terms_json": { "type": "string", "title": "Termos de contexto (JSON)" },
+    "excluded_terms_json": { "type": "string", "title": "Termos excluidos (JSON)" },
+    "origin": { "type": "string", "title": "Origem" },
+    "status": { "type": "string", "enum": ["vigente", "revogado", "substituido"], "title": "Situacao" }
   },
   "required": ["alias_id", "normalized"],
   "rls": {
