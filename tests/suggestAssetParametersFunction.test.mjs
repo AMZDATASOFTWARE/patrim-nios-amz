@@ -2184,6 +2184,9 @@ test('backend helper validates AI suggestions, values and units', async () => {
   assert.equal(acceptedCurrencySymbol.found, true);
   assert.equal(acceptedCurrencySymbol.unit, 'BRL');
   assert.equal(normalizeSuggestionUnit('fiscal_depreciation_rate', '% ao ano'), 'percent_per_year');
+  assert.equal(normalizeSuggestionUnit('fiscal_depreciation_rate', 'percent per year'), 'percent_per_year');
+  assert.equal(normalizeSuggestionUnit('fiscal_depreciation_rate', 'percentage per year'), 'percent_per_year');
+  assert.equal(normalizeSuggestionUnit('fiscal_depreciation_rate', 'ao ano'), null);
   assert.equal(normalizeSuggestionUnit('fiscal_useful_life_years', 'ano'), 'years');
   assert.equal(normalizeSuggestionUnit('fiscal_residual_value', 'reais'), 'BRL');
   assert.equal(
@@ -2423,14 +2426,62 @@ test('backend helper validates fiscal_reference with the same strict evidence bi
     primary_source_id: 'receita_normas',
   }, fiscalEvidence).found, false);
 
-  assert.equal(validateFiscalReference({
+  const canonicalReference = validateFiscalReference({
     found: true,
     value: 10,
     unit: 'percent_per_year',
     source_ids: ['receita_normas'],
     evidence_ids: ['receita-evidence-1'],
     primary_source_id: 'receita_normas',
-  }, fiscalEvidence).found, true);
+  }, fiscalEvidence);
+  assert.equal(canonicalReference.found, true);
+  assert.equal(canonicalReference.unit, 'percent_per_year');
+
+  const symbolReference = validateFiscalReference({
+    found: true,
+    value: 10,
+    unit: '%',
+    source_ids: ['receita_normas'],
+    evidence_ids: ['receita-evidence-1'],
+    primary_source_id: 'receita_normas',
+  }, fiscalEvidence);
+  assert.equal(symbolReference.found, true);
+  assert.equal(symbolReference.unit, 'percent_per_year');
+
+  assert.equal(validateFiscalReference({
+    found: true,
+    value: 10,
+    source_ids: ['receita_normas'],
+    evidence_ids: ['receita-evidence-1'],
+    primary_source_id: 'receita_normas',
+  }, fiscalEvidence).found, false);
+
+  assert.equal(validateFiscalReference({
+    found: true,
+    value: 10,
+    unit: 'years',
+    source_ids: ['receita_normas'],
+    evidence_ids: ['receita-evidence-1'],
+    primary_source_id: 'receita_normas',
+  }, fiscalEvidence).found, false);
+
+  assert.equal(validateFiscalReference({
+    found: true,
+    value: 10,
+    unit: 'BRL',
+    source_ids: ['receita_normas'],
+    evidence_ids: ['receita-evidence-1'],
+    primary_source_id: 'receita_normas',
+  }, fiscalEvidence).found, false);
+
+  assert.equal(validateFiscalReference({
+    found: true,
+    value: 10,
+    unit: 'percent_per_month',
+    source_ids: ['receita_normas'],
+    evidence_ids: ['receita-evidence-1'],
+    primary_source_id: 'receita_normas',
+  }, fiscalEvidence).found, false);
 
   const acceleratedLawEvidence = validEvidence({
     id: 'lei-14871-evidence-1',
