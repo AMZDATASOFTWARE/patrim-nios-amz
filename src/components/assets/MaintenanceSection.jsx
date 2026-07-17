@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useWorkspaceEntity } from '@/lib/useWorkspaceData';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,10 +9,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Wrench, Trash2 } from 'lucide-react';
 import { formatCurrency } from '@/lib/depreciation';
+import { logAudit } from '@/lib/audit';
+import { toast } from 'sonner';
 import moment from 'moment';
 
 export default function MaintenanceSection({ assetId, assetName = '' }) {
+  const navigate = useNavigate();
   const MaintenanceEntity = useWorkspaceEntity('MaintenanceRecord');
+  const AssetEntity = useWorkspaceEntity('Asset');
   const [records, setRecords] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
@@ -24,6 +29,8 @@ export default function MaintenanceSection({ assetId, assetName = '' }) {
     technician_name: '',
     parts_used: '',
     checklist: '',
+    useful_life_impact: 'nenhum',
+    useful_life_impact_years: '',
   });
 
   useEffect(() => {
@@ -39,14 +46,44 @@ export default function MaintenanceSection({ assetId, assetName = '' }) {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await MaintenanceEntity.create({
+    const impactYears = parseFloat(form.useful_life_impact_years) || 0;
+    const record = await MaintenanceEntity.create({
       ...form,
       asset_id: assetId,
       asset_name: assetName,
       status: 'concluida',
       cost: parseFloat(form.cost) || 0,
+      useful_life_impact_years: form.useful_life_impact === 'estende' ? impactYears : undefined,
     });
-    setForm({ date: new Date().toISOString().split('T')[0], description: '', cost: '', provider: '', type: 'Corretiva', technician_name: '', parts_used: '', checklist: '' });
+
+    // CPC 01 (redução ao valor recuperável / vida útil): manutenção que agrega vida útil ajusta
+    // useful_life_years automaticamente (decisão do usuário — sem revisão humana intermediária).
+    // "Reduz" (possível perda de valor) não é calculado automaticamente aqui — não há laudo/valor
+    // de avaliação disponível neste formulário; o usuário é direcionado para Reavaliações.
+    if (form.useful_life_impact === 'estende' && impactYears > 0) {
+      try {
+        const assets = await AssetEntity.filter({ id: assetId });
+        const asset = assets[0];
+        if (asset) {
+          const newUsefulLife = (asset.useful_life_years || 0) + impactYears;
+          await AssetEntity.update(assetId, { useful_life_years: newUsefulLife });
+          await logAudit({
+            action: 'updated', entity_type: 'Asset', entity_id: assetId,
+            entity_label: assetName, summary: `Manutenção agregou ${impactYears} ano(s) de vida útil (registro ${record?.id || ''})`,
+            old_data: { useful_life_years: asset.useful_life_years }, new_data: { useful_life_years: newUsefulLife },
+          });
+          toast.success(`Vida útil do ativo ajustada: +${impactYears} ano(s) (agora ${newUsefulLife} anos).`);
+        }
+      } catch (_) {
+        toast.error('Manutenção registrada, mas não foi possível ajustar a vida útil do ativo automaticamente.');
+      }
+    } else if (form.useful_life_impact === 'reduz') {
+      toast.info('Considere registrar uma Reavaliação para formalizar a possível perda de valor deste ativo.', {
+        action: { label: 'Abrir Reavaliações', onClick: () => navigate(`/Revaluations?asset_id=${assetId}`) },
+      });
+    }
+
+    setForm({ date: new Date().toISOString().split('T')[0], description: '', cost: '', provider: '', type: 'Corretiva', technician_name: '', parts_used: '', checklist: '', useful_life_impact: 'nenhum', useful_life_impact_years: '' });
     setOpen(false);
     loadRecords();
   };
@@ -116,6 +153,25 @@ export default function MaintenanceSection({ assetId, assetName = '' }) {
               <div>
                 <Label>Checklist (um item por linha)</Label>
                 <Textarea value={form.checklist} onChange={(e) => setForm({ ...form, checklist: e.target.value })} rows={3} placeholder={"Verificar nível de óleo\nTestar freios\nLimpar filtros"} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label>Impacto na Vida útil (CPC 01)</Label>
+                  <Select value={form.useful_life_impact} onValueChange={(v) => setForm({ ...form, useful_life_impact: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="nenhum">Nenhum</SelectItem>
+                      <SelectItem value="estende">Estende vida útil</SelectItem>
+                      <SelectItem value="reduz">Reduz valor (possível perda)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.useful_life_impact === 'estende' && (
+                  <div>
+                    <Label>Anos adicionais</Label>
+                    <Input type="number" step="0.5" min="0" value={form.useful_life_impact_years} onChange={(e) => setForm({ ...form, useful_life_impact_years: e.target.value })} placeholder="Ex: 2" />
+                  </div>
+                )}
               </div>
               <Button type="submit" className="w-full">Registrar</Button>
             </form>
