@@ -980,9 +980,31 @@ export default function AssetForm() {
                 <Label htmlFor="property_area_m2">Área (m²)</Label>
                 <Input id="property_area_m2" type="number" step="0.01" value={form.property_area_m2} onChange={(e) => setForm({ ...form, property_area_m2: e.target.value })} />
               </div>
-              <div className="sm:col-span-2">
+              <div>
                 <Label htmlFor="property_registration_type">Tipo de Registro</Label>
                 <Input id="property_registration_type" value={form.property_registration_type} onChange={(e) => setForm({ ...form, property_registration_type: e.target.value })} placeholder="Ex: Escritura definitiva" />
+              </div>
+              <div>
+                <Label htmlFor="property_rip_number">RIP — Registro Imobiliário Patrimonial</Label>
+                <Input id="property_rip_number" value={form.property_rip_number} onChange={(e) => setForm({ ...form, property_rip_number: e.target.value })} placeholder="Preencher quando o imóvel for da União (SPU)" />
+              </div>
+              <div>
+                <Label htmlFor="property_state">UF do Imóvel</Label>
+                <Input id="property_state" maxLength={2} value={form.property_state} onChange={(e) => setForm({ ...form, property_state: e.target.value.toUpperCase() })} placeholder="Ex: SP" />
+              </div>
+              <div className="sm:col-span-2 flex items-end gap-2">
+                <Button type="button" variant="outline" size="sm" disabled={!form.property_area_m2 || !form.property_state || sinapiLoading} onClick={handleFetchSinapiReference}>
+                  {sinapiLoading ? 'Consultando SINAPI...' : 'Consultar referência de custo (SINAPI/IBGE)'}
+                </Button>
+                {sinapiReference && (
+                  sinapiReference.found ? (
+                    <p className="text-sm text-muted-foreground">
+                      Referência: R$ {sinapiReference.cost_per_m2.toLocaleString('pt-BR')}/m² × {form.property_area_m2}m² ≈ R$ {sinapiReference.reference_value.toLocaleString('pt-BR')} ({sinapiReference.period}, {sinapiReference.source})
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Referência SINAPI indisponível no momento.</p>
+                  )
+                )}
               </div>
             </div>
           </div>
@@ -1016,6 +1038,10 @@ export default function AssetForm() {
               <div>
                 <Label htmlFor="vehicle_ipva_due_date">Vencimento do IPVA</Label>
                 <Input id="vehicle_ipva_due_date" type="date" value={form.vehicle_ipva_due_date} onChange={(e) => setForm({ ...form, vehicle_ipva_due_date: e.target.value })} />
+              </div>
+              <div>
+                <Label htmlFor="vehicle_fipe_code">Código FIPE</Label>
+                <Input id="vehicle_fipe_code" value={form.vehicle_fipe_code} onChange={(e) => setForm({ ...form, vehicle_fipe_code: e.target.value })} placeholder="Ex: 002086-0" />
               </div>
             </div>
           </div>
