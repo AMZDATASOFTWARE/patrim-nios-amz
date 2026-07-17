@@ -1,0 +1,121 @@
+{
+  "name": "AssetParameterTemplate",
+  "type": "object",
+  "properties": {
+    "workspace_id": {
+      "type": "string",
+      "title": "Workspace"
+    },
+    "category": {
+      "type": "string",
+      "title": "Grupo de Patrim\u00f4nio",
+      "enum": [
+        "Im\u00f3veis",
+        "Ve\u00edculos",
+        "Equipamentos",
+        "Investimentos",
+        "Intang\u00edveis"
+      ]
+    },
+    "brand": {
+      "type": "string",
+      "title": "Marca/Fabricante"
+    },
+    "model": {
+      "type": "string",
+      "title": "Modelo"
+    },
+    "depreciation_rate": {
+      "type": "number",
+      "title": "Taxa de Depreciacao Anual (%)"
+    },
+    "useful_life_years": {
+      "type": "number",
+      "title": "Vida Util (anos)"
+    },
+    "residual_value": {
+      "type": "number",
+      "title": "Valor Residual (R$)"
+    },
+    "fiscal_depreciation_rate": {
+      "type": "number",
+      "title": "Taxa de Depreciacao Fiscal Anual (%)"
+    },
+    "fiscal_useful_life_years": {
+      "type": "number",
+      "title": "Vida Util Fiscal (anos)"
+    },
+    "fiscal_residual_value": {
+      "type": "number",
+      "title": "Valor Residual Fiscal (R$)"
+    },
+    "regulatory_registration_type": {
+      "type": "string",
+      "title": "Tipo de Registro/Certificacao",
+      "enum": [
+        "nenhum",
+        "anvisa",
+        "inmetro",
+        "bndes_finame",
+        "outro"
+      ],
+      "default": "nenhum"
+    },
+    "regulatory_registration_number": {
+      "type": "string",
+      "title": "Numero de Registro/Certificacao"
+    },
+    "notes": {
+      "type": "string",
+      "title": "Observacoes"
+    }
+  },
+  "required": [
+    "workspace_id",
+    "category",
+    "brand",
+    "model"
+  ],
+  "rls": {
+    "//": "Tenant + papel: somente admin cria/edita/exclui templates (afetam parametros contabeis em massa); workspace inteiro le. Mesmo padrao de DepreciationConfig.",
+    "create": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "read": {
+      "data.workspace_id": "{{user.data.workspace_id}}"
+    },
+    "update": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$and": [
+        {
+          "data.workspace_id": "{{user.data.workspace_id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

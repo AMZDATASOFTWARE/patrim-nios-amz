@@ -28,6 +28,7 @@ const CATEGORIES = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'I
 const STATUSES = ['Ativo', 'Em Manutenção', 'Inativo', 'Alienado'];
 const CONSERVATION = ['Novo', 'Ótimo', 'Bom', 'Regular', 'Ruim'];
 const OWNERSHIP_TYPES = ['proprio', 'terceiros', 'locado', 'comodato'];
+const REGULATORY_TYPES = ['nenhum', 'anvisa', 'inmetro', 'bndes_finame', 'outro'];
 
 const STRING_FIELDS = [
   // cost_center removido (legado, RLS de campo travada em Asset.jsonc -- so sector_id e valido pra escrita agora).
@@ -43,6 +44,9 @@ const STRING_FIELDS = [
   'real_owner_name', 'real_owner_document', 'construction_completion_date',
   // Depreciacao fiscal (item 4) — data.
   'fiscal_depreciation_start_date',
+  // Identificacao tecnica/regulatoria + referencias externas (parametrizacao CPC/CFC/CVM/Receita/FIPE/SINAPI/Anvisa/Inmetro/BNDES).
+  'brand', 'model', 'regulatory_registration_number', 'vehicle_fipe_code',
+  'property_rip_number', 'property_state',
 ];
 const NUMBER_FIELDS = [
   'acquisition_value', 'depreciation_rate', 'useful_life_years', 'residual_value', 'property_area_m2',
@@ -69,6 +73,9 @@ function sanitizeAsset(raw: Record<string, unknown>): { data?: Record<string, un
   if (CONSERVATION.includes(raw.conservation_state as string)) data.conservation_state = raw.conservation_state;
   data.ownership_type = OWNERSHIP_TYPES.includes(raw.ownership_type as string) ? raw.ownership_type : 'proprio';
   data.is_construction_in_progress = raw.is_construction_in_progress === true || raw.is_construction_in_progress === 'true';
+  data.regulatory_registration_type = REGULATORY_TYPES.includes(raw.regulatory_registration_type as string)
+    ? raw.regulatory_registration_type
+    : 'nenhum';
   return { data };
 }
 
