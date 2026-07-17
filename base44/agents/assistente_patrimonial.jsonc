@@ -86,6 +86,12 @@
       ]
     },
     {
+      "entity_name": "AssetParameterTemplate",
+      "allowed_operations": [
+        "read"
+      ]
+    },
+    {
       "entity_name": "InventoryCount",
       "allowed_operations": [
         "create",
