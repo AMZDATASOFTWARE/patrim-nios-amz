@@ -1,0 +1,23 @@
+# Patrimônios AMZ
+
+> Sistema de gestão patrimonial multiempresa com IA, para empresas que precisam controlar ativos (imóveis, veículos, equipamentos, investimentos e intangíveis), calcular depreciação societária e fiscal, apropriar créditos de CIAP e manter conformidade contábil (CPC/IFRS) e LGPD.
+
+Desenvolvido pela Amz Data Software (CNPJ 53.646.811/0001-20). Planos a partir de R$ 97/mês, com teste gratuito de 14 dias sem cartão de crédito.
+
+## Páginas públicas
+
+- [Página inicial](https://patrimoni-asset-flow.base44.app/landing): apresentação do produto, funcionalidades, comparativo com concorrentes, preços e perguntas frequentes.
+- [Política de Privacidade](https://patrimoni-asset-flow.base44.app/privacidade): tratamento de dados pessoais e conformidade com a LGPD.
+- [Termos de Uso](https://patrimoni-asset-flow.base44.app/termos): condições contratuais de uso do serviço.
+
+## Planos
+
+- Starter (R$ 97/mês): até 3 usuários e 100 ativos, depreciação automática, etiquetas QR Code, relatórios em PDF/CSV.
+- Professional (R$ 247/mês): até 15 usuários e 1.000 ativos, mapa de localização de ativos, gestão de manutenções e fornecedores.
+- Enterprise (sob consulta): usuários e ativos ilimitados, múltiplas filiais com hierarquia, onboarding dedicado e gerente de conta exclusivo.
+
+Todos os planos incluem um assistente de IA (via chat e WhatsApp) e um conjunto de supervisores de IA que publicam análises diárias sobre o patrimônio da empresa ("Diário do Patrimônio"), sem cobrança extra por mensagem.
+
+## Contato
+
+- E-mail: ceo@amzdatasoftware.com
