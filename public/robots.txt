@@ -1,0 +1,7 @@
+User-agent: *
+Disallow: /
+Allow: /landing
+Allow: /privacidade
+Allow: /termos
+
+Sitemap: https://patrimoni-asset-flow.base44.app/sitemap.xml
