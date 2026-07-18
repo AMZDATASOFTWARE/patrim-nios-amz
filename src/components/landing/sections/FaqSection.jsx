@@ -4,7 +4,9 @@ import {
 import SectionTag from '../SectionTag';
 import { display, dim } from '../landingTheme';
 
-const FAQS = [
+// Exportado para ser reaproveitado no schema.org FAQPage (LandingSchema.jsx) —
+// mesma fonte de verdade, sem duplicar conteúdo.
+export const FAQS = [
   {
     q: 'Preciso de cartão de crédito para testar?',
     a: 'Não. O teste de 14 dias é liberado sem cartão. Você só informa uma forma de pagamento se decidir continuar depois do período gratuito.',
