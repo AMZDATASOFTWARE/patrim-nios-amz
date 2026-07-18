@@ -4,6 +4,7 @@ import { SoundProvider } from '@/lib/SoundContext';
 import { Building2, Shield, Clock, Zap } from 'lucide-react';
 import AppFooter from '@/components/AppFooter';
 import FluidBackground from '@/components/landing/FluidBackground';
+import LandingSchema from '@/components/landing/LandingSchema';
 import { display, dim } from '@/components/landing/landingTheme';
 
 import HeroSection from '@/components/landing/sections/HeroSection';
@@ -28,6 +29,7 @@ export default function Landing() {
 function LandingInner() {
   return (
     <div style={{ position: 'relative', minHeight: '100vh', background: 'var(--landing-bg)', overflow: 'hidden' }}>
+      <LandingSchema />
       <FluidBackground density={60} style={{ position: 'fixed', inset: 0 }} />
 
       {/* Nav */}
