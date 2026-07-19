@@ -40,10 +40,10 @@ export default function Collaborators() {
 
   const load = async () => {
     const [c, a, b, s] = await Promise.all([
-      CollabEntity.list('-created_date', 200),
-      AssignEntity.filter({ status: 'Ativo' }, '-assignment_date', 500),
-      BranchEntity.list('name', 500),
-      SectorEntity.list('name', 500),
+      CollabEntity.listAll('-created_date'),
+      AssignEntity.filterAll({ status: 'Ativo' }, '-assignment_date'),
+      BranchEntity.listAll('name'),
+      SectorEntity.listAll('name'),
     ]);
     setCollaborators(c);
     setAssignments(a);
@@ -68,8 +68,8 @@ export default function Collaborators() {
     setEditing(c);
     setForm({ ...EMPTY, ...c });
     const [bLinks, sLinks] = await Promise.all([
-      CollabBranchLinkEntity.filter({ collaborator_id: c.id }, '-created_date', 200),
-      CollabSectorLinkEntity.filter({ collaborator_id: c.id }, '-created_date', 200),
+      CollabBranchLinkEntity.filterAll({ collaborator_id: c.id }, '-created_date'),
+      CollabSectorLinkEntity.filterAll({ collaborator_id: c.id }, '-created_date'),
     ]);
     setSavedBranchLinks(bLinks);
     setSavedSectorLinks(sLinks);
