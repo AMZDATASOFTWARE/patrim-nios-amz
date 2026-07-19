@@ -59,8 +59,8 @@ export default function Contracts() {
   const load = async () => {
     setLoading(true);
     const [c, a] = await Promise.all([
-      ContractEntity.list('end_date', 500),
-      AssetEntity.list('name', 2000),
+      ContractEntity.listAll('end_date'),
+      AssetEntity.listAll('name'),
     ]);
     setContracts(c);
     setAssets(a);
