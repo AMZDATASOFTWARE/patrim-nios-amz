@@ -37,7 +37,7 @@ export default function AccountingExport() {
 
   const load = async () => {
     setLoading(true);
-    const [r, a, s] = await Promise.all([RuleEntity.list('-created_date', 200), AssetEntity.list('-created_date', 5000), SectorEntity.list('name', 500)]);
+    const [r, a, s] = await Promise.all([RuleEntity.listAll('-created_date'), AssetEntity.listAll('-created_date'), SectorEntity.listAll('name')]);
     setRules(r);
     setAssets(a);
     setSectors(s);
