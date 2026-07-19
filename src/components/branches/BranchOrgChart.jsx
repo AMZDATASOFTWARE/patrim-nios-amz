@@ -4,7 +4,7 @@ import { layoutForest } from '@/lib/branchLayout';
 import { Button } from '@/components/ui/button';
 import { Building2, Move, Trash2, ChevronDown, ChevronRight, CornerLeftUp, GripVertical, Pencil } from 'lucide-react';
 
-const NODE_W = 220;
+const NODE_W = 244;
 const NODE_H = 92;
 
 /**
