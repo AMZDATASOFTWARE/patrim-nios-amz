@@ -3,5 +3,6 @@ Disallow: /
 Allow: /landing
 Allow: /privacidade
 Allow: /termos
+Allow: /favicon.svg
 
 Sitemap: https://patrimoni-asset-flow.base44.app/sitemap.xml
