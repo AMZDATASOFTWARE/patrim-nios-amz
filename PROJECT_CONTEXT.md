@@ -1,6 +1,6 @@
 # PROJECT_CONTEXT — Patrimônios AMZ
 
-> Documento de contexto para futuras sessões. Última atualização: **2026-07-17** (Parametrização técnica/regulatória de ativos + templates por Marca/Modelo, ver §3.2).
+> Documento de contexto para futuras sessões. Última atualização: **2026-07-17** (Organograma de Filiais em árvore, ver §7; e parametrização técnica/regulatória de ativos, §3.2).
 > Mantenha este arquivo atualizado ao final de mudanças estruturais.
 
 ---
