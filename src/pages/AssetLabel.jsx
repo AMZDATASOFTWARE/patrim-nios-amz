@@ -176,7 +176,7 @@ export default function AssetLabel() {
       // listAll pagina em lotes de 1000 e traz TODOS os ativos do workspace —
       // antes o cap fixo de 200 escondia silenciosamente o restante das etiquetas.
       AssetEntity.listAll('-created_date'),
-      SectorEntity.list('name', 500),
+      SectorEntity.listAll('name'),
     ]).then(([d, sectors]) => {
       const sectorName = (id) => sectors.find((s) => s.id === id)?.name || '';
       setAssets(d.map((a) => ({ ...a, sectorLabel: sectorName(a.sector_id) })));
