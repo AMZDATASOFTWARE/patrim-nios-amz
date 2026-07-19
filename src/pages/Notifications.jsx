@@ -16,8 +16,8 @@ export default function Notifications() {
   const load = async () => {
     setLoading(true);
     const [notifs, assets] = await Promise.all([
-      NotificationEntity.list('-created_date', 200),
-      AssetEntity.list('-created_date', 2000),
+      NotificationEntity.listAll('-created_date'),
+      AssetEntity.listAll('-created_date'),
     ]);
     setStored(notifs);
     setDerived(buildDerivedAlerts(assets));
