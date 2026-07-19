@@ -138,7 +138,18 @@ export default function Branches() {
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Filiais</h1>
           <p className="text-sm text-muted-foreground mt-0.5">Unidades da empresa para segmentar o patrimônio</p>
         </div>
-        {canManage && isEnterprise && (
+        <div className="flex items-center gap-2 flex-wrap">
+          {isDesktop && isEnterprise && branches.length > 0 && (
+            <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
+              <button type="button" onClick={() => setViewPersist('tree')} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm ${view === 'tree' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                <Network className="h-4 w-4" /> Árvore
+              </button>
+              <button type="button" onClick={() => setViewPersist('list')} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-sm ${view === 'list' ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:text-foreground'}`}>
+                <List className="h-4 w-4" /> Lista
+              </button>
+            </div>
+          )}
+          {canManage && isEnterprise && (
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild><Button className="gap-2"><Plus className="h-4 w-4" /> Nova filial</Button></DialogTrigger>
             <DialogContent>
@@ -175,7 +186,8 @@ export default function Branches() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        )}
+          )}
+        </div>
       </div>
 
       {!isEnterprise && (
@@ -203,6 +215,8 @@ export default function Branches() {
             <p className="text-muted-foreground mt-1">Crie a primeira filial para segmentar seus ativos.</p>
           </div>
         )
+      ) : effectiveView === 'tree' ? (
+        <BranchOrgChart branches={branches} canManage={canManage} onMove={doMove} onDelete={handleDelete} onEditMove={openMove} />
       ) : (
         <div className="bg-card rounded-xl border border-border shadow-sm divide-y divide-border">
           {treeRows.map((b) => (
