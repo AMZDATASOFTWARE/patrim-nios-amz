@@ -54,7 +54,7 @@ export default function Inventory() {
 
   const loadCounts = async () => {
     setLoading(true);
-    const data = await CountEntity.list('-started_at', 100);
+    const data = await CountEntity.listAll('-started_at');
     setCounts(data);
     setLoading(false);
   };
@@ -117,7 +117,7 @@ export default function Inventory() {
 function InventoryCard({ count, ItemEntity, onOpen }) {
   const [stats, setStats] = useState(null);
   useEffect(() => {
-    ItemEntity.filter({ inventory_id: count.id }, '-counted_at', 2000).then((items) => {
+    ItemEntity.filterAll({ inventory_id: count.id }, '-counted_at').then((items) => {
       const total = items.length;
       const done = items.filter((i) => i.status !== 'pendente').length;
       setStats({ total, done });
@@ -168,7 +168,7 @@ function NewInventoryDialog({ AssetEntity, CountEntity, ItemEntity, SectorEntity
   const [committeeMembers, setCommitteeMembers] = useState('');
 
   useEffect(() => {
-    if (open) SectorEntity.list('name', 500).then((rows) => setSectors(rows.filter((s) => s.status !== 'inativo'))).catch(() => {});
+    if (open) SectorEntity.listAll('name').then((rows) => setSectors(rows.filter((s) => s.status !== 'inativo'))).catch(() => {});
   }, [open]);
 
   const handleCreate = async () => {
@@ -178,7 +178,7 @@ function NewInventoryDialog({ AssetEntity, CountEntity, ItemEntity, SectorEntity
       const query = {};
       if (category !== 'todos') query.category = category;
       if (sectorId) query.sector_id = sectorId;
-      const assets = await AssetEntity.filter(query, '-created_date', 5000);
+      const assets = await AssetEntity.filterAll(query, '-created_date');
       if (assets.length === 0) {
         toast.error('Nenhum ativo encontrado para esse filtro.');
         setCreating(false);
@@ -308,7 +308,7 @@ function InventoryDetail({ inventoryId, canManage, userEmail, ItemEntity, CountE
     setLoading(true);
     const [cList, iList] = await Promise.all([
       CountEntity.filter({ id: inventoryId }),
-      ItemEntity.filter({ inventory_id: inventoryId }, 'asset_name', 2000),
+      ItemEntity.filterAll({ inventory_id: inventoryId }, 'asset_name'),
     ]);
     setCount(cList[0] || null);
     setItems(iList);
