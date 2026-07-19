@@ -25,7 +25,7 @@ export default function Transfers() {
 
   const load = async () => {
     setLoading(true);
-    const data = await TransferEntity.list('-requested_at', 200);
+    const data = await TransferEntity.listAll('-requested_at');
     setTransfers(data);
     setLoading(false);
   };
