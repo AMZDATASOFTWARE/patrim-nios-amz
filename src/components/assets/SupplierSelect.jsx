@@ -16,7 +16,7 @@ export default function SupplierSelect({ value, onChange }) {
   const SupplierEntity = useWorkspaceEntity('Supplier');
 
   useEffect(() => {
-    SupplierEntity.list('name', 200).then(setSuppliers);
+    SupplierEntity.listAll('name').then(setSuppliers);
   }, []);
 
   const handleCreate = async () => {
