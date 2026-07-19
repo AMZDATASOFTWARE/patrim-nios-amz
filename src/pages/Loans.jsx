@@ -44,9 +44,9 @@ export default function Loans() {
   const load = async () => {
     setLoading(true);
     const [l, a, s] = await Promise.all([
-      LoanEntity.list('-loan_date', 500),
-      AssetEntity.list('-created_date', 1000),
-      SectorEntity.list('name', 500),
+      LoanEntity.listAll('-loan_date'),
+      AssetEntity.listAll('-created_date'),
+      SectorEntity.listAll('name'),
     ]);
     // Marca como atrasado (visualmente) quem passou da previsão sem devolução — não altera o registro salvo.
     const today = moment().format('YYYY-MM-DD');
