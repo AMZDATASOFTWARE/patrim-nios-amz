@@ -52,7 +52,7 @@ export default function Assets() {
     const run = async () => {
       if (debouncedSearch) {
         // Modo busca: varre uma janela ampla e filtra por texto no cliente, depois pagina.
-        const rows = await AssetEntity.filter(query, '-created_date', 2000);
+        const rows = await AssetEntity.filterAll(query, '-created_date');
         const q = debouncedSearch.toLowerCase();
         const matched = rows.filter((a) =>
           a.name?.toLowerCase().includes(q) ||
