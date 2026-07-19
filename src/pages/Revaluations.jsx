@@ -37,8 +37,8 @@ export default function Revaluations() {
   const load = async () => {
     setLoading(true);
     const [r, a] = await Promise.all([
-      RevaluationEntity.list('-revaluation_date', 500),
-      AssetEntity.list('-created_date', 1000),
+      RevaluationEntity.listAll('-revaluation_date'),
+      AssetEntity.listAll('-created_date'),
     ]);
     setRevaluations(r);
     setAssets(a);
