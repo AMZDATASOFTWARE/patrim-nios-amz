@@ -39,7 +39,7 @@ export default function MaintenanceSection({ assetId, assetName = '' }) {
 
   const loadRecords = async () => {
     // filter do helper injeta workspace_id — isola manutenções por tenant.
-    const data = await MaintenanceEntity.filter({ asset_id: assetId }, '-date', 50);
+    const data = await MaintenanceEntity.filterAll({ asset_id: assetId }, '-date');
     setRecords(data);
     setLoading(false);
   };
