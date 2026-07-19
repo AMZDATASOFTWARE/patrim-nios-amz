@@ -52,7 +52,7 @@ export default function Settings() {
   const [applying, setApplying] = useState(false);
 
   useEffect(() => {
-    ConfigEntity.list().then((data) => {
+    ConfigEntity.listAll().then((data) => {
       const map = {};
       const recMap = {};
       data.forEach((r) => { map[r.category] = { depreciation_rate: r.depreciation_rate, useful_life_years: r.useful_life_years }; recMap[r.category] = r.id; });
@@ -90,7 +90,7 @@ export default function Settings() {
   };
 
   const loadTemplates = () => {
-    TemplateEntity.list('-created_date', 500).then(setTemplates).catch(() => {});
+    TemplateEntity.listAll('-created_date').then(setTemplates).catch(() => {});
   };
 
   useEffect(() => { loadTemplates(); }, []);
