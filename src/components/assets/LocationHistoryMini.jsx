@@ -33,12 +33,21 @@ export default function LocationHistoryMini({ assetId }) {
   useEffect(() => {
     if (!workspaceId || !assetId) return;
     setLoading(true);
-    base44.entities.LocationHistory
-      .filter({ asset_id: assetId, workspace_id: workspaceId }, '-created_date', 20)
-      .then(d => {
-        setHistory((d || []).filter(l => l.latitude != null && l.longitude != null));
-        setLoading(false);
-      });
+    // Pagina TODO o histórico de localização do ativo (lotes de 1000) — sem cap fixo.
+    (async () => {
+      const BATCH = 1000;
+      const all = [];
+      let skip = 0;
+      for (;;) {
+        const batch = await base44.entities.LocationHistory
+          .filter({ asset_id: assetId, workspace_id: workspaceId }, '-created_date', BATCH, skip);
+        all.push(...(batch || []));
+        if (!batch || batch.length < BATCH) break;
+        skip += BATCH;
+      }
+      setHistory(all.filter(l => l.latitude != null && l.longitude != null));
+      setLoading(false);
+    })();
   }, [assetId, workspaceId]);
 
   if (loading) return null;
