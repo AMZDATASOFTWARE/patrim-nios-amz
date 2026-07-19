@@ -45,6 +45,25 @@ export function useWorkspaceEntity(entityName) {
     return base44.entities[entityName].filter({ ...query, workspace_id: workspaceId }, sort, limit, skip);
   };
 
+  // Como listAll, porém com um filtro adicional — pagina TODOS os registros que
+  // casam o query (sempre escopado ao workspace), em lotes de 1000. Use quando a
+  // tela precisa da coleção completa e não de uma janela.
+  const filterAll = async (query = {}, sort = '-created_date') => {
+    if (!workspaceId) return [];
+    const BATCH = 1000;
+    const all = [];
+    let skip = 0;
+    for (;;) {
+      const batch = await base44.entities[entityName].filter(
+        { ...query, workspace_id: workspaceId }, sort, BATCH, skip
+      );
+      all.push(...batch);
+      if (batch.length < BATCH) break;
+      skip += BATCH;
+    }
+    return all;
+  };
+
   // Contagem leve: busca só o campo id (janela ampla) e conta. Serve para paginação/limites.
   const count = async (query = {}, cap = 100000) => {
     if (!workspaceId) return 0;
@@ -54,5 +73,5 @@ export function useWorkspaceEntity(entityName) {
     return rows.length;
   };
 
-  return { list, listAll, create, update, del, filter, count, workspaceId };
+  return { list, listAll, create, update, del, filter, filterAll, count, workspaceId };
 }
