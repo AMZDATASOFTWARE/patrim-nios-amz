@@ -42,8 +42,8 @@ export default function Sectors() {
   const load = async () => {
     setLoading(true);
     const [s, b] = await Promise.all([
-      SectorEntity.list('name', 500),
-      BranchEntity.list('name', 500),
+      SectorEntity.listAll('name'),
+      BranchEntity.listAll('name'),
     ]);
     setSectors(s);
     setBranches(b);
