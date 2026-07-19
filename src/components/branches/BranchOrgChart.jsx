@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { buildBranchForest, getDescendantIds } from '@/lib/branchTree';
 import { layoutForest } from '@/lib/branchLayout';
 import { Button } from '@/components/ui/button';
-import { Building2, Move, Trash2, ChevronDown, ChevronRight, CornerLeftUp, GripVertical } from 'lucide-react';
+import { Building2, Move, Trash2, ChevronDown, ChevronRight, CornerLeftUp, GripVertical, Pencil } from 'lucide-react';
 
 const NODE_W = 220;
 const NODE_H = 92;
@@ -17,7 +17,7 @@ const NODE_H = 92;
  * client-side de soltar num descendente é só UX; o servidor revalida ciclo,
  * profundidade (máx. 12) e a regra de matriz-sem-pai.
  */
-export default function BranchOrgChart({ branches, canManage, onMove, onDelete, onEditMove }) {
+export default function BranchOrgChart({ branches, canManage, onMove, onDelete, onEditMove, onEdit }) {
   const [collapsedIds, setCollapsedIds] = useState(() => new Set());
   const [dragId, setDragId] = useState(null);
   const [dropTargetId, setDropTargetId] = useState(null);
@@ -156,6 +156,9 @@ export default function BranchOrgChart({ branches, canManage, onMove, onDelete, 
                       draggable={false}
                       onDragStart={(e) => e.stopPropagation()}
                     >
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEdit(b)} title="Editar dados da filial">
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
                       {!b.is_headquarters && (
                         <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEditMove(b)} title="Mover para outra filial pai">
                           <Move className="h-3.5 w-3.5" />
