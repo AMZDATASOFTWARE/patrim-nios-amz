@@ -32,8 +32,8 @@ export default function TransferSection({ assetId, assetName, canManage }) {
 
   const load = async () => {
     const [data, s] = await Promise.all([
-      TransferEntity.filter({ asset_id: assetId }, '-requested_at', 50),
-      SectorEntity.list('name', 500),
+      TransferEntity.filterAll({ asset_id: assetId }, '-requested_at'),
+      SectorEntity.listAll('name'),
     ]);
     setTransfers(data);
     setSectors(s.filter((row) => row.status !== 'inativo'));
