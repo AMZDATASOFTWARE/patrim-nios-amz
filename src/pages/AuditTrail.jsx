@@ -18,7 +18,7 @@ export default function AuditTrail() {
 
   const load = useCallback(() => {
     setLoading(true);
-    AuditEntity.list('-created_date', 500).then((data) => {
+    AuditEntity.listAll('-created_date').then((data) => {
       setLogs(data);
       setLoading(false);
     });
