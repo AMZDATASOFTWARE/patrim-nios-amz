@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { buildBranchForest, getDescendantIds } from '@/lib/branchTree';
 import { layoutForest } from '@/lib/branchLayout';
 import { Button } from '@/components/ui/button';
-import { Building2, Move, Trash2, ChevronDown, ChevronRight, CornerLeftUp } from 'lucide-react';
+import { Building2, Move, Trash2, ChevronDown, ChevronRight, CornerLeftUp, GripVertical } from 'lucide-react';
 
 const NODE_W = 220;
 const NODE_H = 92;
@@ -50,7 +50,13 @@ export default function BranchOrgChart({ branches, canManage, onMove, onDelete, 
   const startDrag = (e, node) => {
     if (!canManage || node.is_headquarters) return;
     setDragId(node.id);
-    try { e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', node.id); } catch (_) { /* noop */ }
+    try {
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', node.id);
+      // Usa o card inteiro como "fantasma" do arraste, não só a alcinha.
+      const card = e.currentTarget.closest('[data-branch-node]');
+      if (card) e.dataTransfer.setDragImage(card, 24, 24);
+    } catch (_) { /* noop */ }
   };
 
   const dropOnNode = (targetId) => {
@@ -110,23 +116,30 @@ export default function BranchOrgChart({ branches, canManage, onMove, onDelete, 
           return (
             <div
               key={n.id}
+              data-branch-node
               className="absolute group"
               style={{ left: n.x, top: n.y, width: NODE_W, height: NODE_H }}
-              draggable={canManage && !b.is_headquarters}
-              onDragStart={(e) => startDrag(e, b)}
-              onDragEnd={resetDrag}
               onDragOver={(e) => { if (dragId && !isInvalid) { e.preventDefault(); setDropTargetId(b.id); } }}
               onDragLeave={() => setDropTargetId((cur) => (cur === b.id ? null : cur))}
               onDrop={(e) => { e.preventDefault(); dropOnNode(b.id); }}
             >
               <div
-                className={`h-full rounded-xl border-2 bg-card px-3 py-2 flex flex-col justify-center shadow-sm transition-all ${
+                className={`h-full rounded-xl border-2 bg-card px-2.5 py-2 flex flex-col justify-center shadow-sm transition-all ${
                   isDropTarget ? 'border-primary ring-2 ring-primary/40' : 'border-border'
-                } ${isDragging ? 'opacity-40' : ''} ${isInvalid ? 'opacity-30' : ''} ${
-                  canManage && !b.is_headquarters ? 'cursor-grab active:cursor-grabbing' : ''
-                }`}
+                } ${isDragging ? 'opacity-40' : ''} ${isInvalid ? 'opacity-30' : ''}`}
               >
-                <div className="flex items-start gap-2">
+                <div className="flex items-start gap-1.5">
+                  {canManage && !b.is_headquarters && (
+                    <div
+                      draggable
+                      onDragStart={(e) => startDrag(e, b)}
+                      onDragEnd={resetDrag}
+                      title="Arraste para mover para outra filial pai"
+                      className="shrink-0 -ml-0.5 mt-0.5 cursor-grab active:cursor-grabbing text-muted-foreground/60 hover:text-primary"
+                    >
+                      <GripVertical className="h-4 w-4" />
+                    </div>
+                  )}
                   <Building2 className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                   <div className="min-w-0 flex-1">
                     <p className="font-medium text-sm text-card-foreground truncate">
