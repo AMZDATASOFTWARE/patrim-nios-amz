@@ -30,7 +30,7 @@ export default function AttachmentsSection({ assetId, onPrimaryPhotoChange }) {
   }, [assetId]);
 
   const load = async () => {
-    const data = await AttachmentEntity.filter({ asset_id: assetId }, '-uploaded_at', 100);
+    const data = await AttachmentEntity.filterAll({ asset_id: assetId }, '-uploaded_at');
     setItems(data);
     setLoading(false);
   };
