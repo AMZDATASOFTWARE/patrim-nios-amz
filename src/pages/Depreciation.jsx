@@ -24,7 +24,9 @@ export default function Depreciation() {
   useEffect(() => {
     if (!workspaceId) return;
     setLoading(true);
-    AssetEntity.list('-created_date', 200).then(data => {
+    // listAll pagina em lotes de 1000 e traz TODOS os ativos — o cap fixo de 200
+    // fazia a depreciação ignorar silenciosamente ativos além dos 200 (números errados).
+    AssetEntity.listAll('-created_date').then(data => {
       setAssets(data);
       setLoading(false);
     });
