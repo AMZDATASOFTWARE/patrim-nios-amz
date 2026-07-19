@@ -6,12 +6,13 @@ import { useWorkspace } from '@/lib/WorkspaceContext';
 import { useAuth } from '@/lib/AuthContext';
 import { usePermissions } from '@/lib/permissions';
 import { flattenBranchTree, getDescendantIds } from '@/lib/branchTree';
+import BranchOrgChart from '@/components/branches/BranchOrgChart';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Building2, Plus, Trash2, Crown, Move } from 'lucide-react';
+import { Building2, Plus, Trash2, Crown, Move, Network, List } from 'lucide-react';
 import { toast } from 'sonner';
 
 const EMPTY = { name: '', code: '', cnpj: '', address: '', city: '', state: '', is_headquarters: false, parent_branch_id: '' };
@@ -34,11 +35,27 @@ export default function Branches() {
   const [moveTarget, setMoveTarget] = useState(null);
   const [moveParentId, setMoveParentId] = useState(ROOT_VALUE);
   const [moving, setMoving] = useState(false);
+  const [view, setView] = useState(() => (typeof localStorage !== 'undefined' && localStorage.getItem('branches_view')) || 'tree');
+  const [isDesktop, setIsDesktop] = useState(() => (typeof window !== 'undefined' ? window.matchMedia('(min-width: 640px)').matches : true));
 
   const isEnterprise = workspace?.plan === 'enterprise';
   const treeRows = flattenBranchTree(branches);
+  // O organograma (com arrastar-e-soltar) não é usável em toque pequeno: abaixo de sm força Lista.
+  const effectiveView = isDesktop ? view : 'list';
 
   useEffect(() => { load(); }, []);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 640px)');
+    const onChange = () => setIsDesktop(mq.matches);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
+  }, []);
+
+  const setViewPersist = (v) => {
+    setView(v);
+    try { localStorage.setItem('branches_view', v); } catch (_) { /* noop */ }
+  };
 
   const load = async () => {
     setLoading(true);
@@ -84,21 +101,27 @@ export default function Branches() {
     setMoveParentId(branch.parent_branch_id || ROOT_VALUE);
   };
 
-  const handleMove = async () => {
-    if (!moveTarget) return;
-    setMoving(true);
+  // Reparentar (único caminho legítimo: function moveBranch — parent_branch_id é RLS-travado).
+  // Compartilhado pelo diálogo (botão Mover) e pelo arrastar-e-soltar do organograma.
+  const doMove = async (branchId, newParentId) => {
     try {
       const res = await base44.functions.invoke('moveBranch', {
-        branch_id: moveTarget.id,
-        parent_branch_id: moveParentId === ROOT_VALUE ? null : moveParentId,
+        branch_id: branchId,
+        parent_branch_id: newParentId,
       });
       if (!res?.data?.ok) throw new Error(res?.data?.error || 'Falha ao mover filial.');
       toast.success('Filial movida.');
-      setMoveTarget(null);
       load();
     } catch (e) {
       toast.error(e?.response?.data?.error || e?.message || 'Não foi possível mover a filial.');
     }
+  };
+
+  const handleMove = async () => {
+    if (!moveTarget) return;
+    setMoving(true);
+    await doMove(moveTarget.id, moveParentId === ROOT_VALUE ? null : moveParentId);
+    setMoveTarget(null);
     setMoving(false);
   };
 
