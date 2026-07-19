@@ -20,7 +20,7 @@ export function usePendingTransfersCount() {
     enabled: !!workspace?.id && !!myEmail && can(user, 'view_transfers'),
     queryFn: async () => {
       // Badge caps visually at "9+", so a small page is enough.
-      const rows = await TransferEntity.filter({ status: 'pendente' }, '-requested_at', 50);
+      const rows = await TransferEntity.filterAll({ status: 'pendente' }, '-requested_at');
       return rows.filter((t) => (t.recipient_email || '').toLowerCase() === myEmail).length;
     },
     refetchInterval: 60_000,
