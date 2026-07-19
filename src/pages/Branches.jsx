@@ -60,7 +60,7 @@ export default function Branches() {
 
   const load = async () => {
     setLoading(true);
-    const data = await BranchEntity.list('-created_date', 200);
+    const data = await BranchEntity.listAll('-created_date');
     setBranches(data);
     setLoading(false);
   };
