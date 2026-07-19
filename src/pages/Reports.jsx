@@ -41,12 +41,12 @@ export default function Reports() {
   useEffect(() => {
     if (!workspaceId) return;
     setLoading(true);
-    AssetEntity.list('-created_date', 2000).then(data => {
+    AssetEntity.listAll('-created_date').then(data => {
       setAssets(data);
       setLoading(false);
     });
     // Última movimentação conhecida por ativo (para o relatório de "parados").
-    LocationEntity.list('-scanned_at', 2000).then((rows) => {
+    LocationEntity.listAll('-scanned_at').then((rows) => {
       const latest = {};
       rows.forEach((r) => {
         if (!r.asset_id) return;
@@ -55,19 +55,19 @@ export default function Reports() {
       setLocationLatest(latest);
     }).catch(() => {});
     // Ativos que possuem ao menos um anexo (para o relatório "sem foto/documento").
-    AttachmentEntity.list('-uploaded_at', 5000).then((rows) => {
+    AttachmentEntity.listAll('-uploaded_at').then((rows) => {
       setAttachmentAssetIds(new Set(rows.map((r) => r.asset_id)));
     }).catch(() => {});
 
     // Dados do catálogo de relatórios (Onda 5) — mesmas fontes já usadas nas telas dedicadas.
     Promise.all([
-      RevaluationEntity.list('-revaluation_date', 2000).catch(() => []),
-      DisposalEntity.list('-disposal_date', 2000).catch(() => []),
-      LoanEntity.list('-loan_date', 2000).catch(() => []),
-      AssignmentEntity.list('-assignment_date', 2000).catch(() => []),
-      BranchEntity.list('-created_date', 200).catch(() => []),
-      SectorEntity.list('name', 500).catch(() => []),
-      InventoryItemEntity.list('-counted_at', 5000).catch(() => []),
+      RevaluationEntity.listAll('-revaluation_date').catch(() => []),
+      DisposalEntity.listAll('-disposal_date').catch(() => []),
+      LoanEntity.listAll('-loan_date').catch(() => []),
+      AssignmentEntity.listAll('-assignment_date').catch(() => []),
+      BranchEntity.listAll('-created_date').catch(() => []),
+      SectorEntity.listAll('name').catch(() => []),
+      InventoryItemEntity.listAll('-counted_at').catch(() => []),
     ]).then(([revaluations, disposals, loans, assignments, branches, sectors, inventoryItems]) => {
       setCatalogData({ revaluations, disposals, loans, assignments, branches, sectors, inventoryItems });
     });
