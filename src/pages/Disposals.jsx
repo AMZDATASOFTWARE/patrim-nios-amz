@@ -44,8 +44,8 @@ export default function Disposals() {
   const load = async () => {
     setLoading(true);
     const [d, a] = await Promise.all([
-      DisposalEntity.list('-disposal_date', 500),
-      AssetEntity.filter({}, '-created_date', 1000),
+      DisposalEntity.listAll('-disposal_date'),
+      AssetEntity.filterAll({}, '-created_date'),
     ]);
     setDisposals(d);
     // Só oferece ativos ainda não baixados/alienados como candidatos.
