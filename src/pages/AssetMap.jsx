@@ -64,8 +64,8 @@ export default function AssetMap() {
     if (!workspaceId) return;
     setLoading(true);
     Promise.all([
-      AssetEntity.list('-created_date', 1000),
-      LocationEntity.list('-created_date', 1000),
+      AssetEntity.listAll('-created_date'),
+      LocationEntity.listAll('-created_date'),
     ]).then(([a, l]) => {
       setAssets(a);
       setLocations(l.filter(loc => loc.latitude != null && loc.longitude != null));
