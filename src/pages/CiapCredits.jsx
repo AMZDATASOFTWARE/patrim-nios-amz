@@ -45,8 +45,8 @@ export default function CiapCredits() {
   const load = async () => {
     setLoading(true);
     const [c, a] = await Promise.all([
-      CiapEntity.list('-created_date', 500),
-      AssetEntity.list('-created_date', 1000),
+      CiapEntity.listAll('-created_date'),
+      AssetEntity.listAll('-created_date'),
     ]);
     setCredits(c);
     setAssets(a);
