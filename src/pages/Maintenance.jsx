@@ -73,7 +73,7 @@ export default function Maintenance() {
   const later = scheduled.filter((s) => moment(s.date).startOf('day').diff(today, 'days') > 30);
 
   const history = useMemo(
-    () => records.filter((r) => r.status !== 'agendada').sort((x, y) => moment(y.date).diff(moment(x.date))).slice(0, 50),
+    () => records.filter((r) => r.status !== 'agendada').sort((x, y) => moment(y.date).diff(moment(x.date))),
     [records]
   );
 
