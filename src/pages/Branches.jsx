@@ -12,7 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
-import { Building2, Plus, Trash2, Crown, Move, Network, List } from 'lucide-react';
+import { Building2, Plus, Trash2, Crown, Move, Network, List, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 
 const EMPTY = { name: '', code: '', cnpj: '', address: '', city: '', state: '', is_headquarters: false, parent_branch_id: '' };
@@ -30,6 +30,7 @@ export default function Branches() {
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
+  const [editId, setEditId] = useState(null);
   const [form, setForm] = useState(EMPTY);
   const [saving, setSaving] = useState(false);
   const [moveTarget, setMoveTarget] = useState(null);
@@ -64,19 +65,44 @@ export default function Branches() {
     setLoading(false);
   };
 
-  const handleCreate = async () => {
+  const openNew = () => { setEditId(null); setForm(EMPTY); setOpen(true); };
+
+  const openEdit = (branch) => {
+    setEditId(branch.id);
+    setForm({
+      name: branch.name || '', code: branch.code || '', cnpj: branch.cnpj || '',
+      address: branch.address || '', city: branch.city || '', state: branch.state || '',
+      is_headquarters: !!branch.is_headquarters, parent_branch_id: branch.parent_branch_id || '',
+    });
+    setOpen(true);
+  };
+
+  // Cria (createBranch) ou edita os dados descritivos (updateBranch). A hierarquia
+  // (filial pai / matriz) não é alterada na edição — isso continua via Mover/arrastar.
+  const handleSubmit = async () => {
     if (!form.name.trim()) { toast.error('Informe o nome da filial.'); return; }
     setSaving(true);
     try {
-      const payload = { ...form, parent_branch_id: form.parent_branch_id === ROOT_VALUE ? '' : form.parent_branch_id };
-      const res = await base44.functions.invoke('createBranch', payload);
-      if (!res?.data?.ok) throw new Error(res?.data?.error || 'Falha ao criar filial.');
-      toast.success('Filial criada.');
+      if (editId) {
+        const res = await base44.functions.invoke('updateBranch', {
+          branch_id: editId,
+          name: form.name, code: form.code, cnpj: form.cnpj,
+          address: form.address, city: form.city, state: form.state,
+        });
+        if (!res?.data?.ok) throw new Error(res?.data?.error || 'Falha ao atualizar filial.');
+        toast.success('Filial atualizada.');
+      } else {
+        const payload = { ...form, parent_branch_id: form.parent_branch_id === ROOT_VALUE ? '' : form.parent_branch_id };
+        const res = await base44.functions.invoke('createBranch', payload);
+        if (!res?.data?.ok) throw new Error(res?.data?.error || 'Falha ao criar filial.');
+        toast.success('Filial criada.');
+      }
       setForm(EMPTY);
+      setEditId(null);
       setOpen(false);
       load();
     } catch (e) {
-      toast.error(e?.response?.data?.error || e?.message || 'Não foi possível criar a filial.');
+      toast.error(e?.response?.data?.error || e?.message || 'Não foi possível salvar a filial.');
     }
     setSaving(false);
   };
@@ -150,10 +176,10 @@ export default function Branches() {
             </div>
           )}
           {canManage && isEnterprise && (
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button className="gap-2"><Plus className="h-4 w-4" /> Nova filial</Button></DialogTrigger>
+          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) setEditId(null); }}>
+            <DialogTrigger asChild><Button className="gap-2" onClick={openNew}><Plus className="h-4 w-4" /> Nova filial</Button></DialogTrigger>
             <DialogContent>
-              <DialogHeader><DialogTitle>Nova filial</DialogTitle></DialogHeader>
+              <DialogHeader><DialogTitle>{editId ? 'Editar filial' : 'Nova filial'}</DialogTitle></DialogHeader>
               <div className="space-y-3">
                 <div><Label>Nome *</Label><Input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Ex: Filial São Paulo" /></div>
                 <div className="grid grid-cols-2 gap-3">
@@ -163,26 +189,33 @@ export default function Branches() {
                   <div><Label>Cidade</Label><Input value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} /></div>
                   <div><Label>UF</Label><Input value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} maxLength={2} /></div>
                 </div>
-                <div>
-                  <Label>Filial pai (opcional)</Label>
-                  <Select value={form.parent_branch_id || ROOT_VALUE} onValueChange={(v) => setForm({ ...form, parent_branch_id: v })}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={ROOT_VALUE}>Nenhuma (filial de primeiro nível)</SelectItem>
-                      {treeRows.map((b) => (
-                        <SelectItem key={b.id} value={b.id}>{'—'.repeat(b.depth)} {b.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input id="is_hq" type="checkbox" className="h-4 w-4" checked={form.is_headquarters} onChange={(e) => setForm({ ...form, is_headquarters: e.target.checked })} />
-                  <Label htmlFor="is_hq" className="cursor-pointer">É a matriz</Label>
-                </div>
+                {!editId && (
+                  <>
+                    <div>
+                      <Label>Filial pai (opcional)</Label>
+                      <Select value={form.parent_branch_id || ROOT_VALUE} onValueChange={(v) => setForm({ ...form, parent_branch_id: v })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={ROOT_VALUE}>Nenhuma (filial de primeiro nível)</SelectItem>
+                          {treeRows.map((b) => (
+                            <SelectItem key={b.id} value={b.id}>{'—'.repeat(b.depth)} {b.name}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input id="is_hq" type="checkbox" className="h-4 w-4" checked={form.is_headquarters} onChange={(e) => setForm({ ...form, is_headquarters: e.target.checked })} />
+                      <Label htmlFor="is_hq" className="cursor-pointer">É a matriz</Label>
+                    </div>
+                  </>
+                )}
+                {editId && (
+                  <p className="text-xs text-muted-foreground">Para mudar a filial pai, use o botão Mover (ou arraste no organograma).</p>
+                )}
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
-                <Button onClick={handleCreate} disabled={saving}>{saving ? 'Salvando...' : 'Criar'}</Button>
+                <Button onClick={handleSubmit} disabled={saving}>{saving ? 'Salvando...' : (editId ? 'Salvar' : 'Criar')}</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -216,7 +249,7 @@ export default function Branches() {
           </div>
         )
       ) : effectiveView === 'tree' ? (
-        <BranchOrgChart branches={branches} canManage={canManage} onMove={doMove} onDelete={handleDelete} onEditMove={openMove} />
+        <BranchOrgChart branches={branches} canManage={canManage} onMove={doMove} onDelete={handleDelete} onEditMove={openMove} onEdit={openEdit} />
       ) : (
         <div className="bg-card rounded-xl border border-border shadow-sm divide-y divide-border">
           {treeRows.map((b) => (
@@ -235,6 +268,7 @@ export default function Branches() {
               </div>
               {canManage && (
                 <div className="flex gap-1 shrink-0">
+                  <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openEdit(b)} title="Editar dados da filial"><Pencil className="h-4 w-4" /></Button>
                   {!b.is_headquarters && (
                     <Button size="icon" variant="ghost" className="h-8 w-8" onClick={() => openMove(b)} title="Mover para outra filial pai"><Move className="h-4 w-4" /></Button>
                   )}
