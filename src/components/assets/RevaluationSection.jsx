@@ -13,7 +13,7 @@ export default function RevaluationSection({ assetId, canManage }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    RevaluationEntity.filter({ asset_id: assetId }, '-revaluation_date', 20).then((data) => {
+    RevaluationEntity.filterAll({ asset_id: assetId }, '-revaluation_date').then((data) => {
       setRevaluations(data);
       setLoading(false);
     });
