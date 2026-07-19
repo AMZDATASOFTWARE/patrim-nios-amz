@@ -55,9 +55,9 @@ export default function AssignmentSection({ assetId, assetName }) {
 
   const load = async () => {
     const [data, collabs, s] = await Promise.all([
-      AssignEntity.filter({ asset_id: assetId }, '-assignment_date', 50),
-      CollabEntity.list('-name', 200),
-      SectorEntity.list('name', 500),
+      AssignEntity.filterAll({ asset_id: assetId }, '-assignment_date'),
+      CollabEntity.listAll('-name'),
+      SectorEntity.listAll('name'),
     ]);
     setRecords(data);
     setCollaborators(collabs);
