@@ -35,9 +35,9 @@ export default function Maintenance() {
   const load = async () => {
     setLoading(true);
     const [recs, a, s] = await Promise.all([
-      MaintenanceEntity.list('-scheduled_date', 2000),
-      AssetEntity.list('name', 2000),
-      SectorEntity.list('name', 500),
+      MaintenanceEntity.listAll('-scheduled_date'),
+      AssetEntity.listAll('name'),
+      SectorEntity.listAll('name'),
     ]);
     setRecords(recs);
     setAssets(a);
