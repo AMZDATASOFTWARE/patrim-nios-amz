@@ -25,7 +25,7 @@ export default function Suppliers() {
   useEffect(() => { if (workspaceId) load(); }, [workspaceId]);
 
   const load = async () => {
-    const data = await SupplierEntity.list('-created_date', 100);
+    const data = await SupplierEntity.listAll('-created_date');
     setSuppliers(data);
     setLoading(false);
   };
