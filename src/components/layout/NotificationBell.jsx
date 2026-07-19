@@ -22,7 +22,7 @@ export default function NotificationBell() {
   const load = async () => {
     const [notifs, assets] = await Promise.all([
       NotificationEntity.list('-created_date', 50),
-      AssetEntity.list('-created_date', 1000),
+      AssetEntity.listAll('-created_date'),
     ]);
     setStored(notifs);
     setDerived(buildDerivedAlerts(assets));
