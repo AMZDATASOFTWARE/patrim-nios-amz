@@ -18,7 +18,7 @@ export default function DisposalSection({ assetId, canManage }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    DisposalEntity.filter({ asset_id: assetId }, '-disposal_date', 20).then((data) => {
+    DisposalEntity.filterAll({ asset_id: assetId }, '-disposal_date').then((data) => {
       setDisposals(data);
       setLoading(false);
     });
