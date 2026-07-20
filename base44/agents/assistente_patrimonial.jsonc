@@ -44,7 +44,8 @@
     {
       "entity_name": "Branch",
       "allowed_operations": [
-        "read"
+        "read",
+        "create"
       ]
     },
     {
