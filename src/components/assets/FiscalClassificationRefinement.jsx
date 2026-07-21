@@ -33,7 +33,7 @@ function fiscalPanelMessage(status, evaluationStatus) {
   if (evaluationStatus === 'REQUIRES_TAX_REGIME_CONFIRMATION') {
     return 'Informe o regime tributário para analisar a sugestão fiscal.';
   }
-  return 'Não foi possível relacionar este bem a um NCM seguro no catálogo local. Revise nome, descrição, categoria, marca, modelo ou conta contábil.';
+  return 'Não foi possível relacionar este bem a um NCM seguro no catálogo local.';
 }
 
 function fiscalSourceLabel(response, suggestion, evaluation) {
@@ -97,6 +97,7 @@ export default function FiscalClassificationRefinement({
   const status = state.loading ? 'LOADING' : state.status || 'IDLE';
   const source = fiscalSourceLabel(state.response, rate || life, evaluation);
   const reason = rate?.reason || life?.reason || classification?.reason || '';
+  const noSafeReason = classification?.reason || rate?.reason || life?.reason || '';
   const usedFields = usedFieldsLabel(classification?.used_fields);
   const warnings = uniqueSuggestionWarnings([...(rate?.warnings || []), ...(life?.warnings || [])]).slice(0, 3);
   const confirmed = state.classificationConfirmed === true;
@@ -147,7 +148,8 @@ export default function FiscalClassificationRefinement({
 
       {!state.error && !hasSuggestion && status !== 'IDLE' && status !== 'LOADING' && (
         <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          {fiscalPanelMessage(status, evaluation?.status)}
+          <p>{fiscalPanelMessage(status, evaluation?.status)}</p>
+          {noSafeReason && <p className="mt-2">Motivo: {noSafeReason}</p>}
         </div>
       )}
 

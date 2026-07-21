@@ -1048,6 +1048,18 @@ export function applyDirectFiscalSuggestionAdapter(input: AdapterInput & { aiCho
   const result: Partial<Record<string, FiscalSuggestion>> = { ...(input.suggestions || {}) };
   if (requestedParams.length === 0) return result;
 
+  if (!fiscalString(input.context.name)) {
+    return {
+      ...result,
+      ...directFiscalNoMatchSuggestions(
+        requestedParams,
+        input.context,
+        [],
+        'Informe a descricao do bem para iniciar a analise fiscal.',
+      ),
+    };
+  }
+
   const regime = fiscalTaxRegime(input.context);
   if (regime === 'SIMPLES_NACIONAL') {
     return {
@@ -1068,14 +1080,36 @@ export function applyDirectFiscalSuggestionAdapter(input: AdapterInput & { aiCho
         requestedParams,
         input.context,
         [],
-        'Informe o regime tributario aplicavel para continuar a sugestao fiscal.',
+        'Informe o regime tributario para gerar a sugestao fiscal.',
         'REQUIRES_TAX_REGIME_CONFIRMATION',
       ),
     };
   }
 
   const options = buildDirectFiscalCatalogOptions(input.context);
+  if (options.length === 0) {
+    return {
+      ...result,
+      ...directFiscalNoMatchSuggestions(
+        requestedParams,
+        input.context,
+        [],
+        'O catalogo fiscal local nao retornou opcoes para analise deste bem.',
+      ),
+    };
+  }
   const selectedId = fiscalString(input.aiChoice?.selected_catalog_option_id || input.aiChoice?.catalog_option_id);
+  if (!input.aiChoice || !selectedId) {
+    return {
+      ...result,
+      ...directFiscalNoMatchSuggestions(
+        requestedParams,
+        input.context,
+        options,
+        'A IA nao selecionou uma opcao segura do catalogo fiscal local.',
+      ),
+    };
+  }
   const selectedOption = options.find((option) => option.option_id === selectedId) || null;
   if (!selectedOption) {
     return {
@@ -1084,7 +1118,7 @@ export function applyDirectFiscalSuggestionAdapter(input: AdapterInput & { aiCho
         requestedParams,
         input.context,
         options,
-        'Nao foi possivel relacionar este bem a um NCM seguro no catalogo local.',
+        'A IA retornou uma opcao que nao existe no catalogo fiscal local enviado.',
       ),
     };
   }
@@ -1096,7 +1130,7 @@ export function applyDirectFiscalSuggestionAdapter(input: AdapterInput & { aiCho
         requestedParams,
         input.context,
         options,
-        'A IA retornou uma classificacao que nao corresponde ao NCM da opcao local.',
+        'A IA retornou NCM divergente da opcao fiscal local escolhida.',
       ),
     };
   }
@@ -1110,7 +1144,7 @@ export function applyDirectFiscalSuggestionAdapter(input: AdapterInput & { aiCho
         requestedParams,
         input.context,
         options,
-        'A IA retornou fonte que nao corresponde a fonte normativa local da opcao escolhida.',
+        'A IA retornou fonte divergente da fonte normativa local da opcao escolhida.',
       ),
     };
   }
@@ -1142,12 +1176,17 @@ export function applyDirectFiscalSuggestionAdapter(input: AdapterInput & { aiCho
   for (const parameter of requestedParams) {
     const evaluation = fiscalEvaluation(lookup, input.context, classification.status, selectedOption.ncm_code, false);
     if (lookup.status !== 'MATCHED') {
-      result[parameter] = fiscalNotFound(parameter, FISCAL_STATUS_MESSAGES[lookup.status], classification, evaluation);
+      result[parameter] = fiscalNotFound(
+        parameter,
+        'A opcao fiscal escolhida nao possui regra de taxa e vida util aplicavel na base normativa local.',
+        classification,
+        evaluation,
+      );
       continue;
     }
     const value = parameter === 'fiscal_depreciation_rate' ? lookup.annual_rate_percent : lookup.useful_life_years;
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      result[parameter] = fiscalNotFound(parameter, 'Regra fiscal encontrada sem valor numerico validavel.', classification, evaluation);
+      result[parameter] = fiscalNotFound(parameter, 'A opcao fiscal escolhida nao possui taxa ou vida util validavel.', classification, evaluation);
       continue;
     }
     result[parameter] = {

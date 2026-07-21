@@ -95,7 +95,7 @@ export function buildSuggestionContext(form, branches = [], sectors = []) {
   const context = {};
   addText(context, 'name', form.name, 300);
   addText(context, 'category', form.category, 300);
-  addText(context, 'description', form.description, 1000);
+  addText(context, 'description', form.description || form.name, 1000);
   addText(context, 'account', form.account, 300);
   addText(context, 'brand', form.brand, 300);
   addText(context, 'model', form.model, 300);

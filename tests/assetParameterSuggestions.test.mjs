@@ -113,6 +113,16 @@ test('frontend helper builds limited asset context and excludes sensitive/unrela
   assert.equal('fiscal_depreciation_rate' in context, false);
 });
 
+test('frontend helper maps Descricao do Bem field to AI name and fallback description', () => {
+  const context = buildSuggestionContext({
+    name: 'Gerador de energia a diesel 15 kVA',
+    category: 'Equipamentos',
+    description: '',
+  });
+  assert.equal(context.name, 'Gerador de energia a diesel 15 kVA');
+  assert.equal(context.description, 'Gerador de energia a diesel 15 kVA');
+});
+
 test('frontend helper builds suggestAssetParameters payload for creation and edition', () => {
   const context = { name: 'Notebook Dell', category: 'Equipamentos' };
   assert.deepEqual(buildSuggestAssetParametersPayload('', DEPRECIATION_SUGGESTION_FIELDS, context), {
@@ -548,6 +558,22 @@ test('AssetForm source integrates fiscal refinement only through explicit user a
   assert.equal(fiscalSource.includes('valor residual fiscal'), true);
   assert.equal(source.includes('Revise nome, categoria'), false);
   assert.equal(source.includes('NCM seguro no catálogo local'), true);
+});
+
+test('AssetForm source uses minimal fiscal context and invalidates direct fiscal responses', async () => {
+  const source = await readFile(ASSET_FORM_PATH, 'utf8');
+  const fiscalSource = await readFile(FISCAL_REFINEMENT_PATH, 'utf8');
+  const fiscalRequestBlock = source.slice(source.indexOf('const runFiscalRefinementRequest'), source.indexOf('const handleStartFiscalSuggestion'));
+
+  assert.equal(fiscalRequestBlock.includes('suggestionEligibility.depreciation.enabled'), false);
+  assert.equal(fiscalRequestBlock.includes('fiscalTaxRegime ||'), true);
+  assert.equal(fiscalRequestBlock.includes('suggestionContext.name ||'), true);
+  assert.equal(source.includes('conservation_state: suggestionContext.conservation_state'), true);
+  assert.equal(source.includes('tax_regime: fiscalTaxRegime'), true);
+  assert.equal(source.includes("prev.status !== 'IDLE'"), true);
+  assert.equal(source.includes('Object.keys(prev.suggestions || {}).length > 0'), true);
+  assert.equal(fiscalSource.includes('Motivo:'), true);
+  assert.equal(fiscalSource.includes('Revise nome,'), false);
 });
 
 test('frontend fiscal refinement files do not contain common mojibake patterns', async () => {

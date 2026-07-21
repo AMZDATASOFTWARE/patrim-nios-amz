@@ -35,6 +35,8 @@ const FISCAL_PARAMETERS = ['fiscal_depreciation_rate', 'fiscal_useful_life_years
 const ALLOWED_PARAMETERS = [...CORPORATE_PARAMETERS, ...FISCAL_PARAMETERS] as const;
 const CONFIDENCE = ['low', 'medium', 'high'] as const;
 const MANAGEMENT_WARNING = 'Estimativa gerencial baseada nos dados informados. Valide com o responsavel contabil antes de utilizar.';
+const SOURCELESS_MANAGEMENT_WARNING = 'Sugestao gerencial estimada. Revise com o responsavel contabil antes de aplicar.';
+const ASSUMED_BRL_WARNING = 'Unidade monetaria assumida como BRL para valor residual.';
 
 type ParameterName = typeof ALLOWED_PARAMETERS[number];
 type Confidence = typeof CONFIDENCE[number];
@@ -271,10 +273,11 @@ function hasManualFiscalPermission(fresh: Record<string, unknown>): boolean {
   return values.some((item) => typeof item === 'string' && item.trim().toLowerCase() === permission);
 }
 
-function sanitizeContext(raw: unknown): { context?: SanitizedContext; error?: string } {
+function sanitizeContext(raw: unknown, requestedParams: ParameterName[] = []): { context?: SanitizedContext; error?: string } {
   if (!isPlainObject(raw)) return { error: 'asset_context deve ser um objeto simples.' };
 
   const context: SanitizedContext = {};
+  const isFiscalOnlyRequest = requestedParams.length > 0 && requestedParams.every(isFiscalParameter);
 
   for (const field of STRING_FIELDS) {
     const parsed = clampText(raw[field], field);
@@ -295,11 +298,11 @@ function sanitizeContext(raw: unknown): { context?: SanitizedContext; error?: st
   }
 
   const name = typeof context.name === 'string' ? context.name : '';
-  if (!name) return { error: 'Descricao do bem e obrigatoria.' };
+  if (!name && !isFiscalOnlyRequest) return { error: 'Descricao do bem e obrigatoria.' };
 
   const category = typeof context.category === 'string' ? context.category : '';
-  if (!category) return { error: 'Grupo de patrimonio e obrigatorio.' };
-  if (!CATEGORIES.includes(category)) return { error: 'Grupo de patrimonio invalido.' };
+  if (!category && !isFiscalOnlyRequest) return { error: 'Grupo de patrimonio e obrigatorio.' };
+  if (category && !CATEGORIES.includes(category)) return { error: 'Grupo de patrimonio invalido.' };
 
   const conservation = typeof context.conservation_state === 'string' ? context.conservation_state : '';
   if (conservation && !CONSERVATION_STATES.includes(conservation)) {
@@ -397,6 +400,10 @@ function normalizeUnitText(value: unknown): string {
     .replace(/_/g, ' ');
 }
 
+function isMissingUnit(value: unknown): boolean {
+  return value === undefined || value === null || normalizeUnitText(value) === '';
+}
+
 function normalizeSuggestionUnit(parameter: ParameterName, value: unknown): string | null {
   const unit = normalizeUnitText(value);
   if (!unit) return null;
@@ -438,7 +445,20 @@ function normalizeSuggestionUnit(parameter: ParameterName, value: unknown): stri
     return null;
   }
 
-  if (['brl', 'r$', 'real', 'reais'].includes(unit)) return 'BRL';
+  if ([
+    'brl',
+    'r$',
+    'real',
+    'reais',
+    'moeda',
+    'moeda brasileira',
+    'currency',
+    'money',
+    'monetary',
+    'valor monetario',
+    'brazilian real',
+    'reais brasileiros',
+  ].includes(unit)) return 'BRL';
   return null;
 }
 
@@ -646,14 +666,13 @@ function validateSuggestion(
     };
   }
 
-  if (evidence.length > 0 && sourceIds.length === 0) {
-    return notFound(parameter, 'A IA nao citou uma fonte confiavel utilizada para este parametro.', warnings);
-  }
-  if (evidence.length === 0 && rawSourceIds.length > 0) {
-    return notFound(parameter, 'A IA citou fonte que nao foi fornecida pelo backend.', warnings);
+  const validationWarnings: string[] = [];
+  if (isCorporateParameter(parameter) && rawSourceIds.length > 0 && sourceIds.length === 0) {
+    validationWarnings.push('Fonte informada pela IA foi descartada porque nao existe nas evidencias fornecidas.');
   }
 
-  const normalizedUnit = normalizeSuggestionUnit(parameter, rawSuggestion.unit);
+  const assumedResidualBrl = parameter === 'residual_value' && isMissingUnit(rawSuggestion.unit);
+  const normalizedUnit = assumedResidualBrl ? 'BRL' : normalizeSuggestionUnit(parameter, rawSuggestion.unit);
   if (normalizedUnit !== expectedUnit) {
     return notFound(parameter, `Unidade invalida para ${parameter}.`, warnings);
   }
@@ -674,8 +693,10 @@ function validateSuggestion(
     return notFound(parameter, 'Vida util fora do intervalo permitido.', warnings);
   }
 
-  const validationWarnings: string[] = [];
   if (parameter === 'residual_value') {
+    if (assumedResidualBrl) {
+      validationWarnings.push(ASSUMED_BRL_WARNING);
+    }
     const acquisition = context.acquisition_value;
     if (typeof acquisition !== 'number' || !Number.isFinite(acquisition) || acquisition <= 0) {
       validationWarnings.push('Custo reconhecido ausente; o limite superior do residual nao pode ser validado.');
@@ -684,13 +705,18 @@ function validateSuggestion(
     }
   }
 
+  const sourcelessManagementEstimate = isCorporateParameter(parameter) && sourceIds.length === 0;
+  if (sourcelessManagementEstimate) {
+    validationWarnings.push(SOURCELESS_MANAGEMENT_WARNING);
+  }
   const finalWarnings = sanitizeWarningList([...(Array.isArray(rawSuggestion.warnings) ? rawSuggestion.warnings : []), ...validationWarnings], context, true);
+  const effectiveConfidence = sourcelessManagementEstimate && confidence === 'high' ? 'medium' : confidence;
 
   return {
     found: true,
     value,
     unit: normalizedUnit,
-    confidence,
+    confidence: effectiveConfidence,
     reason: reason || 'Estimativa gerencial baseada nos dados informados do ativo.',
     based_on: basedOn,
     missing_data: missingData,
@@ -806,7 +832,8 @@ function buildPrompt(params: ParameterName[], context: SanitizedContext, evidenc
     '- Diferencie referencia gerencial, contabil, fiscal, tecnica e de mercado.',
     '- Informacao fiscal deve ficar em fiscal_reference e nao substituir taxa gerencial.',
     '- Nenhuma sugestao pode ser aplicada automaticamente.',
-    '- Cada sugestao valida deve citar source_ids de evidencias realmente utilizadas; se nao houver evidencias, source_ids deve ser [].',
+    '- Quando usar uma evidencia externa, cite somente source_ids existentes e realmente utilizados.',
+    '- Se nenhuma fonte adequada sustentar a sugestao gerencial, retorne source_ids: [] e deixe claro que e estimativa gerencial.',
     '',
     'Parametros solicitados:',
     JSON.stringify(params),
@@ -991,7 +1018,7 @@ Deno.serve(async (req) => {
       if (existing.workspace_id !== fresh.workspace_id) return json({ error: 'Ativo nao pertence ao workspace autorizado.' }, 403);
     }
 
-    const sanitized = sanitizeContext(body.asset_context);
+    const sanitized = sanitizeContext(body.asset_context, parsedParams.params);
     if (sanitized.error || !sanitized.context) return json({ error: sanitized.error }, 400);
     const corporateParams = parsedParams.params.filter(isCorporateParameter);
     const fiscalParams = parsedParams.params.filter(isFiscalParameter);
@@ -1001,7 +1028,9 @@ Deno.serve(async (req) => {
       if (sanitized.context.fiscal_classification_action === 'CLASSIFY_DIRECT') {
         const catalogOptions = buildDirectFiscalCatalogOptions(sanitized.context);
         let aiChoice: DirectFiscalAiChoice | null = null;
-        if (catalogOptions.length > 0) {
+        const hasFiscalName = typeof sanitized.context.name === 'string' && sanitized.context.name.trim().length > 0;
+        const hasFiscalRegime = typeof sanitized.context.tax_regime === 'string' && sanitized.context.tax_regime.trim().length > 0;
+        if (hasFiscalName && hasFiscalRegime && catalogOptions.length > 0) {
           try {
             aiChoice = normalizeDirectFiscalChoice(await svc.integrations.Core.InvokeLLM({
               prompt: buildDirectFiscalPrompt(sanitized.context, catalogOptions),
