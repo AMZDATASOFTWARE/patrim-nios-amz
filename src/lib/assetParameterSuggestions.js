@@ -2,9 +2,13 @@ export const SUGGESTION_PARAMETERS = {
   depreciation_rate: { label: 'Taxa de Deprecia\u00e7\u00e3o Anual', unit: '% ao ano' },
   useful_life_years: { label: 'Vida \u00datil', unit: 'anos' },
   residual_value: { label: 'Valor Residual', unit: 'R$' },
+  fiscal_depreciation_rate: { label: 'Taxa Fiscal Anual', unit: '% ao ano' },
+  fiscal_useful_life_years: { label: 'Vida \u00datil Fiscal', unit: 'anos' },
+  fiscal_residual_value: { label: 'Valor Residual Fiscal', unit: 'R$' },
 };
 
 export const DEPRECIATION_SUGGESTION_FIELDS = ['depreciation_rate', 'useful_life_years'];
+export const FISCAL_DEPRECIATION_SUGGESTION_FIELDS = ['fiscal_depreciation_rate', 'fiscal_useful_life_years'];
 
 export const MANAGEMENT_WARNING = 'Estimativa gerencial baseada nos dados informados. Valide com o responsável contábil antes de utilizar.';
 export const INSUFFICIENT_EVIDENCE_MESSAGE = 'As fontes foram consultadas, mas não foram encontradas informações suficientes para gerar uma sugestão segura.';
@@ -32,7 +36,7 @@ export const TRUSTED_AI_SOURCES_INFO = [
 const CATEGORIES = ['Im\u00f3veis', 'Ve\u00edculos', 'Equipamentos', 'Investimentos', 'Intang\u00edveis'];
 
 export function createEmptySuggestionState() {
-  return Object.keys(SUGGESTION_PARAMETERS).reduce((acc, field) => {
+  return ['depreciation_rate', 'useful_life_years', 'residual_value'].reduce((acc, field) => {
     acc[field] = {
       loading: false,
       suggestion: null,
@@ -44,6 +48,23 @@ export function createEmptySuggestionState() {
     };
     return acc;
   }, {});
+}
+
+export function createEmptyFiscalRefinementState() {
+  return {
+    loading: false,
+    error: '',
+    status: 'IDLE',
+    currentQuestion: null,
+    refinementStateToken: null,
+    answers: {},
+    selectedOption: '',
+    readyOption: null,
+    suggestions: {},
+    response: null,
+    applied: {},
+    contextKey: '',
+  };
 }
 
 export function stableStringify(value) {
@@ -76,6 +97,8 @@ export function buildSuggestionContext(form, branches = [], sectors = []) {
   addText(context, 'category', form.category, 300);
   addText(context, 'description', form.description, 1000);
   addText(context, 'account', form.account, 300);
+  addText(context, 'brand', form.brand, 300);
+  addText(context, 'model', form.model, 300);
   addNumber(context, 'acquisition_value', form.acquisition_value);
   addText(context, 'purchase_date', form.purchase_date, 300);
   addText(context, 'depreciation_start_date', form.depreciation_start_date, 300);
@@ -135,6 +158,123 @@ export function buildSuggestAssetParametersPayload(editId, params, context) {
   };
 }
 
+export function fiscalSuggestionsFromResponse(response) {
+  const suggestions = response?.suggestions && typeof response.suggestions === 'object' ? response.suggestions : {};
+  return FISCAL_DEPRECIATION_SUGGESTION_FIELDS.reduce((acc, field) => {
+    if (suggestions[field]) acc[field] = suggestions[field];
+    return acc;
+  }, {});
+}
+
+export function fiscalClassificationFromSuggestions(suggestions = {}) {
+  return FISCAL_DEPRECIATION_SUGGESTION_FIELDS
+    .map((field) => suggestions[field]?.fiscal_classification)
+    .find(Boolean) || null;
+}
+
+export function fiscalEvaluationFromSuggestions(suggestions = {}) {
+  return FISCAL_DEPRECIATION_SUGGESTION_FIELDS
+    .map((field) => suggestions[field]?.fiscal_evaluation)
+    .find(Boolean) || null;
+}
+
+export function fiscalRefinementStateFromClassification(classification) {
+  return classification?.refinement_state || null;
+}
+
+export function fiscalCurrentQuestion(classification) {
+  const refinement = fiscalRefinementStateFromClassification(classification);
+  if (refinement?.current_question) return refinement.current_question;
+  return Array.isArray(classification?.questions) ? classification.questions[0] || null : null;
+}
+
+export function fiscalRefinementToken(classification) {
+  return fiscalRefinementStateFromClassification(classification)?.refinement_state_token || null;
+}
+
+export function fiscalReadyOption(classification) {
+  if (!classification || !Array.isArray(classification.options)) return null;
+  const status = classification?.refinement_state?.status || classification?.status || '';
+  if (status !== 'READY_FOR_CONFIRMATION') return null;
+  const confirmed = classification.confirmed_option_id
+    ? classification.options.find((option) => option.option_id === classification.confirmed_option_id)
+    : null;
+  if (confirmed?.can_release_fiscal_rule === true) return confirmed;
+  return classification.options.find((option) => option.option_id !== 'NONE_OF_THE_OPTIONS' && option.can_release_fiscal_rule === true) || null;
+}
+
+export function fiscalUserMessage(status, evaluationStatus = '') {
+  if (status === 'REQUIRES_HUMAN_REVIEW') {
+    return 'Não foi possível concluir esta classificação automaticamente. Revise os dados do bem ou solicite análise do responsável fiscal/contábil.';
+  }
+  if (status === 'NO_SAFE_CANDIDATE') {
+    return 'Não encontramos uma classificação fiscal segura para este bem com as informações disponíveis. Revise o nome e a descrição do item e tente novamente.';
+  }
+  if (evaluationStatus === 'OUT_OF_DEFAULT_SCOPE') {
+    return 'Esta sugestão fiscal automática não é aplicada ao Simples Nacional neste fluxo padrão. Consulte o responsável contábil/fiscal.';
+  }
+  if (evaluationStatus === 'REQUIRES_TAX_REGIME_CONFIRMATION') {
+    return 'Informe o regime tributário aplicável para continuar a análise fiscal.';
+  }
+  return '';
+}
+
+export function isInvalidFiscalTokenMessage(classification) {
+  const warnings = classification?.refinement_state?.warnings || [];
+  return warnings.some((warning) => /estado assinado|expir|invalido|inválido/i.test(String(warning || '')));
+}
+
+export function buildNextFiscalRefinementState(prev, payload, contextKey, fallbackStatus = '') {
+  const suggestions = fiscalSuggestionsFromResponse(payload);
+  const classification = fiscalClassificationFromSuggestions(suggestions);
+  const refinement = classification?.refinement_state || null;
+  const token = fiscalRefinementToken(classification);
+  const question = fiscalCurrentQuestion(classification);
+  const readyOption = fiscalReadyOption(classification);
+  const hasFiscalSuggestion = hasFoundSuggestionForFields(suggestions, FISCAL_DEPRECIATION_SUGGESTION_FIELDS);
+  const status = hasFiscalSuggestion
+    ? 'SUGGESTION_READY'
+    : refinement?.status || fallbackStatus || classification?.status || 'NEEDS_MORE_INFORMATION';
+
+  return {
+    ...prev,
+    loading: false,
+    error: '',
+    status,
+    currentQuestion: question,
+    refinementStateToken: token ?? null,
+    selectedOption: '',
+    readyOption,
+    suggestions,
+    classification,
+    response: payload,
+    applied: {},
+    contextKey,
+  };
+}
+
+export function buildFiscalRefinementContext(baseContext, state, action, options = {}) {
+  const context = {
+    ...baseContext,
+    fiscal_classification_action: action,
+  };
+  if (options.taxRegime) context.tax_regime = options.taxRegime;
+  const token = options.refinementStateToken || state?.refinementStateToken;
+  if (token) context.fiscal_refinement_state_token = token;
+  const answers = { ...(state?.answers || {}) };
+  if (options.questionId && options.answerValue) answers[options.questionId] = options.answerValue;
+  if (Object.keys(answers).length > 0) context.fiscal_classification_answers = answers;
+  if (action === 'CONFIRM_OPTION' && options.selectedOption) {
+    context.ncm_classification_status = 'CONFIRMED_BY_USER';
+    context.ncm_source = 'CLASSIFICATION_OPTION';
+    context.selected_fiscal_classification_option_id = options.selectedOption.option_id;
+    context.selected_fiscal_classification_catalog_version = options.selectedOption.classification_catalog_version;
+    context.selected_fiscal_classification_option_fingerprint = options.selectedOption.option_fingerprint;
+    context.selected_fiscal_classification_name = options.selectedOption.display_name;
+  }
+  return context;
+}
+
 export function requestFieldsForSuggestion(field) {
   return DEPRECIATION_SUGGESTION_FIELDS.includes(field)
     ? DEPRECIATION_SUGGESTION_FIELDS
@@ -170,8 +310,8 @@ export function applyUsefulLifeInput(form, value) {
 
 export function formatSuggestionValue(field, value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '';
-  if (field === 'depreciation_rate') return `${value}% ao ano`;
-  if (field === 'useful_life_years') return `${value} anos`;
+  if (field === 'depreciation_rate' || field === 'fiscal_depreciation_rate') return `${value}% ao ano`;
+  if (field === 'useful_life_years' || field === 'fiscal_useful_life_years') return `${value} anos`;
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 }
 

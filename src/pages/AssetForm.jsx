@@ -11,6 +11,7 @@ import { ArrowLeft, Upload, Save, RefreshCw, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getDefaultDepreciationRate, getUsefulLifeFromRate } from '@/lib/depreciation';
 import SupplierSelect from '@/components/assets/SupplierSelect';
+import FiscalClassificationRefinement from '@/components/assets/FiscalClassificationRefinement';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/AuthContext';
 import { useWorkspace } from '@/lib/WorkspaceContext';
@@ -18,13 +19,17 @@ import { getPlan } from '@/lib/plans';
 import { logAudit } from '@/lib/audit';
 import {
   DEPRECIATION_SUGGESTION_FIELDS,
+  FISCAL_DEPRECIATION_SUGGESTION_FIELDS,
   SUGGESTION_PARAMETERS,
   applyDepreciationRateInput,
   applySuggestionValue,
   applyUsefulLifeInput,
+  buildFiscalRefinementContext,
+  buildNextFiscalRefinementState,
   buildSuggestAssetParametersPayload,
   buildSuggestionContext,
   confidenceValueLabel,
+  createEmptyFiscalRefinementState,
   createEmptySuggestionState,
   formatSuggestionValue,
   friendlySuggestionError,
@@ -139,11 +144,15 @@ export default function AssetForm() {
     notes: '',
   });
   const [aiSuggestions, setAiSuggestions] = useState(() => createEmptySuggestionState());
+  const [fiscalRefinement, setFiscalRefinement] = useState(() => createEmptyFiscalRefinementState());
+  const [fiscalTaxRegime, setFiscalTaxRegime] = useState('');
   const aiRequestSeqRef = useRef(0);
   const aiInFlightKeyRef = useRef('');
   const aiCurrentKeyRef = useRef('');
   const aiLatestContextKeyRef = useRef('');
   const aiMountedRef = useRef(true);
+  const fiscalRequestSeqRef = useRef(0);
+  const fiscalInFlightRef = useRef(false);
 
   const suggestionContext = useMemo(
     () => buildSuggestionContext(form, branches, sectors),
@@ -152,6 +161,8 @@ export default function AssetForm() {
       form.category,
       form.description,
       form.account,
+      form.brand,
+      form.model,
       form.acquisition_value,
       form.purchase_date,
       form.depreciation_start_date,
@@ -176,6 +187,25 @@ export default function AssetForm() {
   aiLatestContextKeyRef.current = suggestionContextKey;
   const suggestionEligibility = useMemo(() => getSuggestionEligibility(suggestionContext), [suggestionContext]);
   const hasAiSuggestionLoading = Object.values(aiSuggestions).some((state) => state.loading);
+
+  const fiscalClassificationContextKey = useMemo(
+    () => stableStringify({
+      name: suggestionContext.name || '',
+      description: suggestionContext.description || '',
+      category: suggestionContext.category || '',
+      account: suggestionContext.account || '',
+      brand: suggestionContext.brand || '',
+      model: suggestionContext.model || '',
+    }),
+    [
+      suggestionContext.name,
+      suggestionContext.description,
+      suggestionContext.category,
+      suggestionContext.account,
+      suggestionContext.brand,
+      suggestionContext.model,
+    ]
+  );
 
   const runSuggestionRequest = async (params, context) => {
     const requestKey = stableStringify({ params, context });
@@ -256,6 +286,98 @@ export default function AssetForm() {
   const handleSuggestResidual = () => {
     if (!suggestionEligibility.residual.enabled) return;
     runSuggestionRequest(['residual_value'], suggestionContext);
+  };
+
+  const updateFiscalStateFromResponse = (payload, contextKey, fallbackStatus = '') => {
+    setFiscalRefinement((prev) => buildNextFiscalRefinementState(prev, payload, contextKey, fallbackStatus));
+  };
+
+  const runFiscalRefinementRequest = async (action, options = {}) => {
+    if (fiscalInFlightRef.current) return;
+    if (!suggestionEligibility.depreciation.enabled) {
+      setFiscalRefinement((prev) => ({ ...prev, error: suggestionEligibility.depreciation.reason }));
+      return;
+    }
+
+    const contextKey = fiscalClassificationContextKey;
+    const stateForRequest = options.resetState ? createEmptyFiscalRefinementState() : fiscalRefinement;
+    const context = buildFiscalRefinementContext(suggestionContext, stateForRequest, action, {
+      ...options,
+      taxRegime: fiscalTaxRegime,
+    });
+    const requestId = fiscalRequestSeqRef.current + 1;
+    fiscalRequestSeqRef.current = requestId;
+    fiscalInFlightRef.current = true;
+
+    setFiscalRefinement((prev) => ({
+      ...prev,
+      loading: true,
+      error: '',
+      status: action === 'CONFIRM_OPTION' ? 'CONFIRMING' : 'ANALYZING',
+      contextKey,
+    }));
+
+    try {
+      const res = await base44.functions.invoke(
+        'suggestAssetParameters',
+        buildSuggestAssetParametersPayload(editId, FISCAL_DEPRECIATION_SUGGESTION_FIELDS, context),
+      );
+      if (!aiMountedRef.current || fiscalRequestSeqRef.current !== requestId) return;
+      const rawPayload = res?.data || res;
+      const payload = normalizeSuggestionFunctionResponse(res);
+      if (!payload.ok) {
+        const error = Object.assign(new Error(rawPayload?.error || 'Falha ao gerar sugestão fiscal.'), { data: rawPayload });
+        throw error;
+      }
+      updateFiscalStateFromResponse(payload, contextKey, action === 'CONFIRM_OPTION' ? 'SUGGESTION_READY' : 'NEEDS_MORE_INFORMATION');
+    } catch (error) {
+      if (!aiMountedRef.current || fiscalRequestSeqRef.current !== requestId) return;
+      setFiscalRefinement((prev) => ({
+        ...prev,
+        loading: false,
+        error: friendlySuggestionError(error).replace('sugestão', 'sugestão fiscal'),
+        status: 'ERROR',
+        contextKey,
+      }));
+    } finally {
+      fiscalInFlightRef.current = false;
+    }
+  };
+
+  const handleStartFiscalSuggestion = () => {
+    setFiscalRefinement(createEmptyFiscalRefinementState());
+    runFiscalRefinementRequest('SUGGEST_OPTIONS', { refinementStateToken: null, resetState: true });
+  };
+
+  const handleContinueFiscalRefinement = () => {
+    const question = fiscalRefinement.currentQuestion;
+    if (!question?.question_id || !fiscalRefinement.selectedOption) return;
+    runFiscalRefinementRequest('REFINE_OPTIONS', {
+      questionId: question.question_id,
+      answerValue: fiscalRefinement.selectedOption,
+    });
+  };
+
+  const handleConfirmFiscalOption = (option) => {
+    if (!option) return;
+    runFiscalRefinementRequest('CONFIRM_OPTION', { selectedOption: option });
+  };
+
+  const handleApplyFiscalSuggestion = (field) => {
+    const suggestion = fiscalRefinement.suggestions?.[field];
+    if (!suggestion?.found || typeof suggestion.value !== 'number') return;
+    setForm((prev) => ({ ...prev, [field]: String(suggestion.value) }));
+    setFiscalRefinement((prev) => ({
+      ...prev,
+      applied: { ...prev.applied, [field]: true },
+    }));
+    toast.success('Sugestão fiscal aplicada. Revise antes de salvar.');
+  };
+
+  const resetFiscalRefinement = () => {
+    fiscalRequestSeqRef.current += 1;
+    fiscalInFlightRef.current = false;
+    setFiscalRefinement(createEmptyFiscalRefinementState());
   };
 
   const handleRefreshSuggestion = (field) => {
@@ -613,6 +735,14 @@ export default function AssetForm() {
       return changed ? next : prev;
     });
   }, [suggestionContextKey]);
+
+  useEffect(() => {
+    setFiscalRefinement((prev) => {
+      if (!prev.contextKey || prev.contextKey === fiscalClassificationContextKey) return prev;
+      if (!prev.refinementStateToken && !prev.currentQuestion && Object.keys(prev.answers || {}).length === 0) return prev;
+      return createEmptyFiscalRefinementState();
+    });
+  }, [fiscalClassificationContextKey]);
 
   const handleCategoryChange = async (value) => {
     // Try to load from saved config first
@@ -1196,6 +1326,17 @@ export default function AssetForm() {
               <Input id="fiscal_depreciation_start_date" type="date" value={form.fiscal_depreciation_start_date} onChange={(e) => setForm({ ...form, fiscal_depreciation_start_date: e.target.value })} />
             </div>
           </div>
+          <FiscalClassificationRefinement
+            state={fiscalRefinement}
+            taxRegime={fiscalTaxRegime}
+            onTaxRegimeChange={setFiscalTaxRegime}
+            onStart={handleStartFiscalSuggestion}
+            onSelectOption={(value) => setFiscalRefinement((prev) => ({ ...prev, selectedOption: value }))}
+            onContinue={handleContinueFiscalRefinement}
+            onConfirm={handleConfirmFiscalOption}
+            onApply={handleApplyFiscalSuggestion}
+            onReset={resetFiscalRefinement}
+          />
         </div>
 
         {/* Titularidade / obra em andamento */}

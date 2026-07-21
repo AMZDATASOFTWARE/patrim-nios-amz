@@ -7,6 +7,15 @@ import {
   lookupReceitaFederalDepreciation,
   toFiscalReference,
 } from './receitaFederalDepreciationTable.ts';
+import {
+  applyCorporateSuggestionAdapter,
+} from './corporateSuggestionAdapter.ts';
+import {
+  applyFiscalSuggestionAdapter,
+} from './fiscalSuggestionAdapter.ts';
+import {
+  runFiscalClassificationAiRefinement,
+} from './fiscalClassificationAiRefiner.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -16,13 +25,15 @@ const cors = {
 const CATEGORIES = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
 const CONSERVATION_STATES = ['Novo', 'Ótimo', 'Bom', 'Regular', 'Ruim'];
 const OWNERSHIP_TYPES = ['proprio', 'terceiros', 'locado', 'comodato'];
-const ALLOWED_PARAMETERS = ['depreciation_rate', 'useful_life_years', 'residual_value'] as const;
+const CORPORATE_PARAMETERS = ['depreciation_rate', 'useful_life_years', 'residual_value'] as const;
+const FISCAL_PARAMETERS = ['fiscal_depreciation_rate', 'fiscal_useful_life_years', 'fiscal_residual_value'] as const;
+const ALLOWED_PARAMETERS = [...CORPORATE_PARAMETERS, ...FISCAL_PARAMETERS] as const;
 const CONFIDENCE = ['low', 'medium', 'high'] as const;
 const MANAGEMENT_WARNING = 'Estimativa gerencial baseada nos dados informados. Valide com o responsavel contabil antes de utilizar.';
 
 type ParameterName = typeof ALLOWED_PARAMETERS[number];
 type Confidence = typeof CONFIDENCE[number];
-type SanitizedContext = Record<string, string | number | boolean>;
+type SanitizedContext = Record<string, string | number | boolean | Record<string, string> | unknown[]>;
 
 type Suggestion = {
   found: boolean;
@@ -34,6 +45,9 @@ type Suggestion = {
   missing_data: string[];
   warnings: string[];
   source_ids: string[];
+  corporate_evaluation?: unknown;
+  fiscal_classification?: unknown;
+  fiscal_evaluation?: unknown;
 };
 
 type FiscalReference = {
@@ -57,6 +71,7 @@ const STRING_FIELDS = [
   'account',
   'purchase_date',
   'depreciation_start_date',
+  'available_for_use_date',
   'conservation_state',
   'location',
   'sector_name',
@@ -67,12 +82,39 @@ const STRING_FIELDS = [
   'property_registration_type',
   'ownership_type',
   'construction_completion_date',
+  'ncm_code',
+  'ncm_classification_status',
+  'tax_regime',
+  'ncm_source',
+  'selected_fiscal_classification_option_id',
+  'selected_fiscal_classification_catalog_version',
+  'selected_fiscal_classification_option_fingerprint',
+  'selected_fiscal_classification_name',
+  'ncm_import_document_id',
+  'fiscal_classification_action',
+  'fiscal_refinement_state_token',
   'notes',
 ] as const;
 
-const NUMBER_FIELDS = ['acquisition_value', 'property_area_m2'] as const;
-const DATE_FIELDS = ['purchase_date', 'depreciation_start_date', 'construction_completion_date'] as const;
-const BOOLEAN_FIELDS = ['is_construction_in_progress'] as const;
+const NUMBER_FIELDS = ['acquisition_value', 'property_area_m2', 'useful_life_years', 'residual_value', 'depreciation_rate'] as const;
+const DATE_FIELDS = ['purchase_date', 'depreciation_start_date', 'construction_completion_date', 'available_for_use_date'] as const;
+const BOOLEAN_FIELDS = ['is_construction_in_progress', 'is_idle', 'has_impairment_indicators', 'has_significant_components', 'held_for_sale', 'disposed'] as const;
+const NCM_CLASSIFICATION_STATUSES = [
+  'CONFIRMED_BY_USER',
+  'CONFIRMED_BY_IMPORT',
+  'SUGGESTED_BY_RULE',
+  'SUGGESTED_BY_AI',
+  'AMBIGUOUS',
+  'UNKNOWN',
+] as const;
+const TAX_REGIMES = ['LUCRO_REAL', 'LUCRO_PRESUMIDO', 'SIMPLES_NACIONAL', 'OTHER', 'UNKNOWN'] as const;
+const TAX_REGIME_ALIASES: Record<string, typeof TAX_REGIMES[number]> = {
+  'LUCRO REAL': 'LUCRO_REAL',
+  'LUCRO PRESUMIDO': 'LUCRO_PRESUMIDO',
+  'SIMPLES NACIONAL': 'SIMPLES_NACIONAL',
+};
+const NCM_CONFIRMATION_SOURCES = ['CLASSIFICATION_OPTION', 'MANUAL_SPECIALIST', 'DOCUMENT_IMPORT', 'INVOICE_IMPORT'] as const;
+const FISCAL_CLASSIFICATION_ACTIONS = ['SUGGEST_OPTIONS', 'REFINE_OPTIONS', 'CONFIRM_OPTION', 'MANUAL_SPECIALIST_CONFIRMATION'] as const;
 
 const FRIENDLY_MISSING_DATA: Record<string, { label: string; contextField?: string }> = {
   description: { label: 'detalhes de utilizacao', contextField: 'description' },
@@ -173,6 +215,57 @@ function parseBoolean(value: unknown, field: string): { value?: boolean; error?:
   return { error: `Campo ${field} deve ser booleano.` };
 }
 
+function sanitizeFiscalClassificationAnswers(raw: unknown): { value?: Record<string, string>; error?: string } {
+  if (raw === undefined || raw === null || raw === '') return {};
+  if (!isPlainObject(raw)) return { error: 'Respostas de classificacao fiscal devem ser um objeto simples.' };
+
+  const answers: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!/^[a-z][a-z0-9_]{1,60}$/.test(key)) {
+      return { error: 'Identificador de resposta fiscal invalido.' };
+    }
+    if (typeof value !== 'string') {
+      return { error: 'Resposta de classificacao fiscal deve ser texto.' };
+    }
+    const normalizedValue = value.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_').replace(/_+/g, '_').slice(0, 80);
+    if (normalizedValue) answers[key] = normalizedValue;
+  }
+  return Object.keys(answers).length > 0 ? { value: answers } : {};
+}
+
+function sanitizeFiscalClassificationFingerprints(raw: unknown): { value?: Record<string, string>; error?: string } {
+  if (raw === undefined || raw === null || raw === '') return {};
+  if (!isPlainObject(raw)) return { error: 'Fingerprints de classificacao fiscal devem ser um objeto simples.' };
+
+  const fingerprints: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (!/^[A-Za-z][A-Za-z0-9_]{1,80}$/.test(key)) return { error: 'Identificador de fingerprint fiscal invalido.' };
+    if (typeof value !== 'string') return { error: 'Fingerprint de classificacao fiscal deve ser texto.' };
+    const normalized = value.trim().toUpperCase().replace(/[^A-Z0-9_]/g, '_').replace(/_+/g, '_').slice(0, 240);
+    if (normalized) fingerprints[key] = normalized;
+  }
+  return Object.keys(fingerprints).length > 0 ? { value: fingerprints } : {};
+}
+
+function sanitizeFiscalClassificationQuestionHistory(raw: unknown): { value?: unknown[]; error?: string } {
+  if (raw === undefined || raw === null || raw === '') return {};
+  const items = Array.isArray(raw) ? raw : isPlainObject(raw) ? Object.values(raw as Record<string, unknown>) : null;
+  if (!items) return { error: 'Historico de perguntas fiscais deve ser uma lista ou objeto simples.' };
+  if (items.length > 5) return { error: 'Historico de perguntas fiscais excede o limite permitido.' };
+  return { value: items };
+}
+
+function hasManualFiscalPermission(fresh: Record<string, unknown>): boolean {
+  if (fresh.is_platform_admin === true) return true;
+  const permission = 'patrimonio:classificacao-fiscal:confirmar-manualmente';
+  const values = [
+    fresh.permissions,
+    fresh.permission_codes,
+    fresh.effective_permissions,
+  ].flatMap((item) => Array.isArray(item) ? item : []);
+  return values.some((item) => typeof item === 'string' && item.trim().toLowerCase() === permission);
+}
+
 function sanitizeContext(raw: unknown): { context?: SanitizedContext; error?: string } {
   if (!isPlainObject(raw)) return { error: 'asset_context deve ser um objeto simples.' };
 
@@ -213,6 +306,50 @@ function sanitizeContext(raw: unknown): { context?: SanitizedContext; error?: st
     return { error: 'Tipo de titularidade invalido.' };
   }
 
+  const ncmStatus = typeof context.ncm_classification_status === 'string' ? context.ncm_classification_status : '';
+  if (ncmStatus && !NCM_CLASSIFICATION_STATUSES.includes(ncmStatus as typeof NCM_CLASSIFICATION_STATUSES[number])) {
+    return { error: 'Status de classificacao NCM invalido.' };
+  }
+
+  const taxRegime = typeof context.tax_regime === 'string' ? context.tax_regime.trim().toUpperCase() : '';
+  if (taxRegime) {
+    const normalizedRegime = TAX_REGIME_ALIASES[taxRegime] || taxRegime;
+    if (!TAX_REGIMES.includes(normalizedRegime as typeof TAX_REGIMES[number])) {
+      return { error: 'Regime tributario invalido.' };
+    }
+    context.tax_regime = normalizedRegime;
+  }
+
+  const ncmSource = typeof context.ncm_source === 'string' ? context.ncm_source.trim().toUpperCase() : '';
+  if (ncmSource) {
+    if (!NCM_CONFIRMATION_SOURCES.includes(ncmSource as typeof NCM_CONFIRMATION_SOURCES[number])) {
+      return { error: 'Origem de confirmacao NCM invalida.' };
+    }
+    context.ncm_source = ncmSource;
+  }
+
+  const fiscalAction = typeof context.fiscal_classification_action === 'string'
+    ? context.fiscal_classification_action.trim().toUpperCase()
+    : '';
+  if (fiscalAction) {
+    if (!FISCAL_CLASSIFICATION_ACTIONS.includes(fiscalAction as typeof FISCAL_CLASSIFICATION_ACTIONS[number])) {
+      return { error: 'Acao de classificacao fiscal invalida.' };
+    }
+    context.fiscal_classification_action = fiscalAction;
+  }
+
+  const fiscalAnswers = sanitizeFiscalClassificationAnswers(raw.fiscal_classification_answers);
+  if (fiscalAnswers.error) return { error: fiscalAnswers.error };
+  if (fiscalAnswers.value) context.fiscal_classification_answers = fiscalAnswers.value;
+
+  const fiscalFingerprints = sanitizeFiscalClassificationFingerprints(raw.fiscal_classification_answer_fingerprints);
+  if (fiscalFingerprints.error) return { error: fiscalFingerprints.error };
+  if (fiscalFingerprints.value) context.fiscal_classification_answer_fingerprints = fiscalFingerprints.value;
+
+  const fiscalQuestionHistory = sanitizeFiscalClassificationQuestionHistory(raw.fiscal_classification_question_history);
+  if (fiscalQuestionHistory.error) return { error: fiscalQuestionHistory.error };
+  if (fiscalQuestionHistory.value) context.fiscal_classification_question_history = fiscalQuestionHistory.value as unknown as Record<string, string>;
+
   for (const field of DATE_FIELDS) {
     const value = context[field];
     if (typeof value === 'string' && !isValidIsoDate(value)) {
@@ -239,9 +376,17 @@ function parseRequestedParameters(raw: unknown): { params?: ParameterName[]; err
 }
 
 function defaultUnit(parameter: ParameterName): string {
-  if (parameter === 'depreciation_rate') return 'percent_per_year';
-  if (parameter === 'useful_life_years') return 'years';
+  if (parameter === 'depreciation_rate' || parameter === 'fiscal_depreciation_rate') return 'percent_per_year';
+  if (parameter === 'useful_life_years' || parameter === 'fiscal_useful_life_years') return 'years';
   return 'BRL';
+}
+
+function isCorporateParameter(parameter: ParameterName): parameter is typeof CORPORATE_PARAMETERS[number] {
+  return (CORPORATE_PARAMETERS as readonly string[]).includes(parameter);
+}
+
+function isFiscalParameter(parameter: ParameterName): parameter is typeof FISCAL_PARAMETERS[number] {
+  return (FISCAL_PARAMETERS as readonly string[]).includes(parameter);
 }
 
 function notFound(parameter: ParameterName, reason: string, warnings: string[] = []): Suggestion {
@@ -461,17 +606,17 @@ function validateSuggestion(
     return notFound(parameter, 'Vida util fora do intervalo permitido.', warnings);
   }
 
+  const validationWarnings: string[] = [];
   if (parameter === 'residual_value') {
     const acquisition = context.acquisition_value;
     if (typeof acquisition !== 'number' || !Number.isFinite(acquisition) || acquisition <= 0) {
-      return notFound(parameter, 'Valor de aquisicao insuficiente para validar valor residual.', warnings);
-    }
-    if (value < 0 || value > acquisition) {
+      validationWarnings.push('Custo reconhecido ausente; o limite superior do residual nao pode ser validado.');
+    } else if (value < 0 || value > acquisition) {
       return notFound(parameter, 'Valor residual fora do intervalo permitido.', warnings);
     }
   }
 
-  const finalWarnings = sanitizeWarningList(rawSuggestion.warnings, context, true);
+  const finalWarnings = sanitizeWarningList([...(Array.isArray(rawSuggestion.warnings) ? rawSuggestion.warnings : []), ...validationWarnings], context, true);
 
   return {
     found: true,
@@ -572,6 +717,8 @@ function buildPrompt(params: ParameterName[], context: SanitizedContext, evidenc
     '- Nao exija residual_value, taxa residual ou percentual residual para sugerir residual_value.',
     '- Nao exija politica interna de depreciacao ou residual como condicao obrigatoria para estimativa gerencial.',
     '- Taxa e vida util devem ser analisadas em conjunto a partir das caracteristicas do ativo.',
+    '- Para depreciation_rate, estime a vida util societaria subjacente quando possivel; o backend calculara a taxa linear final.',
+    '- Nao use taxa fiscal, NCM ou tabela fiscal como fundamento da taxa societaria.',
     '- Valor residual deve ser estimado a partir dos dados disponiveis do ativo quando houver base minima.',
     '- Nao inclua em missing_data o proprio parametro solicitado, outro parametro tambem solicitado na mesma requisicao ou um valor derivado que esta tarefa deve estimar.',
     '- Nao use nomes tecnicos internos ou snake_case em reason, missing_data ou warnings.',
@@ -676,6 +823,44 @@ Deno.serve(async (req) => {
 
     const sanitized = sanitizeContext(body.asset_context);
     if (sanitized.error || !sanitized.context) return json({ error: sanitized.error }, 400);
+    const corporateParams = parsedParams.params.filter(isCorporateParameter);
+    const fiscalParams = parsedParams.params.filter(isFiscalParameter);
+    let suggestions: Partial<Record<ParameterName, Suggestion>> = {};
+
+    if (fiscalParams.length > 0) {
+      const fiscalRefinement = await runFiscalClassificationAiRefinement(
+        sanitized.context,
+        (payload) => svc.integrations.Core.InvokeLLM(payload),
+        {
+          userId: String(user.id || ''),
+          workspaceId: String(fresh.workspace_id || ''),
+          assetId: assetId || null,
+        },
+      );
+      suggestions = applyFiscalSuggestionAdapter({
+        context: sanitized.context,
+        requestedParams: fiscalParams,
+        suggestions,
+        serverConfirmation: {
+          userId: String(user.id || ''),
+          confirmedAt: new Date().toISOString(),
+          canManualSpecialistConfirm: hasManualFiscalPermission(fresh as Record<string, unknown>),
+        },
+        aiRefinement: fiscalRefinement,
+      }) as Partial<Record<ParameterName, Suggestion>>;
+    }
+
+    if (corporateParams.length === 0) {
+      return json({
+        ok: true,
+        basis: 'local_normative_fiscal',
+        suggestions,
+        sources_consulted: [],
+        sources_failed: [],
+        requires_user_confirmation: true,
+        generated_at: new Date().toISOString(),
+      });
+    }
 
     // Referencia fiscal deterministica (Anexo III da IN RFB 1.700/2017) -- nao depende de
     // scraping/LLM, entao e calculada antes de qualquer chamada externa e usada com prioridade
@@ -703,8 +888,8 @@ Deno.serve(async (req) => {
       }
       // Sem evidencia web para a estimativa gerencial, mas ha referencia fiscal deterministica
       // (Anexo III) disponivel -- devolve isso mesmo assim, em vez de falhar por completo.
-      const fallbackSuggestions: Partial<Record<ParameterName, Suggestion>> = {};
-      for (const param of parsedParams.params) {
+      const fallbackSuggestions: Partial<Record<ParameterName, Suggestion>> = { ...suggestions };
+      for (const param of corporateParams) {
         fallbackSuggestions[param] = notFound(param, 'Fonte confiavel indisponivel neste momento para a estimativa gerencial.');
       }
       return json({
@@ -719,12 +904,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    const prompt = buildPrompt(parsedParams.params, sanitized.context, sourceResult.evidence);
+    const prompt = buildPrompt(corporateParams, sanitized.context, sourceResult.evidence);
     let aiResponse: unknown;
     try {
       aiResponse = await svc.integrations.Core.InvokeLLM({
         prompt,
-        response_json_schema: responseSchema(parsedParams.params),
+        response_json_schema: responseSchema(corporateParams),
       });
     } catch (_) {
       return json({ error: 'Nao foi possivel gerar sugestoes agora. Tente novamente em instantes.' }, 502);
@@ -735,17 +920,22 @@ Deno.serve(async (req) => {
     }
 
     const allowedContextFields = new Set(Object.keys(sanitized.context));
-    const suggestions: Partial<Record<ParameterName, Suggestion>> = {};
-    for (const param of parsedParams.params) {
+    for (const param of corporateParams) {
       suggestions[param] = validateSuggestion(
         param,
         aiResponse.suggestions[param],
         sanitized.context,
         allowedContextFields,
-        parsedParams.params,
+        corporateParams,
         sourceResult.evidence,
       );
     }
+    suggestions = applyCorporateSuggestionAdapter({
+      context: sanitized.context,
+      requestedParams: corporateParams,
+      suggestions,
+      rawAiSuggestions: isPlainObject(aiResponse.suggestions) ? aiResponse.suggestions : {},
+    }) as Partial<Record<ParameterName, Suggestion>>;
     enforceRateLifeCoherence(suggestions);
     const llmFiscalReference = validateFiscalReference(aiResponse.fiscal_reference, sourceResult.evidence);
     // Static (Anexo III) tem prioridade sobre a inferencia da IA quando disponivel -- e
