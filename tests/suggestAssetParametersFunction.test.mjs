@@ -129,6 +129,8 @@ globalThis.__testExports = {
   inferCorporateAssetNature,
   applyCorporateSuggestionAdapter,
   applyFiscalSuggestionAdapter,
+  applyDirectFiscalSuggestionAdapter,
+  buildDirectFiscalCatalogOptions,
   ASSET_ALIASES,
   findClassificationCandidates,
   prepareFiscalClassificationRefinement,
@@ -143,6 +145,7 @@ globalThis.__testExports = {
   validateSuggestion,
   enforceRateLifeCoherence,
   buildPrompt,
+  buildDirectFiscalPrompt,
   sanitizeMissingData,
   sanitizeWarningList,
   responseSchema,
@@ -2526,6 +2529,110 @@ test('backend handler does not call AI when no trusted source is usable', async 
   assert.equal(result.body.ok, false);
   assert.equal(result.body.code, 'NO_TRUSTED_SOURCE_AVAILABLE');
   assert.equal(invoked, false);
+});
+
+test('backend direct fiscal classification asks AI to choose only a local catalog option', async () => {
+  const loaded = await loadFunctionModule();
+  const context = validFiscalContext({
+    name: 'Notebook Dell Latitude 5540',
+    description: 'Notebook corporativo usado pela equipe administrativa para rotinas internas.',
+    category: 'Equipamentos',
+    brand: 'Dell',
+    model: 'Latitude 5540',
+    account: 'Equipamentos de Informatica',
+    fiscal_classification_action: 'CLASSIFY_DIRECT',
+    ncm_code: '',
+    ncm_classification_status: '',
+    ncm_source: '',
+  });
+  const [option] = loaded.buildDirectFiscalCatalogOptions(context);
+  assert.ok(option);
+  assert.equal(option.ncm_code, '84713012');
+
+  let invokedPayload = null;
+  configureBase44(loaded.context, {
+    aiResponse: {
+      catalog_option_id: option.option_id,
+      confidence: 'high',
+      reason: 'O item foi identificado como notebook com base no nome, marca, modelo e conta contabil.',
+    },
+  });
+  const originalFactory = loaded.context.__createClientFromRequest;
+  loaded.context.__createClientFromRequest = (...args) => {
+    const client = originalFactory(...args);
+    const invoke = client.asServiceRole.integrations.Core.InvokeLLM;
+    client.asServiceRole.integrations.Core.InvokeLLM = async (payload) => {
+      invokedPayload = payload;
+      return invoke(payload);
+    };
+    return client;
+  };
+
+  const result = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
+    asset_context: context,
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.suggestions.fiscal_depreciation_rate.found, true);
+  assert.equal(result.body.suggestions.fiscal_depreciation_rate.value, 20);
+  assert.equal(result.body.suggestions.fiscal_useful_life_years.value, 5);
+  assert.equal(result.body.suggestions.fiscal_depreciation_rate.fiscal_classification.status, 'CLASSIFIED');
+  assert.equal(result.body.suggestions.fiscal_depreciation_rate.fiscal_classification.confirmed_ncm_code, '84713012');
+  assert.equal(result.body.suggestions.fiscal_depreciation_rate.fiscal_evaluation.status, 'MATCHED');
+  assert.match(invokedPayload.prompt, /catalog_options/);
+  assert.match(invokedPayload.prompt, /Responda sempre em portugues do Brasil/);
+  assert.equal(JSON.stringify(invokedPayload).includes('fiscal_residual_value'), false);
+});
+
+test('backend direct fiscal classification rejects nonexistent AI catalog option and unsupported regime', async () => {
+  const loaded = await loadFunctionModule();
+  const baseContext = validFiscalContext({
+    name: 'Notebook Dell Latitude 5540',
+    description: 'Notebook corporativo usado pela equipe administrativa.',
+    category: 'Equipamentos',
+    brand: 'Dell',
+    model: 'Latitude 5540',
+    account: 'Equipamentos de Informatica',
+    fiscal_classification_action: 'CLASSIFY_DIRECT',
+    ncm_code: '',
+    ncm_classification_status: '',
+    ncm_source: '',
+  });
+  configureBase44(loaded.context, {
+    aiResponse: {
+      catalog_option_id: 'INVENTED_OPTION',
+      confidence: 'high',
+      reason: 'Opcao inventada.',
+    },
+  });
+  const invalid = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
+    asset_context: baseContext,
+  });
+  assert.equal(invalid.status, 200);
+  assert.equal(invalid.body.suggestions.fiscal_depreciation_rate.found, false);
+  assert.equal(invalid.body.suggestions.fiscal_depreciation_rate.fiscal_classification.status, 'UNKNOWN');
+  assert.match(invalid.body.suggestions.fiscal_depreciation_rate.reason, /NCM seguro/);
+
+  configureBase44(loaded.context, {
+    aiResponse: {
+      catalog_option_id: loaded.buildDirectFiscalCatalogOptions(baseContext)[0]?.option_id,
+      confidence: 'high',
+      reason: 'Notebook.',
+    },
+  });
+  const simples = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['fiscal_depreciation_rate', 'fiscal_useful_life_years', 'fiscal_residual_value'],
+    asset_context: { ...baseContext, tax_regime: 'SIMPLES_NACIONAL' },
+  });
+  assert.equal(simples.status, 200);
+  assert.equal(simples.body.suggestions.fiscal_depreciation_rate.found, false);
+  assert.equal(simples.body.suggestions.fiscal_depreciation_rate.fiscal_evaluation.status, 'OUT_OF_DEFAULT_SCOPE');
+  assert.equal(simples.body.suggestions.fiscal_residual_value, undefined);
 });
 
 test('backend handler rejects source ids invented by the AI', async () => {

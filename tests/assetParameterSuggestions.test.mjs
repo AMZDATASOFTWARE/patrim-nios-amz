@@ -132,10 +132,12 @@ test('frontend helper builds suggestAssetParameters payload for creation and edi
 test('frontend helper builds fiscal refinement payload without exposing NCM as decision', () => {
   const baseContext = { name: 'Freezer comercial', category: 'Equipamentos' };
   const state = createEmptyFiscalRefinementState();
-  const suggestContext = buildFiscalRefinementContext(baseContext, state, 'SUGGEST_OPTIONS', { taxRegime: 'LUCRO_REAL' });
-  assert.equal(suggestContext.fiscal_classification_action, 'SUGGEST_OPTIONS');
+  const suggestContext = buildFiscalRefinementContext(baseContext, state, 'CLASSIFY_DIRECT', { taxRegime: 'LUCRO_REAL' });
+  assert.equal(suggestContext.fiscal_classification_action, 'CLASSIFY_DIRECT');
   assert.equal(suggestContext.tax_regime, 'LUCRO_REAL');
   assert.equal('fiscal_refinement_state_token' in suggestContext, false);
+  assert.equal('fiscal_classification_answers' in suggestContext, false);
+  assert.equal('selected_fiscal_classification_option_id' in suggestContext, false);
 
   const questionState = {
     ...state,
@@ -263,36 +265,33 @@ test('frontend helper exposes fiscal refinement states with actionable messages'
   assert.match(fiscalUserMessage('NO_SAFE_CANDIDATE'), /classifica/i);
 
   const previous = createEmptyFiscalRefinementState();
-  const withQuestion = buildNextFiscalRefinementState(previous, {
+  const classified = buildNextFiscalRefinementState(previous, {
     suggestions: {
       fiscal_depreciation_rate: {
-        found: false,
+        found: true,
+        value: 20,
         fiscal_classification: {
-          refinement_state: {
-            status: 'NEEDS_MORE_INFORMATION',
-            current_question: { question_id: 'Q1', question: 'Qual o tipo?', options: [{ value: 'A', label: 'Tipo A' }] },
-            refinement_state_token: 'token-question',
-          },
+          status: 'CLASSIFIED',
+          confirmed_display_name: 'Notebook / computador portátil',
+          confirmed_ncm_code: '84713012',
         },
       },
+      fiscal_useful_life_years: { found: true, value: 5 },
     },
-  }, 'ctx-question');
-  assert.equal(withQuestion.status, 'NEEDS_MORE_INFORMATION');
-  assert.equal(withQuestion.currentQuestion.question_id, 'Q1');
+  }, 'ctx-classified');
+  assert.equal(classified.status, 'CLASSIFIED');
+  assert.equal(classified.classificationConfirmed, false);
+  assert.equal(classified.currentQuestion, null);
 
-  const ready = buildNextFiscalRefinementState(previous, {
+  const noSafeMatch = buildNextFiscalRefinementState(previous, {
     suggestions: {
       fiscal_depreciation_rate: {
         found: false,
-        fiscal_classification: {
-          refinement_state: { status: 'READY_FOR_CONFIRMATION', refinement_state_token: 'token-ready' },
-          options: [{ option_id: 'OPT_READY', display_name: 'Notebook', can_release_fiscal_rule: true }],
-        },
+        fiscal_classification: { status: 'UNKNOWN' },
       },
     },
-  }, 'ctx-ready');
-  assert.equal(ready.status, 'READY_FOR_CONFIRMATION');
-  assert.equal(ready.readyOption.option_id, 'OPT_READY');
+  }, 'ctx-empty');
+  assert.equal(noSafeMatch.status, 'NO_SAFE_MATCH');
 });
 
 test('frontend helper maps clicked fields to the expected request fields', () => {
@@ -512,7 +511,8 @@ test('AssetForm source uses one shared depreciation button and keeps residual se
   assert.equal(source.includes('{renderSuggestionNotices(DEPRECIATION_SUGGESTION_FIELDS)}'), true);
   assert.equal(source.includes("{renderSuggestionNotices(['residual_value'])}"), true);
   assert.equal(source.includes('Referência fiscal:'), false);
-  assert.equal(source.includes('NCM'), false);
+  const managementPanel = source.slice(source.indexOf('Sugestão gerencial automática'), source.indexOf('Fornecedor & Documento Fiscal'));
+  assert.equal(managementPanel.includes('NCM'), false);
   assert.equal(source.includes('Sugestão gerada com base nos dados informados e nas fontes consultadas.'), false);
   assert.equal(source.includes('if (!payload.ok) {'), true);
   assert.equal(source.includes('Object.assign(new Error(rawPayload?.error'), true);
@@ -529,15 +529,16 @@ test('AssetForm source integrates fiscal refinement only through explicit user a
   const fiscalSource = await readFile(FISCAL_REFINEMENT_PATH, 'utf8');
 
   assert.equal(source.includes('FiscalClassificationRefinement'), true);
-  assert.equal(source.includes("runFiscalRefinementRequest('SUGGEST_OPTIONS'"), true);
-  assert.equal(source.includes("runFiscalRefinementRequest('REFINE_OPTIONS'"), true);
-  assert.equal(source.includes("runFiscalRefinementRequest('CONFIRM_OPTION'"), true);
+  assert.equal(source.includes("runFiscalRefinementRequest('CLASSIFY_DIRECT'"), true);
+  assert.equal(source.includes("runFiscalRefinementRequest('SUGGEST_OPTIONS'"), false);
   assert.equal(source.includes('FISCAL_DEPRECIATION_SUGGESTION_FIELDS'), true);
   assert.equal(source.includes("['fiscal_residual_value']"), false);
   assert.equal(source.includes('localStorage'), false);
   assert.equal(source.includes('sessionStorage'), false);
   assert.equal(source.includes('VITE_FISCAL_REFINEMENT_STATE_SECRET'), false);
-  assert.equal(fiscalSource.includes('Confirmar tipo do item'), true);
+  assert.equal(fiscalSource.includes('Confirmar classificação fiscal'), true);
+  assert.equal(fiscalSource.includes('NCM sugerido pelo catálogo fiscal local'), true);
+  assert.equal(fiscalSource.includes('Tipo identificado'), true);
   assert.equal(fiscalSource.includes('refinement_state_token'), false);
   assert.equal(fiscalSource.includes('candidate_ref'), false);
   assert.equal(fiscalSource.includes('question_fingerprint'), false);

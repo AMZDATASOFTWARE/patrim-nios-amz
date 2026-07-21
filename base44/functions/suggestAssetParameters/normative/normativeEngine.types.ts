@@ -1,6 +1,7 @@
 export type Regime = 'CORPORATE' | 'FISCAL';
 
 export type ClassificationStatus =
+  | 'CLASSIFIED'
   | 'CONFIRMED_BY_USER'
   | 'CONFIRMED_BY_IMPORT'
   | 'SUGGESTED_BY_RULE'
@@ -22,6 +23,7 @@ export type TaxRegime =
   | 'UNKNOWN';
 
 export type FiscalClassificationAction =
+  | 'CLASSIFY_DIRECT'
   | 'SUGGEST_OPTIONS'
   | 'REFINE_OPTIONS'
   | 'CONFIRM_OPTION'

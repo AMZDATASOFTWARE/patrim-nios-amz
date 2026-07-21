@@ -11,7 +11,10 @@ import {
   applyCorporateSuggestionAdapter,
 } from './corporateSuggestionAdapter.ts';
 import {
+  applyDirectFiscalSuggestionAdapter,
   applyFiscalSuggestionAdapter,
+  buildDirectFiscalCatalogOptions,
+  type DirectFiscalAiChoice,
 } from './fiscalSuggestionAdapter.ts';
 import {
   runFiscalClassificationAiRefinement,
@@ -114,7 +117,7 @@ const TAX_REGIME_ALIASES: Record<string, typeof TAX_REGIMES[number]> = {
   'SIMPLES NACIONAL': 'SIMPLES_NACIONAL',
 };
 const NCM_CONFIRMATION_SOURCES = ['CLASSIFICATION_OPTION', 'MANUAL_SPECIALIST', 'DOCUMENT_IMPORT', 'INVOICE_IMPORT'] as const;
-const FISCAL_CLASSIFICATION_ACTIONS = ['SUGGEST_OPTIONS', 'REFINE_OPTIONS', 'CONFIRM_OPTION', 'MANUAL_SPECIALIST_CONFIRMATION'] as const;
+const FISCAL_CLASSIFICATION_ACTIONS = ['CLASSIFY_DIRECT', 'SUGGEST_OPTIONS', 'REFINE_OPTIONS', 'CONFIRM_OPTION', 'MANUAL_SPECIALIST_CONFIRMATION'] as const;
 
 const FRIENDLY_MISSING_DATA: Record<string, { label: string; contextField?: string }> = {
   description: { label: 'detalhes de utilizacao', contextField: 'description' },
@@ -850,6 +853,72 @@ function responseSchema(params: ParameterName[]) {
   };
 }
 
+function buildDirectFiscalPrompt(context: SanitizedContext, catalogOptions: ReturnType<typeof buildDirectFiscalCatalogOptions>): string {
+  const compactOptions = catalogOptions.map((option) => ({
+    catalog_option_id: option.option_id,
+    display_name: option.display_name,
+    description: option.plain_description,
+    ncm_display: option.ncm_display,
+    candidate_type: option.candidate_type,
+    matched_terms: option.matched_terms,
+    source: option.source_id,
+    legal_reference: option.source_reference,
+    official_description: option.official_description,
+  }));
+
+  return [
+    'Voce e um assistente fiscal de apoio a classificacao patrimonial.',
+    'Responda sempre em portugues do Brasil.',
+    'Sua tarefa e escolher uma unica opcao fiscal local para o ativo, quando houver seguranca suficiente.',
+    'Use somente o contexto sanitizado e as catalog_options fornecidas pelo backend.',
+    'Nao invente NCM, taxa, vida util, fonte, norma ou regra.',
+    'Nao use internet, conhecimento externo ou classificacao fora do catalogo.',
+    'Retorne catalog_option_id exatamente igual a uma opcao existente ou null quando nenhuma opcao for segura.',
+    'A justificativa deve ser curta, em portugues do Brasil, sem nomes tecnicos internos.',
+    '',
+    'Contexto sanitizado do ativo:',
+    JSON.stringify({
+      name: context.name,
+      category: context.category,
+      description: context.description,
+      account: context.account,
+      brand: context.brand,
+      model: context.model,
+      tax_regime: context.tax_regime,
+      conservation_state: context.conservation_state,
+    }, null, 2),
+    '',
+    'catalog_options:',
+    JSON.stringify(compactOptions, null, 2),
+    '',
+    'Responda somente no JSON definido pelo schema.',
+  ].join('\n');
+}
+
+function directFiscalResponseSchema() {
+  return {
+    type: 'object',
+    properties: {
+      catalog_option_id: { type: ['string', 'null'] },
+      confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
+      reason: { type: 'string' },
+    },
+    required: ['catalog_option_id', 'confidence', 'reason'],
+  };
+}
+
+function normalizeDirectFiscalChoice(value: unknown): DirectFiscalAiChoice | null {
+  if (!isPlainObject(value)) return null;
+  const confidence = value.confidence === 'high' || value.confidence === 'medium' || value.confidence === 'low'
+    ? value.confidence
+    : 'low';
+  return {
+    catalog_option_id: typeof value.catalog_option_id === 'string' ? value.catalog_option_id : null,
+    reason: typeof value.reason === 'string' ? value.reason.slice(0, 500) : null,
+    confidence,
+  };
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: cors });
   if (req.method !== 'POST') return json({ error: 'Metodo nao permitido.' }, 405);
@@ -890,26 +959,47 @@ Deno.serve(async (req) => {
     let suggestions: Partial<Record<ParameterName, Suggestion>> = {};
 
     if (fiscalParams.length > 0) {
-      const fiscalRefinement = await runFiscalClassificationAiRefinement(
-        sanitized.context,
-        (payload) => svc.integrations.Core.InvokeLLM(payload),
-        {
-          userId: String(user.id || ''),
-          workspaceId: String(fresh.workspace_id || ''),
-          assetId: assetId || null,
-        },
-      );
-      suggestions = applyFiscalSuggestionAdapter({
-        context: sanitized.context,
-        requestedParams: fiscalParams,
-        suggestions,
-        serverConfirmation: {
-          userId: String(user.id || ''),
-          confirmedAt: new Date().toISOString(),
-          canManualSpecialistConfirm: hasManualFiscalPermission(fresh as Record<string, unknown>),
-        },
-        aiRefinement: fiscalRefinement,
-      }) as Partial<Record<ParameterName, Suggestion>>;
+      if (sanitized.context.fiscal_classification_action === 'CLASSIFY_DIRECT') {
+        const catalogOptions = buildDirectFiscalCatalogOptions(sanitized.context);
+        let aiChoice: DirectFiscalAiChoice | null = null;
+        if (catalogOptions.length > 0) {
+          try {
+            aiChoice = normalizeDirectFiscalChoice(await svc.integrations.Core.InvokeLLM({
+              prompt: buildDirectFiscalPrompt(sanitized.context, catalogOptions),
+              response_json_schema: directFiscalResponseSchema(),
+            }));
+          } catch (_) {
+            aiChoice = null;
+          }
+        }
+        suggestions = applyDirectFiscalSuggestionAdapter({
+          context: sanitized.context,
+          requestedParams: fiscalParams,
+          suggestions,
+          aiChoice,
+        }) as Partial<Record<ParameterName, Suggestion>>;
+      } else {
+        const fiscalRefinement = await runFiscalClassificationAiRefinement(
+          sanitized.context,
+          (payload) => svc.integrations.Core.InvokeLLM(payload),
+          {
+            userId: String(user.id || ''),
+            workspaceId: String(fresh.workspace_id || ''),
+            assetId: assetId || null,
+          },
+        );
+        suggestions = applyFiscalSuggestionAdapter({
+          context: sanitized.context,
+          requestedParams: fiscalParams,
+          suggestions,
+          serverConfirmation: {
+            userId: String(user.id || ''),
+            confirmedAt: new Date().toISOString(),
+            canManualSpecialistConfirm: hasManualFiscalPermission(fresh as Record<string, unknown>),
+          },
+          aiRefinement: fiscalRefinement,
+        }) as Partial<Record<ParameterName, Suggestion>>;
+      }
     }
 
     if (corporateParams.length === 0) {

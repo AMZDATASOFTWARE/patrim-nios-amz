@@ -2,13 +2,10 @@ import { RefreshCw, Sparkles } from 'lucide-react';
 import {
   FISCAL_DEPRECIATION_SUGGESTION_FIELDS,
   confidenceValueLabel,
-  fiscalCurrentQuestion,
+  fiscalClassificationFromSuggestions,
   fiscalEvaluationFromSuggestions,
-  fiscalReadyOption,
-  fiscalUserMessage,
   formatSuggestionValue,
   hasFoundSuggestionForFields,
-  isInvalidFiscalTokenMessage,
   summarizeSuggestionSources,
   uniqueSuggestionWarnings,
 } from '@/lib/assetParameterSuggestions';
@@ -28,69 +25,36 @@ function ActionButton({ children, className = '', variant = 'primary', ...props 
   );
 }
 
-function fiscalStatusLabel(status) {
-  if (status === 'READY_FOR_CONFIRMATION') return 'Tipo identificado';
-  if (status === 'NEEDS_MORE_INFORMATION') return 'Refinando identificação';
-  if (status === 'NO_SAFE_CANDIDATE') return 'Sem classificação segura';
-  if (status === 'REQUIRES_HUMAN_REVIEW') return 'Revisão necessária';
-  return 'Análise fiscal';
-}
-
-function optionDescription(option) {
-  return option?.plain_description || option?.description || '';
-}
-
-function missingDataForFiscalSuggestions(suggestions) {
-  const items = [];
-  FISCAL_DEPRECIATION_SUGGESTION_FIELDS.forEach((field) => {
-    const missing = suggestions?.[field]?.missing_data;
-    if (!Array.isArray(missing)) return;
-    missing.forEach((item) => {
-      const text = String(item || '').trim();
-      if (text && !items.includes(text)) items.push(text);
-    });
-  });
-  return items.slice(0, 4);
-}
-
-function fiscalFallbackMessage(status, suggestions) {
-  if (status === 'ERROR') return 'Não foi possível consultar a sugestão fiscal agora. Tente novamente em instantes.';
-  if (status === 'REQUIRES_HUMAN_REVIEW') {
-    return 'A classificação fiscal precisa de revisão humana antes de sugerir taxa ou vida útil.';
+function fiscalPanelMessage(status, evaluationStatus) {
+  if (status === 'ERROR') return 'Não foi possível consultar a sugestão fiscal agora. Tente novamente.';
+  if (evaluationStatus === 'OUT_OF_DEFAULT_SCOPE') {
+    return 'Este regime tributário está fora do escopo automático da sugestão fiscal. Consulte o responsável contábil/fiscal.';
   }
-  if (status === 'NO_SAFE_CANDIDATE') {
-    return 'Não encontramos uma classificação fiscal segura para este bem com as informações disponíveis.';
+  if (evaluationStatus === 'REQUIRES_TAX_REGIME_CONFIRMATION') {
+    return 'Informe o regime tributário para analisar a sugestão fiscal.';
   }
-  if (status === 'NEEDS_MORE_INFORMATION') {
-    const missing = missingDataForFiscalSuggestions(suggestions);
-    if (missing.length > 0) return `Preencha ou revise: ${missing.join(', ')}.`;
-    return 'Informe uma descrição mais detalhada, a conta contábil, marca ou modelo para melhorar a classificação fiscal.';
-  }
-  return '';
+  return 'Não foi possível relacionar este bem a um NCM seguro no catálogo local. Revise nome, descrição, categoria, marca, modelo ou conta contábil.';
 }
 
-function TechnicalDetails({ option, classification, suggestions, response }) {
-  if (!option && !classification) return null;
-  const rate = suggestions.fiscal_depreciation_rate;
-  const life = suggestions.fiscal_useful_life_years;
-  const source = summarizeSuggestionSources(response, rate || life, 3);
+function fiscalSourceLabel(response, suggestion, evaluation) {
+  const source = summarizeSuggestionSources(response, suggestion, 2);
+  if (source) return source;
+  return evaluation?.references?.[0]?.source_reference || evaluation?.references?.[0]?.source_id || 'Base normativa fiscal local';
+}
 
+function FiscalSuggestionLine({ field, suggestion, disabled, onApply }) {
+  if (!suggestion?.found) return null;
   return (
-    <details className="rounded-md bg-background/70 p-2 text-xs">
-      <summary className="cursor-pointer font-medium text-foreground">Saiba mais</summary>
-      <div className="mt-2 space-y-1 text-muted-foreground">
-        {option?.display_name && <p><span className="font-medium text-foreground">Tipo:</span> {option.display_name}</p>}
-        {option?.ncm_display && <p><span className="font-medium text-foreground">Detalhe técnico fiscal:</span> {option.ncm_display}</p>}
-        {rate?.found && <p><span className="font-medium text-foreground">Taxa fiscal:</span> {formatSuggestionValue('fiscal_depreciation_rate', rate.value)}</p>}
-        {life?.found && <p><span className="font-medium text-foreground">Vida útil fiscal:</span> {formatSuggestionValue('fiscal_useful_life_years', life.value)}</p>}
-        {source && <p><span className="font-medium text-foreground">Fonte normativa:</span> {source}</p>}
-        {(rate?.reason || life?.reason) && <p><span className="font-medium text-foreground">Justificativa:</span> {rate?.reason || life?.reason}</p>}
-        {(rate?.confidence || life?.confidence) && <p><span className="font-medium text-foreground">Confiança:</span> {confidenceValueLabel(rate?.confidence || life?.confidence)}</p>}
-        {classification?.refinement_state?.warnings?.length > 0 && (
-          <p><span className="font-medium text-foreground">Aviso:</span> {classification.refinement_state.warnings[0]}</p>
-        )}
-      </div>
-    </details>
+    <div className="rounded-md bg-background/80 p-3 text-xs">
+      <p className="text-[11px] font-medium uppercase text-muted-foreground">
+        {field === 'fiscal_depreciation_rate' ? 'Taxa fiscal' : 'Vida útil fiscal'}
+      </p>
+      <p className="text-base font-semibold text-foreground">{formatSuggestionValue(field, suggestion.value)}</p>
+      <p className="mt-1 text-muted-foreground">Confiança: {confidenceValueLabel(suggestion.confidence)}</p>
+      <ActionButton variant="outline" className="mt-3" onClick={() => onApply(field)} disabled={disabled}>
+        Usar {field === 'fiscal_depreciation_rate' ? 'taxa fiscal' : 'vida útil fiscal'}
+      </ActionButton>
+    </div>
   );
 }
 
@@ -99,157 +63,102 @@ export default function FiscalClassificationRefinement({
   taxRegime,
   onTaxRegimeChange,
   onStart,
-  onSelectOption,
-  onContinue,
   onConfirm,
   onApply,
-  onReset,
 }) {
   const suggestions = state.suggestions || {};
-  const classification = state.classification || null;
+  const classification = state.classification || fiscalClassificationFromSuggestions(suggestions);
   const evaluation = fiscalEvaluationFromSuggestions(suggestions);
-  const question = state.currentQuestion || fiscalCurrentQuestion(classification);
-  const readyOption = state.readyOption || fiscalReadyOption(classification);
+  const rate = suggestions.fiscal_depreciation_rate;
+  const life = suggestions.fiscal_useful_life_years;
   const hasSuggestion = hasFoundSuggestionForFields(suggestions, FISCAL_DEPRECIATION_SUGGESTION_FIELDS);
-  const status = state.status || classification?.refinement_state?.status || 'IDLE';
-  const fallbackMessage = !question && !readyOption && !hasSuggestion ? fiscalFallbackMessage(status, suggestions) : '';
-  const userMessage = state.error || fiscalUserMessage(status, evaluation?.status) || fallbackMessage;
-  const invalidToken = isInvalidFiscalTokenMessage(classification);
-  const loadingLabel = status === 'CONFIRMING' ? 'Confirmando tipo do item...' : 'Refinando a identificação do item...';
-  const disabled = state.loading;
+  const status = state.loading ? 'LOADING' : state.status || 'IDLE';
+  const source = fiscalSourceLabel(state.response, rate || life, evaluation);
+  const reason = rate?.reason || life?.reason || classification?.reason || '';
+  const warnings = uniqueSuggestionWarnings([...(rate?.warnings || []), ...(life?.warnings || [])]).slice(0, 3);
+  const confirmed = state.classificationConfirmed === true;
+  const applyDisabled = state.loading || !confirmed;
 
   return (
-    <div className="space-y-3 rounded-lg border border-dashed border-border bg-muted/20 p-3">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-4 rounded-xl border border-primary/20 bg-card p-4 sm:p-6 shadow-sm">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-foreground">Sugestão fiscal automática</p>
-          <p className="text-xs text-muted-foreground">A referência é fiscal, exige validação profissional e não substitui os parâmetros contábeis.</p>
+          <h2 className="text-lg font-semibold text-card-foreground">Sugestão fiscal automática</h2>
+          <p className="text-sm text-muted-foreground">A IA escolhe uma opção do catálogo fiscal local. Você confirma antes de usar os valores.</p>
         </div>
-        <ActionButton variant="outline" className="gap-2" onClick={onStart} disabled={disabled}>
+        <ActionButton variant="outline" className="gap-2" onClick={onStart} disabled={state.loading}>
           {state.loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {state.loading ? 'Analisando...' : 'Sugestão Automática'}
         </ActionButton>
       </div>
 
-      <div className="grid gap-2 sm:grid-cols-[220px_1fr] sm:items-end">
-        <div>
-          <label htmlFor="fiscal_tax_regime" className="text-sm font-medium leading-none">Regime tributário para análise</label>
-          <select
-            id="fiscal_tax_regime"
-            className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
-            value={taxRegime}
-            onChange={(event) => onTaxRegimeChange(event.target.value)}
-            disabled={disabled}
-          >
-            <option value="">Selecionar se necessário</option>
-            <option value="LUCRO_REAL">Lucro Real</option>
-            <option value="LUCRO_PRESUMIDO">Lucro Presumido</option>
-            <option value="SIMPLES_NACIONAL">Simples Nacional</option>
-            <option value="OTHER">Outro / precisa de análise</option>
-          </select>
-        </div>
-        {status && status !== 'IDLE' && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <span className="inline-flex rounded-md border px-2.5 py-0.5 text-xs font-semibold text-foreground">{fiscalStatusLabel(status)}</span>
-            <span>Nada é aplicado sem confirmação.</span>
-          </div>
-        )}
+      <div>
+        <label htmlFor="fiscal_tax_regime" className="text-sm font-medium leading-none">Regime tributário para análise</label>
+        <select
+          id="fiscal_tax_regime"
+          className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
+          value={taxRegime}
+          onChange={(event) => onTaxRegimeChange(event.target.value)}
+          disabled={state.loading}
+        >
+          <option value="">Selecionar se necessário</option>
+          <option value="LUCRO_REAL">Lucro Real</option>
+          <option value="LUCRO_PRESUMIDO">Lucro Presumido</option>
+          <option value="SIMPLES_NACIONAL">Simples Nacional</option>
+          <option value="OTHER">Outro / precisa de análise</option>
+        </select>
       </div>
 
-      {state.loading && (
-        <p className="flex items-center gap-2 text-xs text-muted-foreground">
-          <RefreshCw className="h-3 w-3 animate-spin" />
-          {loadingLabel}
+      {status === 'LOADING' && (
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
+          <RefreshCw className="h-4 w-4 animate-spin" />
+          Analisando dados do patrimônio e relacionando com o catálogo fiscal...
         </p>
       )}
 
-      {invalidToken && !state.loading && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-          <p>Esta análise expirou ou os dados do bem foram alterados. Vamos iniciar uma nova análise com as informações atuais.</p>
-          <button type="button" className="h-auto px-0 py-1 text-xs font-medium text-amber-900 underline" onClick={onReset}>
-            Reiniciar análise
-          </button>
+      {state.error && status !== 'LOADING' && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          {state.error}
         </div>
       )}
 
-      {userMessage && !invalidToken && !state.loading && (
-        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-          {userMessage}
+      {!state.error && !hasSuggestion && status !== 'IDLE' && status !== 'LOADING' && (
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+          {fiscalPanelMessage(status, evaluation?.status)}
         </div>
       )}
 
-      {question && !state.loading && !invalidToken && (
-        <div className="rounded-md border border-border bg-background p-3">
-          <p className="mb-1 text-xs font-medium uppercase text-muted-foreground">Precisamos de mais uma informação</p>
-          <p className="text-sm font-medium text-foreground">{question.question}</p>
-          {question.reason && <p className="mt-1 text-xs text-muted-foreground">{question.reason}</p>}
-          <div className="mt-3 grid gap-2" role="radiogroup" aria-label={question.question}>
-            {(question.options || []).map((option) => (
-              <div key={option.value} className="flex items-start gap-2 rounded-md border border-border p-2">
-                <input
-                  id={`${question.question_id}-${option.value}`}
-                  type="radio"
-                  name={question.question_id}
-                  value={option.value}
-                  checked={state.selectedOption === option.value}
-                  onChange={() => onSelectOption(option.value)}
-                  disabled={disabled}
-                  className="mt-0.5 h-4 w-4"
-                />
-                <label htmlFor={`${question.question_id}-${option.value}`} className="flex-1 cursor-pointer text-sm font-normal">
-                  {option.label}
-                </label>
-              </div>
-            ))}
+      {hasSuggestion && (
+        <div className="space-y-3 rounded-md border border-primary/20 bg-primary/5 p-3">
+          <div className="space-y-1 text-sm">
+            <p><span className="font-medium text-foreground">Tipo identificado:</span> {classification?.confirmed_display_name || classification?.options?.[0]?.display_name || 'não informado'}</p>
+            <p><span className="font-medium text-foreground">NCM sugerido pelo catálogo fiscal local:</span> {classification?.confirmed_ncm_code || classification?.options?.[0]?.ncm_display || 'não informado'}</p>
+            <p><span className="font-medium text-foreground">Fonte / norma:</span> {source}</p>
+            {reason && <p><span className="font-medium text-foreground">Justificativa:</span> {reason}</p>}
           </div>
-          <div className="mt-3 flex justify-end">
-            <ActionButton onClick={onContinue} disabled={disabled || !state.selectedOption}>
-              Continuar
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <FiscalSuggestionLine field="fiscal_depreciation_rate" suggestion={rate} disabled={applyDisabled} onApply={onApply} />
+            <FiscalSuggestionLine field="fiscal_useful_life_years" suggestion={life} disabled={applyDisabled} onApply={onApply} />
+          </div>
+
+          {warnings.length > 0 && (
+            <div className="rounded-md bg-background/70 p-2 text-xs text-muted-foreground">
+              <p className="mb-1 font-medium text-foreground">Avisos fiscais</p>
+              <ul className="space-y-1">
+                {warnings.map((warning) => <li key={warning}>• {warning}</li>)}
+              </ul>
+            </div>
+          )}
+
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs text-muted-foreground">
+              {confirmed ? 'Classificação fiscal confirmada nesta tela. Os campos continuam editáveis.' : 'Confirme a classificação fiscal antes de usar os valores sugeridos.'}
+            </p>
+            <ActionButton onClick={() => onConfirm(classification?.options?.[0] || null)} disabled={state.loading || confirmed}>
+              {confirmed ? 'Classificação confirmada' : 'Confirmar classificação fiscal'}
             </ActionButton>
           </div>
-        </div>
-      )}
-
-      {readyOption && !question && !hasSuggestion && !state.loading && !invalidToken && !userMessage && (
-        <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
-          <p className="text-xs font-medium uppercase text-muted-foreground">Tipo identificado</p>
-          <p className="text-base font-semibold text-foreground">{readyOption.display_name}</p>
-          {optionDescription(readyOption) && <p className="mt-1 text-sm text-muted-foreground">{optionDescription(readyOption)}</p>}
-          <TechnicalDetails option={readyOption} classification={classification} suggestions={suggestions} response={state.response} />
-          <div className="mt-3 flex justify-end">
-            <ActionButton onClick={() => onConfirm(readyOption)} disabled={disabled || !taxRegime}>
-              Confirmar tipo do item
-            </ActionButton>
-          </div>
-          {!taxRegime && <p className="mt-2 text-xs text-muted-foreground">Informe o regime tributário para confirmar o tipo e consultar a regra fiscal aplicável.</p>}
-        </div>
-      )}
-
-      {hasSuggestion && !state.loading && (
-        <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
-          <p className="text-sm font-semibold text-foreground">Sugestão fiscal</p>
-          <div className="mt-2 grid gap-3 sm:grid-cols-2">
-            {FISCAL_DEPRECIATION_SUGGESTION_FIELDS.map((field) => {
-              const suggestion = suggestions[field];
-              if (!suggestion?.found) return null;
-              const warnings = uniqueSuggestionWarnings(suggestion.warnings).slice(0, 2);
-              return (
-                <div key={field} className="rounded-md bg-background/80 p-3 text-xs">
-                  <p className="text-[11px] font-medium uppercase text-muted-foreground">
-                    {field === 'fiscal_depreciation_rate' ? 'Taxa fiscal' : 'Vida útil fiscal'}
-                  </p>
-                  <p className="text-base font-semibold text-foreground">{formatSuggestionValue(field, suggestion.value)}</p>
-                  <p className="mt-1 text-muted-foreground">Confiança: {confidenceValueLabel(suggestion.confidence)}</p>
-                  {warnings.length > 0 && <p className="mt-1 text-muted-foreground">{warnings[0]}</p>}
-                  <ActionButton variant="outline" className="mt-3" onClick={() => onApply(field)} disabled={disabled}>
-                    Usar sugestão
-                  </ActionButton>
-                </div>
-              );
-            })}
-          </div>
-          <TechnicalDetails option={readyOption} classification={classification} suggestions={suggestions} response={state.response} />
-          <p className="mt-2 text-xs text-muted-foreground">A aplicação é manual e cada campo continua editável.</p>
         </div>
       )}
 
