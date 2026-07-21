@@ -329,7 +329,7 @@ export default function AssetForm() {
         const error = Object.assign(new Error(rawPayload?.error || 'Falha ao gerar sugestão fiscal.'), { data: rawPayload });
         throw error;
       }
-      updateFiscalStateFromResponse(payload, contextKey, action === 'CONFIRM_OPTION' ? 'SUGGESTION_READY' : 'NEEDS_MORE_INFORMATION');
+      updateFiscalStateFromResponse(payload, contextKey, action === 'CONFIRM_OPTION' ? 'CLASSIFIED' : 'NO_SAFE_MATCH');
     } catch (error) {
       if (!aiMountedRef.current || fiscalRequestSeqRef.current !== requestId) return;
       setFiscalRefinement((prev) => ({
@@ -348,7 +348,7 @@ export default function AssetForm() {
 
   const handleStartFiscalSuggestion = () => {
     setFiscalRefinement(createEmptyFiscalRefinementState());
-    runFiscalRefinementRequest('SUGGEST_OPTIONS', { refinementStateToken: null, resetState: true });
+    runFiscalRefinementRequest('CLASSIFY_DIRECT', { refinementStateToken: null, resetState: true });
   };
 
   const handleContinueFiscalRefinement = () => {
@@ -361,12 +361,13 @@ export default function AssetForm() {
   };
 
   const handleConfirmFiscalOption = (option) => {
-    if (!option) return;
-    runFiscalRefinementRequest('CONFIRM_OPTION', { selectedOption: option });
+    setFiscalRefinement((prev) => ({ ...prev, classificationConfirmed: true, readyOption: option || prev.readyOption }));
+    toast.success('Classificação fiscal confirmada. Revise antes de usar os valores.');
   };
 
   const handleApplyFiscalSuggestion = (field) => {
     const suggestion = fiscalRefinement.suggestions?.[field];
+    if (!fiscalRefinement.classificationConfirmed) return;
     if (!suggestion?.found || typeof suggestion.value !== 'number') return;
     setForm((prev) => ({ ...prev, [field]: String(suggestion.value) }));
     setFiscalRefinement((prev) => ({

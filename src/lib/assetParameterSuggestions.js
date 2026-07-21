@@ -55,7 +55,6 @@ export function createEmptyFiscalRefinementState() {
     loading: false,
     error: '',
     status: 'IDLE',
-    currentQuestion: null,
     refinementStateToken: null,
     answers: {},
     selectedOption: '',
@@ -63,6 +62,7 @@ export function createEmptyFiscalRefinementState() {
     suggestions: {},
     response: null,
     applied: {},
+    classificationConfirmed: false,
     contextKey: '',
   };
 }
@@ -233,8 +233,10 @@ export function buildNextFiscalRefinementState(prev, payload, contextKey, fallba
   const readyOption = fiscalReadyOption(classification);
   const hasFiscalSuggestion = hasFoundSuggestionForFields(suggestions, FISCAL_DEPRECIATION_SUGGESTION_FIELDS);
   const status = hasFiscalSuggestion
-    ? 'SUGGESTION_READY'
-    : refinement?.status || fallbackStatus || classification?.status || 'NEEDS_MORE_INFORMATION';
+    ? 'CLASSIFIED'
+    : classification?.status === 'UNKNOWN'
+      ? 'NO_SAFE_MATCH'
+      : refinement?.status || fallbackStatus || classification?.status || 'NO_SAFE_MATCH';
 
   return {
     ...prev,
@@ -249,6 +251,7 @@ export function buildNextFiscalRefinementState(prev, payload, contextKey, fallba
     classification,
     response: payload,
     applied: {},
+    classificationConfirmed: false,
     contextKey,
   };
 }
@@ -259,6 +262,7 @@ export function buildFiscalRefinementContext(baseContext, state, action, options
     fiscal_classification_action: action,
   };
   if (options.taxRegime) context.tax_regime = options.taxRegime;
+  if (action === 'CLASSIFY_DIRECT') return context;
   const token = options.refinementStateToken || state?.refinementStateToken;
   if (token) context.fiscal_refinement_state_token = token;
   const answers = { ...(state?.answers || {}) };

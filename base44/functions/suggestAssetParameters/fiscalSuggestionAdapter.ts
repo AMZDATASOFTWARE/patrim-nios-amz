@@ -93,6 +93,12 @@ type AdapterInput = {
   aiRefinement?: FiscalClassificationRefinementState;
 };
 
+export type DirectFiscalAiChoice = {
+  catalog_option_id?: string | null;
+  reason?: string | null;
+  confidence?: Confidence | null;
+};
+
 type FiscalOptionTemplate = {
   display_name: string;
   plain_description: string;
@@ -129,6 +135,7 @@ type LookupState = {
 };
 
 const FISCAL_ADAPTER_ACTIONS: FiscalClassificationAction[] = [
+  'CLASSIFY_DIRECT',
   'SUGGEST_OPTIONS',
   'REFINE_OPTIONS',
   'CONFIRM_OPTION',
@@ -136,6 +143,7 @@ const FISCAL_ADAPTER_ACTIONS: FiscalClassificationAction[] = [
 ];
 
 const FISCAL_CLASSIFICATION_STATUSES: ClassificationStatus[] = [
+  'CLASSIFIED',
   'CONFIRMED_BY_USER',
   'CONFIRMED_BY_IMPORT',
   'SUGGESTED_BY_RULE',
@@ -886,6 +894,144 @@ function fiscalMatchedSuggestion(
     fiscal_classification: classification,
     fiscal_evaluation: evaluation,
   };
+}
+
+export function buildDirectFiscalCatalogOptions(context: SanitizedContext, maxItems = 8): FiscalClassificationOption[] {
+  return fiscalClassificationOptions(context, {}, undefined)
+    .filter((option) => (
+      option.option_id !== 'NONE_OF_THE_OPTIONS'
+      && option.can_release_fiscal_rule === true
+      && !!option.ncm_code
+      && !!fiscalRateByPrefix(option.ncm_code)
+    ))
+    .slice(0, maxItems);
+}
+
+function directFiscalClassificationMetadata(
+  context: SanitizedContext,
+  options: FiscalClassificationOption[],
+  selectedOption: FiscalClassificationOption | null,
+  lookup: FiscalLookupResult,
+  reason: string | null,
+): FiscalClassificationMetadata {
+  return {
+    status: selectedOption && lookup.status === 'MATCHED' ? 'CLASSIFIED' : 'UNKNOWN',
+    action: 'CLASSIFY_DIRECT',
+    confirmed_option_id: null,
+    confirmed_display_name: selectedOption?.display_name || null,
+    confirmed_ncm_code: selectedOption?.ncm_code || null,
+    confirmed_by: null,
+    confirmed_at: null,
+    candidate_ncm_codes: [...new Set(options.flatMap((option) => option.ncm_code ? [option.ncm_code] : []))],
+    candidate_type: selectedOption?.candidate_type || options[0]?.candidate_type || null,
+    confidence: selectedOption?.confidence || null,
+    matched_terms: selectedOption?.matched_terms || [],
+    missing_attributes: [],
+    invalid_answers: [],
+    options,
+    questions: [],
+    ambiguous: options.length > 1,
+    requires_human_confirmation: true,
+    reason: reason || (selectedOption
+      ? 'Classificacao fiscal sugerida por IA dentro das opcoes do catalogo local.'
+      : 'Nao foi possivel relacionar o item com seguranca a uma classificacao fiscal do catalogo local.'),
+  };
+}
+
+function directFiscalNoMatchSuggestions(
+  requestedParams: FiscalParameterName[],
+  context: SanitizedContext,
+  options: FiscalClassificationOption[],
+  reason: string,
+  lookupStatus: FiscalLookupStatus = 'REQUIRES_NCM_CONFIRMATION',
+): Partial<Record<string, FiscalSuggestion>> {
+  const lookup = fiscalBlockedLookup(context, lookupStatus);
+  const classification = directFiscalClassificationMetadata(context, options, null, lookup, reason);
+  const result: Partial<Record<string, FiscalSuggestion>> = {};
+  for (const parameter of requestedParams) {
+    const evaluation = fiscalEvaluation(lookup, context, classification.status, null, parameter === 'fiscal_residual_value');
+    result[parameter] = fiscalNotFound(parameter, reason, classification, evaluation);
+  }
+  return result;
+}
+
+export function applyDirectFiscalSuggestionAdapter(input: AdapterInput & { aiChoice?: DirectFiscalAiChoice | null }): Partial<Record<string, FiscalSuggestion>> {
+  const requestedParams = input.requestedParams.filter((parameter) => parameter !== 'fiscal_residual_value');
+  const result: Partial<Record<string, FiscalSuggestion>> = { ...(input.suggestions || {}) };
+  if (requestedParams.length === 0) return result;
+
+  const regime = fiscalTaxRegime(input.context);
+  if (regime === 'SIMPLES_NACIONAL') {
+    return {
+      ...result,
+      ...directFiscalNoMatchSuggestions(
+        requestedParams,
+        input.context,
+        [],
+        'O Simples Nacional esta fora do escopo automatico desta sugestao fiscal.',
+        'OUT_OF_DEFAULT_SCOPE',
+      ),
+    };
+  }
+  if (regime === 'UNKNOWN') {
+    return {
+      ...result,
+      ...directFiscalNoMatchSuggestions(
+        requestedParams,
+        input.context,
+        [],
+        'Informe o regime tributario aplicavel para continuar a sugestao fiscal.',
+        'REQUIRES_TAX_REGIME_CONFIRMATION',
+      ),
+    };
+  }
+
+  const options = buildDirectFiscalCatalogOptions(input.context);
+  const selectedId = fiscalString(input.aiChoice?.catalog_option_id);
+  const selectedOption = options.find((option) => option.option_id === selectedId) || null;
+  if (!selectedOption) {
+    return {
+      ...result,
+      ...directFiscalNoMatchSuggestions(
+        requestedParams,
+        input.context,
+        options,
+        'Nao foi possivel relacionar este bem a um NCM seguro no catalogo local.',
+      ),
+    };
+  }
+
+  const lookup = findFiscalRateByConfirmedNcm({
+    ncm_code: selectedOption.ncm_code,
+    classification_status: 'CONFIRMED_BY_USER',
+    tax_regime: regime,
+  });
+  const classification = directFiscalClassificationMetadata(
+    input.context,
+    options,
+    selectedOption,
+    lookup,
+    fiscalString(input.aiChoice?.reason) || null,
+  );
+  for (const parameter of requestedParams) {
+    const evaluation = fiscalEvaluation(lookup, input.context, classification.status, selectedOption.ncm_code, false);
+    if (lookup.status !== 'MATCHED') {
+      result[parameter] = fiscalNotFound(parameter, FISCAL_STATUS_MESSAGES[lookup.status], classification, evaluation);
+      continue;
+    }
+    const value = parameter === 'fiscal_depreciation_rate' ? lookup.annual_rate_percent : lookup.useful_life_years;
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      result[parameter] = fiscalNotFound(parameter, 'Regra fiscal encontrada sem valor numerico validavel.', classification, evaluation);
+      continue;
+    }
+    result[parameter] = {
+      ...fiscalMatchedSuggestion(parameter, value, classification, evaluation),
+      confidence: input.aiChoice?.confidence || 'high',
+      reason: fiscalString(input.aiChoice?.reason) || 'Classificacao fiscal sugerida dentro do catalogo local e validada pela regra normativa.',
+      based_on: ['catalogo fiscal local', 'classificacao escolhida pela IA', 'regime tributario'],
+    };
+  }
+  return result;
 }
 
 export function applyFiscalSuggestionAdapter(input: AdapterInput): Partial<Record<string, FiscalSuggestion>> {
