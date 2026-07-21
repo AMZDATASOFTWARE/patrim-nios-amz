@@ -55,8 +55,6 @@ export function createEmptyFiscalRefinementState() {
     loading: false,
     error: '',
     status: 'IDLE',
-    refinementStateToken: null,
-    answers: {},
     selectedOption: '',
     readyOption: null,
     suggestions: {},
@@ -228,8 +226,6 @@ export function buildNextFiscalRefinementState(prev, payload, contextKey, fallba
   const suggestions = fiscalSuggestionsFromResponse(payload);
   const classification = fiscalClassificationFromSuggestions(suggestions);
   const refinement = classification?.refinement_state || null;
-  const token = fiscalRefinementToken(classification);
-  const question = fiscalCurrentQuestion(classification);
   const readyOption = fiscalReadyOption(classification);
   const hasFiscalSuggestion = hasFoundSuggestionForFields(suggestions, FISCAL_DEPRECIATION_SUGGESTION_FIELDS);
   const status = hasFiscalSuggestion
@@ -243,8 +239,6 @@ export function buildNextFiscalRefinementState(prev, payload, contextKey, fallba
     loading: false,
     error: '',
     status,
-    currentQuestion: question,
-    refinementStateToken: token ?? null,
     selectedOption: '',
     readyOption,
     suggestions,
@@ -256,26 +250,12 @@ export function buildNextFiscalRefinementState(prev, payload, contextKey, fallba
   };
 }
 
-export function buildFiscalRefinementContext(baseContext, state, action, options = {}) {
+export function buildFiscalRefinementContext(baseContext, _state, action, options = {}) {
   const context = {
     ...baseContext,
     fiscal_classification_action: action,
   };
   if (options.taxRegime) context.tax_regime = options.taxRegime;
-  if (action === 'CLASSIFY_DIRECT') return context;
-  const token = options.refinementStateToken || state?.refinementStateToken;
-  if (token) context.fiscal_refinement_state_token = token;
-  const answers = { ...(state?.answers || {}) };
-  if (options.questionId && options.answerValue) answers[options.questionId] = options.answerValue;
-  if (Object.keys(answers).length > 0) context.fiscal_classification_answers = answers;
-  if (action === 'CONFIRM_OPTION' && options.selectedOption) {
-    context.ncm_classification_status = 'CONFIRMED_BY_USER';
-    context.ncm_source = 'CLASSIFICATION_OPTION';
-    context.selected_fiscal_classification_option_id = options.selectedOption.option_id;
-    context.selected_fiscal_classification_catalog_version = options.selectedOption.classification_catalog_version;
-    context.selected_fiscal_classification_option_fingerprint = options.selectedOption.option_fingerprint;
-    context.selected_fiscal_classification_name = options.selectedOption.display_name;
-  }
   return context;
 }
 

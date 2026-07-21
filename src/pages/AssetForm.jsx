@@ -334,7 +334,7 @@ export default function AssetForm() {
       ...prev,
       loading: true,
       error: '',
-      status: action === 'CONFIRM_OPTION' ? 'CONFIRMING' : 'ANALYZING',
+      status: 'ANALYZING',
       contextKey,
     }));
 
@@ -350,7 +350,7 @@ export default function AssetForm() {
         const error = Object.assign(new Error(rawPayload?.error || 'Falha ao gerar sugestão fiscal.'), { data: rawPayload });
         throw error;
       }
-      updateFiscalStateFromResponse(payload, contextKey, action === 'CONFIRM_OPTION' ? 'CLASSIFIED' : 'NO_SAFE_MATCH');
+      updateFiscalStateFromResponse(payload, contextKey, 'NO_SAFE_MATCH');
     } catch (error) {
       if (!aiMountedRef.current || fiscalRequestSeqRef.current !== requestId) return;
       setFiscalRefinement((prev) => ({
@@ -369,7 +369,7 @@ export default function AssetForm() {
 
   const handleStartFiscalSuggestion = () => {
     setFiscalRefinement(createEmptyFiscalRefinementState());
-    runFiscalRefinementRequest('CLASSIFY_DIRECT', { refinementStateToken: null, resetState: true });
+    runFiscalRefinementRequest('CLASSIFY_DIRECT', { resetState: true });
   };
 
   const handleConfirmFiscalOption = (option) => {
@@ -745,9 +745,6 @@ export default function AssetForm() {
         || !!prev.error
         || !!prev.response
         || Object.keys(prev.suggestions || {}).length > 0
-        || !!prev.refinementStateToken
-        || !!prev.currentQuestion
-        || Object.keys(prev.answers || {}).length > 0
         || prev.classificationConfirmed === true;
       return hasFiscalState ? createEmptyFiscalRefinementState() : prev;
     });

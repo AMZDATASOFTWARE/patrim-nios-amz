@@ -14,13 +14,9 @@ import {
 } from './corporateSuggestionAdapter.ts';
 import {
   applyDirectFiscalSuggestionAdapter,
-  applyFiscalSuggestionAdapter,
   buildDirectFiscalCatalogOptions,
   type DirectFiscalAiChoice,
 } from './fiscalSuggestionAdapter.ts';
-import {
-  runFiscalClassificationAiRefinement,
-} from './fiscalClassificationAiRefiner.ts';
 
 const cors = {
   'Access-Control-Allow-Origin': '*',
@@ -37,6 +33,7 @@ const CONFIDENCE = ['low', 'medium', 'high'] as const;
 const MANAGEMENT_WARNING = 'Estimativa gerencial baseada nos dados informados. Valide com o responsavel contabil antes de utilizar.';
 const SOURCELESS_MANAGEMENT_WARNING = 'Sugestao gerencial estimada. Revise com o responsavel contabil antes de aplicar.';
 const ASSUMED_BRL_WARNING = 'Unidade monetaria assumida como BRL para valor residual.';
+const ASSUMED_ANNUAL_RATE_WARNING = 'Unidade anual assumida para taxa de depreciacao gerencial.';
 
 type ParameterName = typeof ALLOWED_PARAMETERS[number];
 type Confidence = typeof CONFIDENCE[number];
@@ -260,17 +257,6 @@ function sanitizeFiscalClassificationQuestionHistory(raw: unknown): { value?: un
   if (!items) return { error: 'Historico de perguntas fiscais deve ser uma lista ou objeto simples.' };
   if (items.length > 5) return { error: 'Historico de perguntas fiscais excede o limite permitido.' };
   return { value: items };
-}
-
-function hasManualFiscalPermission(fresh: Record<string, unknown>): boolean {
-  if (fresh.is_platform_admin === true) return true;
-  const permission = 'patrimonio:classificacao-fiscal:confirmar-manualmente';
-  const values = [
-    fresh.permissions,
-    fresh.permission_codes,
-    fresh.effective_permissions,
-  ].flatMap((item) => Array.isArray(item) ? item : []);
-  return values.some((item) => typeof item === 'string' && item.trim().toLowerCase() === permission);
 }
 
 function sanitizeContext(raw: unknown, requestedParams: ParameterName[] = []): { context?: SanitizedContext; error?: string } {
@@ -672,7 +658,12 @@ function validateSuggestion(
   }
 
   const assumedResidualBrl = parameter === 'residual_value' && isMissingUnit(rawSuggestion.unit);
-  const normalizedUnit = assumedResidualBrl ? 'BRL' : normalizeSuggestionUnit(parameter, rawSuggestion.unit);
+  const assumedAnnualDepreciationRate = parameter === 'depreciation_rate' && isMissingUnit(rawSuggestion.unit);
+  const normalizedUnit = assumedResidualBrl
+    ? 'BRL'
+    : assumedAnnualDepreciationRate
+      ? 'percent_per_year'
+      : normalizeSuggestionUnit(parameter, rawSuggestion.unit);
   if (normalizedUnit !== expectedUnit) {
     return notFound(parameter, `Unidade invalida para ${parameter}.`, warnings);
   }
@@ -703,6 +694,9 @@ function validateSuggestion(
     } else if (value < 0 || value > acquisition) {
       return notFound(parameter, 'Valor residual fora do intervalo permitido.', warnings);
     }
+  }
+  if (assumedAnnualDepreciationRate) {
+    validationWarnings.push(ASSUMED_ANNUAL_RATE_WARNING);
   }
 
   const sourcelessManagementEstimate = isCorporateParameter(parameter) && sourceIds.length === 0;
@@ -891,12 +885,11 @@ function responseSchema(params: ParameterName[]) {
 }
 
 function buildDirectFiscalPrompt(context: SanitizedContext, catalogOptions: ReturnType<typeof buildDirectFiscalCatalogOptions>): string {
-  const compactOptions = catalogOptions.map((option) => ({
-    catalog_option_id: option.option_id,
-    display_name: option.display_name,
-    description: option.plain_description,
+  const localNcmCatalog = catalogOptions.map((option) => ({
     ncm_code: option.ncm_code,
     ncm_display: option.ncm_display,
+    display_name: option.display_name,
+    description: option.plain_description,
     fiscal_depreciation_rate: findFiscalRateByConfirmedNcm({
       ncm_code: option.ncm_code,
       classification_status: 'CONFIRMED_BY_USER',
@@ -907,13 +900,9 @@ function buildDirectFiscalPrompt(context: SanitizedContext, catalogOptions: Retu
       classification_status: 'CONFIRMED_BY_USER',
       tax_regime: String(context.tax_regime || 'LUCRO_REAL'),
     }).useful_life_years,
-    candidate_type: option.candidate_type,
-    matched_terms: option.matched_terms,
     aliases: option.matched_terms,
     category_hints: [option.candidate_type.toLowerCase().replace(/_/g, ' ')],
     account_hints: option.distinguishing_attributes,
-    source: option.source_id,
-    source_id: option.source_id,
     source_name: option.source_id ? findNormativeSource(option.source_id)?.title || option.source_id : null,
     legal_reference: option.source_reference,
     source_url: option.source_id ? findNormativeSource(option.source_id)?.official_url || null : null,
@@ -924,13 +913,12 @@ function buildDirectFiscalPrompt(context: SanitizedContext, catalogOptions: Retu
     'Voce e um assistente fiscal de apoio a classificacao patrimonial.',
     'Responda sempre em portugues do Brasil.',
     'Sua tarefa e escolher uma unica classificacao/NCM fiscal local para o ativo, quando houver seguranca suficiente.',
-    'Use somente o contexto sanitizado e as catalog_options fornecidas pelo backend.',
+    'Use somente o contexto sanitizado e o local_ncm_catalog fornecido pelo backend.',
     'Nao invente NCM, taxa, vida util, fonte, norma ou regra.',
     'Nao use internet, conhecimento externo ou classificacao fora do catalogo.',
-    'Voce tem autonomia para escolher a melhor opcao, desde que ela exista em catalog_options.',
-    'Retorne selected_catalog_option_id exatamente igual a uma opcao existente ou null quando nenhuma opcao for segura.',
-    'Retorne selected_ncm_code exatamente igual ao ncm_code da opcao escolhida.',
-    'Retorne source_ids apenas com fontes existentes na opcao escolhida.',
+    'Voce tem autonomia para escolher o melhor NCM, desde que ele exista em local_ncm_catalog.',
+    'Retorne selected_ncm_code exatamente igual a um ncm_code existente em local_ncm_catalog ou null quando nenhum NCM for seguro.',
+    'Nao e necessario retornar catalog_option_id ou source_ids; o backend resolvera fonte, norma, taxa e vida util pelo NCM local.',
     'Se retornar taxa ou vida util, esses valores serao ignorados; os valores finais vem do catalogo local.',
     'A justificativa deve ser curta, em portugues do Brasil, sem nomes tecnicos internos.',
     '',
@@ -947,8 +935,8 @@ function buildDirectFiscalPrompt(context: SanitizedContext, catalogOptions: Retu
       acquisition_value: context.acquisition_value,
     }, null, 2),
     '',
-    'catalog_options:',
-    JSON.stringify(compactOptions, null, 2),
+    'local_ncm_catalog:',
+    JSON.stringify(localNcmCatalog, null, 2),
     '',
     'Responda somente no JSON definido pelo schema.',
   ].join('\n');
@@ -958,14 +946,13 @@ function directFiscalResponseSchema() {
   return {
     type: 'object',
     properties: {
-      selected_catalog_option_id: { type: ['string', 'null'] },
       selected_ncm_code: { type: ['string', 'null'] },
       confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
       reason: { type: 'string' },
       used_fields: { type: 'array', items: { type: 'string' } },
-      source_ids: { type: 'array', items: { type: 'string' } },
+      alternative_ncm_codes: { type: 'array', items: { type: 'string' } },
     },
-    required: ['selected_catalog_option_id', 'selected_ncm_code', 'confidence', 'reason', 'used_fields', 'source_ids'],
+    required: ['selected_ncm_code', 'confidence', 'reason', 'used_fields', 'alternative_ncm_codes'],
   };
 }
 
@@ -982,6 +969,7 @@ function normalizeDirectFiscalChoice(value: unknown): DirectFiscalAiChoice | nul
     confidence,
     used_fields: Array.isArray(value.used_fields) ? value.used_fields.filter((item) => typeof item === 'string').slice(0, 8) : [],
     source_ids: Array.isArray(value.source_ids) ? value.source_ids.filter((item) => typeof item === 'string').slice(0, 8) : [],
+    alternative_ncm_codes: Array.isArray(value.alternative_ncm_codes) ? value.alternative_ncm_codes.filter((item) => typeof item === 'string').slice(0, 8) : [],
   };
 }
 
@@ -1025,49 +1013,26 @@ Deno.serve(async (req) => {
     let suggestions: Partial<Record<ParameterName, Suggestion>> = {};
 
     if (fiscalParams.length > 0) {
-      if (sanitized.context.fiscal_classification_action === 'CLASSIFY_DIRECT') {
-        const catalogOptions = buildDirectFiscalCatalogOptions(sanitized.context);
-        let aiChoice: DirectFiscalAiChoice | null = null;
-        const hasFiscalName = typeof sanitized.context.name === 'string' && sanitized.context.name.trim().length > 0;
-        const hasFiscalRegime = typeof sanitized.context.tax_regime === 'string' && sanitized.context.tax_regime.trim().length > 0;
-        if (hasFiscalName && hasFiscalRegime && catalogOptions.length > 0) {
-          try {
-            aiChoice = normalizeDirectFiscalChoice(await svc.integrations.Core.InvokeLLM({
-              prompt: buildDirectFiscalPrompt(sanitized.context, catalogOptions),
-              response_json_schema: directFiscalResponseSchema(),
-            }));
-          } catch (_) {
-            aiChoice = null;
-          }
+      const catalogOptions = buildDirectFiscalCatalogOptions(sanitized.context);
+      let aiChoice: DirectFiscalAiChoice | null = null;
+      const hasFiscalName = typeof sanitized.context.name === 'string' && sanitized.context.name.trim().length > 0;
+      const hasFiscalRegime = typeof sanitized.context.tax_regime === 'string' && sanitized.context.tax_regime.trim().length > 0;
+      if (hasFiscalName && hasFiscalRegime && catalogOptions.length > 0) {
+        try {
+          aiChoice = normalizeDirectFiscalChoice(await svc.integrations.Core.InvokeLLM({
+            prompt: buildDirectFiscalPrompt(sanitized.context, catalogOptions),
+            response_json_schema: directFiscalResponseSchema(),
+          }));
+        } catch (_) {
+          aiChoice = null;
         }
-        suggestions = applyDirectFiscalSuggestionAdapter({
-          context: sanitized.context,
-          requestedParams: fiscalParams,
-          suggestions,
-          aiChoice,
-        }) as Partial<Record<ParameterName, Suggestion>>;
-      } else {
-        const fiscalRefinement = await runFiscalClassificationAiRefinement(
-          sanitized.context,
-          (payload) => svc.integrations.Core.InvokeLLM(payload),
-          {
-            userId: String(user.id || ''),
-            workspaceId: String(fresh.workspace_id || ''),
-            assetId: assetId || null,
-          },
-        );
-        suggestions = applyFiscalSuggestionAdapter({
-          context: sanitized.context,
-          requestedParams: fiscalParams,
-          suggestions,
-          serverConfirmation: {
-            userId: String(user.id || ''),
-            confirmedAt: new Date().toISOString(),
-            canManualSpecialistConfirm: hasManualFiscalPermission(fresh as Record<string, unknown>),
-          },
-          aiRefinement: fiscalRefinement,
-        }) as Partial<Record<ParameterName, Suggestion>>;
       }
+      suggestions = applyDirectFiscalSuggestionAdapter({
+        context: sanitized.context,
+        requestedParams: fiscalParams,
+        suggestions,
+        aiChoice,
+      }) as Partial<Record<ParameterName, Suggestion>>;
     }
 
     if (corporateParams.length === 0) {
