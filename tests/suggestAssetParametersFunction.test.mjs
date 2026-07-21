@@ -2424,7 +2424,10 @@ test('backend handler returns local normative fiscal suggestions without invokin
         Core: {
           InvokeLLM: async () => {
             invoked = true;
-            return validAiResponse();
+            return validAiResponse({ depreciation_rate: {
+              source_ids: [],
+              warnings: ['Sugestao gerencial estimada. Revise com o responsavel contabil antes de aplicar.'],
+            } });
           },
         },
       },
@@ -2489,12 +2492,15 @@ test('backend handler returns validated AI suggestions and confirmation requirem
   assert.equal(result.body.suggestions.residual_value.value, 500);
 });
 
-test('backend handler does not call AI when no trusted source is usable', async () => {
+test('backend handler allows managerial estimate when no trusted source is usable', async () => {
   const loaded = await loadFunctionModule();
   let invoked = false;
   configureBase44(loaded.context, {
-    fetchMock: makeMockFetch({ default: { body: '<html><p>curto</p></html>' } }),
-    aiResponse: validAiResponse(),
+    fetchMock: async () => { throw new Error('network unavailable'); },
+    aiResponse: validAiResponse({ depreciation_rate: {
+      source_ids: [],
+      warnings: ['Sugestao gerencial estimada. Revise com o responsavel contabil antes de aplicar.'],
+    } }),
   });
   loaded.context.__createClientFromRequest = () => ({
     auth: { me: async () => ({ id: 'user-1' }) },
@@ -2507,7 +2513,10 @@ test('backend handler does not call AI when no trusted source is usable', async 
         Core: {
           InvokeLLM: async () => {
             invoked = true;
-            return validAiResponse();
+            return validAiResponse({ depreciation_rate: {
+              source_ids: [],
+              warnings: ['Sugestao gerencial estimada. Revise com o responsavel contabil antes de aplicar.'],
+            } });
           },
         },
       },
@@ -2519,16 +2528,22 @@ test('backend handler does not call AI when no trusted source is usable', async 
     requested_parameters: ['depreciation_rate'],
     asset_context: {
       ...validContext(),
-      category: 'Investimentos',
-      name: 'Participacao societaria',
-      description: 'Quota de investimento sem fonte de depreciacao aplicavel.',
+      category: 'Equipamentos',
+      name: 'Gerador de energia',
+      description: 'Equipamento operacional com fonte externa temporariamente indisponivel.',
+      residual_value: 0,
     },
   });
 
-  assert.equal(result.status, 503);
-  assert.equal(result.body.ok, false);
-  assert.equal(result.body.code, 'NO_TRUSTED_SOURCE_AVAILABLE');
-  assert.equal(invoked, false);
+  assert.equal(result.status, 200);
+  assert.equal(result.body.ok, true);
+  assert.equal(
+    result.body.suggestions.depreciation_rate.found,
+    true,
+    JSON.stringify(result.body.suggestions.depreciation_rate),
+  );
+  assert.deepEqual(Array.from(result.body.suggestions.depreciation_rate.source_ids), []);
+  assert.equal(invoked, true);
 });
 
 test('backend direct fiscal classification asks AI to choose only a local catalog option', async () => {
@@ -2545,16 +2560,24 @@ test('backend direct fiscal classification asks AI to choose only a local catalo
     ncm_classification_status: '',
     ncm_source: '',
   });
-  const [option] = loaded.buildDirectFiscalCatalogOptions(context);
+  const catalogOptions = loaded.buildDirectFiscalCatalogOptions(context);
+  const [option] = catalogOptions;
   assert.ok(option);
   assert.equal(option.ncm_code, '84713012');
+  assert.equal(catalogOptions.length > 0, true);
+  assert.equal(catalogOptions.length <= 50, true);
 
   let invokedPayload = null;
   configureBase44(loaded.context, {
     aiResponse: {
-      catalog_option_id: option.option_id,
+      selected_catalog_option_id: option.option_id,
+      selected_ncm_code: option.ncm_code,
+      fiscal_depreciation_rate: 99,
+      fiscal_useful_life_years: 1,
       confidence: 'high',
       reason: 'O item foi identificado como notebook com base no nome, marca, modelo e conta contabil.',
+      used_fields: ['name', 'brand', 'model', 'account', 'category'],
+      source_ids: [option.source_id],
     },
   });
   const originalFactory = loaded.context.__createClientFromRequest;
@@ -2578,10 +2601,16 @@ test('backend direct fiscal classification asks AI to choose only a local catalo
   assert.equal(result.body.suggestions.fiscal_depreciation_rate.found, true);
   assert.equal(result.body.suggestions.fiscal_depreciation_rate.value, 20);
   assert.equal(result.body.suggestions.fiscal_useful_life_years.value, 5);
-  assert.equal(result.body.suggestions.fiscal_depreciation_rate.fiscal_classification.status, 'CLASSIFIED');
+  assert.equal(result.body.suggestions.fiscal_depreciation_rate.fiscal_classification.status, 'CLASSIFIED_BY_AI');
   assert.equal(result.body.suggestions.fiscal_depreciation_rate.fiscal_classification.confirmed_ncm_code, '84713012');
+  assert.deepEqual(result.body.suggestions.fiscal_depreciation_rate.fiscal_classification.used_fields, ['name', 'brand', 'model', 'account', 'category']);
+  assert.equal(result.body.suggestions.fiscal_depreciation_rate.fiscal_classification.source_ids.includes(option.source_id), true);
   assert.equal(result.body.suggestions.fiscal_depreciation_rate.fiscal_evaluation.status, 'MATCHED');
   assert.match(invokedPayload.prompt, /catalog_options/);
+  assert.match(invokedPayload.prompt, /Notebook Dell Latitude 5540/);
+  assert.match(invokedPayload.prompt, /Equipamentos de Informatica/);
+  assert.match(invokedPayload.prompt, /selected_catalog_option_id/);
+  assert.match(invokedPayload.prompt, /fiscal_depreciation_rate/);
   assert.match(invokedPayload.prompt, /Responda sempre em portugues do Brasil/);
   assert.equal(JSON.stringify(invokedPayload).includes('fiscal_residual_value'), false);
 });
@@ -2602,9 +2631,12 @@ test('backend direct fiscal classification rejects nonexistent AI catalog option
   });
   configureBase44(loaded.context, {
     aiResponse: {
-      catalog_option_id: 'INVENTED_OPTION',
+      selected_catalog_option_id: 'INVENTED_OPTION',
+      selected_ncm_code: '84713012',
       confidence: 'high',
       reason: 'Opcao inventada.',
+      used_fields: ['name'],
+      source_ids: ['receita_in_1700_2017_anexo_iii'],
     },
   });
   const invalid = await callHandler(loaded.handler, {
@@ -2617,11 +2649,53 @@ test('backend direct fiscal classification rejects nonexistent AI catalog option
   assert.equal(invalid.body.suggestions.fiscal_depreciation_rate.fiscal_classification.status, 'UNKNOWN');
   assert.match(invalid.body.suggestions.fiscal_depreciation_rate.reason, /NCM seguro/);
 
+  const validOption = loaded.buildDirectFiscalCatalogOptions(baseContext)[0];
   configureBase44(loaded.context, {
     aiResponse: {
-      catalog_option_id: loaded.buildDirectFiscalCatalogOptions(baseContext)[0]?.option_id,
+      selected_catalog_option_id: validOption.option_id,
+      selected_ncm_code: '87042190',
+      confidence: 'high',
+      reason: 'NCM divergente.',
+      used_fields: ['name'],
+      source_ids: [validOption.source_id],
+    },
+  });
+  const divergentNcm = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
+    asset_context: baseContext,
+  });
+  assert.equal(divergentNcm.status, 200);
+  assert.equal(divergentNcm.body.suggestions.fiscal_depreciation_rate.found, false);
+  assert.match(divergentNcm.body.suggestions.fiscal_depreciation_rate.reason, /nao corresponde ao NCM/);
+
+  configureBase44(loaded.context, {
+    aiResponse: {
+      selected_catalog_option_id: validOption.option_id,
+      selected_ncm_code: validOption.ncm_code,
+      confidence: 'high',
+      reason: 'Fonte divergente.',
+      used_fields: ['name'],
+      source_ids: [validOption.source_id, 'fonte_inventada'],
+    },
+  });
+  const divergentSource = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
+    asset_context: baseContext,
+  });
+  assert.equal(divergentSource.status, 200);
+  assert.equal(divergentSource.body.suggestions.fiscal_depreciation_rate.found, false);
+  assert.match(divergentSource.body.suggestions.fiscal_depreciation_rate.reason, /fontes que nao pertencem/);
+
+  configureBase44(loaded.context, {
+    aiResponse: {
+      selected_catalog_option_id: validOption.option_id,
+      selected_ncm_code: validOption.ncm_code,
       confidence: 'high',
       reason: 'Notebook.',
+      used_fields: ['name'],
+      source_ids: [validOption.source_id],
     },
   });
   const simples = await callHandler(loaded.handler, {

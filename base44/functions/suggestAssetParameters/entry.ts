@@ -7,6 +7,8 @@ import {
   lookupReceitaFederalDepreciation,
   toFiscalReference,
 } from './receitaFederalDepreciationTable.ts';
+import { findFiscalRateByConfirmedNcm } from './normative/fiscalDepreciationByNcm.ts';
+import { findNormativeSource } from './normative/normativeSources.ts';
 import {
   applyCorporateSuggestionAdapter,
 } from './corporateSuggestionAdapter.ts';
@@ -626,6 +628,9 @@ function validateSuggestion(
   const missingData = sanitizeMissingData(rawSuggestion.missing_data, requestedParams, context);
   const warnings = sanitizeWarningList(rawSuggestion.warnings, context, false);
   const sourceIds = sanitizeSourceIds(rawSuggestion.source_ids, evidence);
+  const rawSourceIds = Array.isArray(rawSuggestion.source_ids)
+    ? rawSuggestion.source_ids.filter((item) => typeof item === 'string' && item.trim()).map((item) => item.trim())
+    : [];
 
   if (!found) {
     return {
@@ -641,8 +646,11 @@ function validateSuggestion(
     };
   }
 
-  if (sourceIds.length === 0) {
+  if (evidence.length > 0 && sourceIds.length === 0) {
     return notFound(parameter, 'A IA nao citou uma fonte confiavel utilizada para este parametro.', warnings);
+  }
+  if (evidence.length === 0 && rawSourceIds.length > 0) {
+    return notFound(parameter, 'A IA citou fonte que nao foi fornecida pelo backend.', warnings);
   }
 
   const normalizedUnit = normalizeSuggestionUnit(parameter, rawSuggestion.unit);
@@ -755,6 +763,8 @@ function buildPrompt(params: ParameterName[], context: SanitizedContext, evidenc
     '',
     'Regras inviolaveis:',
     '- Use somente os dados do formulario e as evidencias externas fornecidas abaixo.',
+    '- Quando nao houver evidencia externa consultada, ainda pode sugerir estimativa gerencial com base nos dados do ativo se houver base minima.',
+    '- Nesse caso, retorne source_ids: [] e deixe claro que e uma estimativa gerencial sem fonte externa especifica.',
     '- Nao use conhecimento externo que nao esteja presente nas evidencias.',
     '- Nao invente fontes, URLs, paginas, normas, tabelas ou consultas.',
     '- Cite somente source_ids existentes nas evidencias.',
@@ -796,7 +806,7 @@ function buildPrompt(params: ParameterName[], context: SanitizedContext, evidenc
     '- Diferencie referencia gerencial, contabil, fiscal, tecnica e de mercado.',
     '- Informacao fiscal deve ficar em fiscal_reference e nao substituir taxa gerencial.',
     '- Nenhuma sugestao pode ser aplicada automaticamente.',
-    '- Cada sugestao valida deve citar source_ids de evidencias realmente utilizadas.',
+    '- Cada sugestao valida deve citar source_ids de evidencias realmente utilizadas; se nao houver evidencias, source_ids deve ser [].',
     '',
     'Parametros solicitados:',
     JSON.stringify(params),
@@ -858,22 +868,43 @@ function buildDirectFiscalPrompt(context: SanitizedContext, catalogOptions: Retu
     catalog_option_id: option.option_id,
     display_name: option.display_name,
     description: option.plain_description,
+    ncm_code: option.ncm_code,
     ncm_display: option.ncm_display,
+    fiscal_depreciation_rate: findFiscalRateByConfirmedNcm({
+      ncm_code: option.ncm_code,
+      classification_status: 'CONFIRMED_BY_USER',
+      tax_regime: String(context.tax_regime || 'LUCRO_REAL'),
+    }).annual_rate_percent,
+    fiscal_useful_life_years: findFiscalRateByConfirmedNcm({
+      ncm_code: option.ncm_code,
+      classification_status: 'CONFIRMED_BY_USER',
+      tax_regime: String(context.tax_regime || 'LUCRO_REAL'),
+    }).useful_life_years,
     candidate_type: option.candidate_type,
     matched_terms: option.matched_terms,
+    aliases: option.matched_terms,
+    category_hints: [option.candidate_type.toLowerCase().replace(/_/g, ' ')],
+    account_hints: option.distinguishing_attributes,
     source: option.source_id,
+    source_id: option.source_id,
+    source_name: option.source_id ? findNormativeSource(option.source_id)?.title || option.source_id : null,
     legal_reference: option.source_reference,
+    source_url: option.source_id ? findNormativeSource(option.source_id)?.official_url || null : null,
     official_description: option.official_description,
   }));
 
   return [
     'Voce e um assistente fiscal de apoio a classificacao patrimonial.',
     'Responda sempre em portugues do Brasil.',
-    'Sua tarefa e escolher uma unica opcao fiscal local para o ativo, quando houver seguranca suficiente.',
+    'Sua tarefa e escolher uma unica classificacao/NCM fiscal local para o ativo, quando houver seguranca suficiente.',
     'Use somente o contexto sanitizado e as catalog_options fornecidas pelo backend.',
     'Nao invente NCM, taxa, vida util, fonte, norma ou regra.',
     'Nao use internet, conhecimento externo ou classificacao fora do catalogo.',
-    'Retorne catalog_option_id exatamente igual a uma opcao existente ou null quando nenhuma opcao for segura.',
+    'Voce tem autonomia para escolher a melhor opcao, desde que ela exista em catalog_options.',
+    'Retorne selected_catalog_option_id exatamente igual a uma opcao existente ou null quando nenhuma opcao for segura.',
+    'Retorne selected_ncm_code exatamente igual ao ncm_code da opcao escolhida.',
+    'Retorne source_ids apenas com fontes existentes na opcao escolhida.',
+    'Se retornar taxa ou vida util, esses valores serao ignorados; os valores finais vem do catalogo local.',
     'A justificativa deve ser curta, em portugues do Brasil, sem nomes tecnicos internos.',
     '',
     'Contexto sanitizado do ativo:',
@@ -886,6 +917,7 @@ function buildDirectFiscalPrompt(context: SanitizedContext, catalogOptions: Retu
       model: context.model,
       tax_regime: context.tax_regime,
       conservation_state: context.conservation_state,
+      acquisition_value: context.acquisition_value,
     }, null, 2),
     '',
     'catalog_options:',
@@ -899,11 +931,14 @@ function directFiscalResponseSchema() {
   return {
     type: 'object',
     properties: {
-      catalog_option_id: { type: ['string', 'null'] },
+      selected_catalog_option_id: { type: ['string', 'null'] },
+      selected_ncm_code: { type: ['string', 'null'] },
       confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
       reason: { type: 'string' },
+      used_fields: { type: 'array', items: { type: 'string' } },
+      source_ids: { type: 'array', items: { type: 'string' } },
     },
-    required: ['catalog_option_id', 'confidence', 'reason'],
+    required: ['selected_catalog_option_id', 'selected_ncm_code', 'confidence', 'reason', 'used_fields', 'source_ids'],
   };
 }
 
@@ -913,9 +948,13 @@ function normalizeDirectFiscalChoice(value: unknown): DirectFiscalAiChoice | nul
     ? value.confidence
     : 'low';
   return {
+    selected_catalog_option_id: typeof value.selected_catalog_option_id === 'string' ? value.selected_catalog_option_id : null,
     catalog_option_id: typeof value.catalog_option_id === 'string' ? value.catalog_option_id : null,
+    selected_ncm_code: typeof value.selected_ncm_code === 'string' ? value.selected_ncm_code : null,
     reason: typeof value.reason === 'string' ? value.reason.slice(0, 500) : null,
     confidence,
+    used_fields: Array.isArray(value.used_fields) ? value.used_fields.filter((item) => typeof item === 'string').slice(0, 8) : [],
+    source_ids: Array.isArray(value.source_ids) ? value.source_ids.filter((item) => typeof item === 'string').slice(0, 8) : [],
   };
 }
 
@@ -1025,36 +1064,6 @@ Deno.serve(async (req) => {
     const staticFiscalReference = staticFiscalEntry ? toFiscalReference(staticFiscalEntry) : null;
 
     const sourceResult = await collectTrustedSourceEvidence(sanitized.context);
-    if (sourceResult.evidence.length === 0) {
-      if (!staticFiscalReference) {
-        return json({
-          ok: false,
-          code: 'NO_TRUSTED_SOURCE_AVAILABLE',
-          error: 'Nao foi possivel consultar uma fonte confiavel neste momento.',
-          retryable: true,
-          sources_consulted: [],
-          sources_failed: sourceResult.failed,
-          requires_user_confirmation: true,
-          generated_at: new Date().toISOString(),
-        }, 503);
-      }
-      // Sem evidencia web para a estimativa gerencial, mas ha referencia fiscal deterministica
-      // (Anexo III) disponivel -- devolve isso mesmo assim, em vez de falhar por completo.
-      const fallbackSuggestions: Partial<Record<ParameterName, Suggestion>> = { ...suggestions };
-      for (const param of corporateParams) {
-        fallbackSuggestions[param] = notFound(param, 'Fonte confiavel indisponivel neste momento para a estimativa gerencial.');
-      }
-      return json({
-        ok: true,
-        basis: 'static_fiscal_table_only',
-        suggestions: fallbackSuggestions,
-        sources_consulted: [],
-        sources_failed: sourceResult.failed,
-        fiscal_reference: staticFiscalReference,
-        requires_user_confirmation: true,
-        generated_at: new Date().toISOString(),
-      });
-    }
 
     const prompt = buildPrompt(corporateParams, sanitized.context, sourceResult.evidence);
     let aiResponse: unknown;
