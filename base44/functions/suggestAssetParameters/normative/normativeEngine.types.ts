@@ -1,6 +1,7 @@
 export type Regime = 'CORPORATE' | 'FISCAL';
 
 export type ClassificationStatus =
+  | 'CLASSIFIED_BY_AI'
   | 'CLASSIFIED'
   | 'CONFIRMED_BY_USER'
   | 'CONFIRMED_BY_IMPORT'

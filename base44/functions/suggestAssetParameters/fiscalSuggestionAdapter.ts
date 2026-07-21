@@ -1,4 +1,5 @@
 import {
+  ASSET_ALIASES,
   findClassificationCandidates,
 } from './normative/assetClassificationCandidates.ts';
 import {
@@ -6,6 +7,7 @@ import {
   findFiscalRateByConfirmedNcm,
   normalizeNcm,
 } from './normative/fiscalDepreciationByNcm.ts';
+import { findNormativeSource } from './normative/normativeSources.ts';
 import { CLASSIFICATION_UNITS_DATA } from './normative/data/classificationUnits.ts';
 import type {
   AssetClassificationCandidate,
@@ -45,6 +47,14 @@ type FiscalClassificationMetadata = {
   ambiguous: boolean;
   requires_human_confirmation: boolean;
   reason: string | null;
+  display_name?: string | null;
+  ncm_code?: string | null;
+  ncm_display?: string | null;
+  catalog_option_id?: string | null;
+  source_ids?: string[];
+  source_name?: string | null;
+  legal_reference?: string | null;
+  used_fields?: string[];
 };
 
 type FiscalEvaluationMetadata = {
@@ -95,8 +105,12 @@ type AdapterInput = {
 
 export type DirectFiscalAiChoice = {
   catalog_option_id?: string | null;
+  selected_catalog_option_id?: string | null;
+  selected_ncm_code?: string | null;
   reason?: string | null;
   confidence?: Confidence | null;
+  source_ids?: string[] | null;
+  used_fields?: string[] | null;
 };
 
 type FiscalOptionTemplate = {
@@ -144,6 +158,7 @@ const FISCAL_ADAPTER_ACTIONS: FiscalClassificationAction[] = [
 
 const FISCAL_CLASSIFICATION_STATUSES: ClassificationStatus[] = [
   'CLASSIFIED',
+  'CLASSIFIED_BY_AI',
   'CONFIRMED_BY_USER',
   'CONFIRMED_BY_IMPORT',
   'SUGGESTED_BY_RULE',
@@ -896,14 +911,76 @@ function fiscalMatchedSuggestion(
   };
 }
 
-export function buildDirectFiscalCatalogOptions(context: SanitizedContext, maxItems = 8): FiscalClassificationOption[] {
-  return fiscalClassificationOptions(context, {}, undefined)
-    .filter((option) => (
-      option.option_id !== 'NONE_OF_THE_OPTIONS'
-      && option.can_release_fiscal_rule === true
-      && !!option.ncm_code
-      && !!fiscalRateByPrefix(option.ncm_code)
-    ))
+function fiscalText(value: unknown): string {
+  return fiscalString(value)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase();
+}
+
+function directOptionScore(context: SanitizedContext, option: FiscalClassificationOption): number {
+  const name = fiscalText(context.name);
+  const description = fiscalText(context.description);
+  const category = fiscalText(context.category);
+  const account = fiscalText(context.account);
+  const brand = fiscalText(context.brand);
+  const model = fiscalText(context.model);
+  const terms = [
+    option.display_name,
+    option.plain_description,
+    option.candidate_type,
+    option.official_description,
+    ...option.matched_terms,
+    ...option.distinguishing_attributes,
+  ].map(fiscalText).filter(Boolean);
+
+  let score = 0;
+  for (const term of terms) {
+    if (name && term && (name.includes(term) || term.includes(name))) score += 5;
+    if (description && term && (description.includes(term) || term.includes(description))) score += 3;
+    if (account && term && (account.includes(term) || term.includes(account))) score += 3;
+    if (category && term && (category.includes(term) || term.includes(category))) score += 1;
+    if (brand && term && (brand.includes(term) || term.includes(brand))) score += 1;
+    if (model && term && (model.includes(term) || term.includes(model))) score += 1;
+  }
+  if (option.can_release_fiscal_rule) score += 1;
+  return score;
+}
+
+function directCatalogOptionsFromAliases(context: SanitizedContext): FiscalClassificationOption[] {
+  const matchedByType = new Map(findClassificationCandidates(context).map((candidate) => [candidate.candidate_type, candidate]));
+  const byKey = new Map<string, FiscalClassificationOption>();
+
+  for (const alias of ASSET_ALIASES) {
+    const candidateNcms = Array.isArray(alias.candidate_ncm_codes) ? alias.candidate_ncm_codes : [];
+    if (candidateNcms.length === 0) continue;
+    const matched = matchedByType.get(alias.candidate_type);
+    const candidate: AssetClassificationCandidate = {
+      candidate_ncm_codes: [...candidateNcms],
+      candidate_type: alias.candidate_type,
+      confidence: matched?.confidence || alias.confidence,
+      requires_human_confirmation: true,
+      reason: matched?.reason || alias.reason,
+      matched_terms: matched?.matched_terms?.length ? [...matched.matched_terms] : [...alias.asset_terms],
+      missing_attributes: matched?.missing_attributes || [],
+    };
+    const option = fiscalOptionFromCandidate(candidate, {}, fiscalCandidateRef(candidate));
+    if (!option.option_id || option.option_id === 'NONE_OF_THE_OPTIONS' || !option.ncm_code) continue;
+    byKey.set(`${option.option_id}:${option.ncm_code}`, option);
+  }
+
+  return [...byKey.values()];
+}
+
+export function buildDirectFiscalCatalogOptions(context: SanitizedContext, maxItems = 50): FiscalClassificationOption[] {
+  return directCatalogOptionsFromAliases(context)
+    .sort((a, b) => {
+      const score = directOptionScore(context, b) - directOptionScore(context, a);
+      if (score !== 0) return score;
+      const confidence = FISCAL_CONFIDENCE_RANK[b.confidence] - FISCAL_CONFIDENCE_RANK[a.confidence];
+      if (confidence !== 0) return confidence;
+      return a.display_name.localeCompare(b.display_name);
+    })
     .slice(0, maxItems);
 }
 
@@ -912,10 +989,13 @@ function directFiscalClassificationMetadata(
   options: FiscalClassificationOption[],
   selectedOption: FiscalClassificationOption | null,
   lookup: FiscalLookupResult,
-  reason: string | null,
+  choice: DirectFiscalAiChoice | null,
 ): FiscalClassificationMetadata {
+  const sourceIds = lookup.references.length > 0 ? fiscalReferencesSourceIds(lookup.references) : selectedOption?.source_id ? [selectedOption.source_id] : [];
+  const source = sourceIds[0] ? findNormativeSource(sourceIds[0]) : null;
+  const reason = fiscalString(choice?.reason) || null;
   return {
-    status: selectedOption && lookup.status === 'MATCHED' ? 'CLASSIFIED' : 'UNKNOWN',
+    status: selectedOption && lookup.status === 'MATCHED' ? 'CLASSIFIED_BY_AI' : 'UNKNOWN',
     action: 'CLASSIFY_DIRECT',
     confirmed_option_id: null,
     confirmed_display_name: selectedOption?.display_name || null,
@@ -935,6 +1015,14 @@ function directFiscalClassificationMetadata(
     reason: reason || (selectedOption
       ? 'Classificacao fiscal sugerida por IA dentro das opcoes do catalogo local.'
       : 'Nao foi possivel relacionar o item com seguranca a uma classificacao fiscal do catalogo local.'),
+    display_name: selectedOption?.display_name || null,
+    ncm_code: selectedOption?.ncm_code || null,
+    ncm_display: selectedOption?.ncm_display || null,
+    catalog_option_id: selectedOption?.option_id || null,
+    source_ids: sourceIds,
+    source_name: source?.title || selectedOption?.source_id || null,
+    legal_reference: selectedOption?.source_reference || lookup.references[0]?.source_reference || null,
+    used_fields: Array.isArray(choice?.used_fields) ? choice.used_fields : [],
   };
 }
 
@@ -946,7 +1034,7 @@ function directFiscalNoMatchSuggestions(
   lookupStatus: FiscalLookupStatus = 'REQUIRES_NCM_CONFIRMATION',
 ): Partial<Record<string, FiscalSuggestion>> {
   const lookup = fiscalBlockedLookup(context, lookupStatus);
-  const classification = directFiscalClassificationMetadata(context, options, null, lookup, reason);
+  const classification = directFiscalClassificationMetadata(context, options, null, lookup, { reason });
   const result: Partial<Record<string, FiscalSuggestion>> = {};
   for (const parameter of requestedParams) {
     const evaluation = fiscalEvaluation(lookup, context, classification.status, null, parameter === 'fiscal_residual_value');
@@ -987,7 +1075,7 @@ export function applyDirectFiscalSuggestionAdapter(input: AdapterInput & { aiCho
   }
 
   const options = buildDirectFiscalCatalogOptions(input.context);
-  const selectedId = fiscalString(input.aiChoice?.catalog_option_id);
+  const selectedId = fiscalString(input.aiChoice?.selected_catalog_option_id || input.aiChoice?.catalog_option_id);
   const selectedOption = options.find((option) => option.option_id === selectedId) || null;
   if (!selectedOption) {
     return {
@@ -997,6 +1085,44 @@ export function applyDirectFiscalSuggestionAdapter(input: AdapterInput & { aiCho
         input.context,
         options,
         'Nao foi possivel relacionar este bem a um NCM seguro no catalogo local.',
+      ),
+    };
+  }
+  const selectedNcm = fiscalCompleteNcm(input.aiChoice?.selected_ncm_code);
+  if (!selectedNcm || selectedNcm !== selectedOption.ncm_code) {
+    return {
+      ...result,
+      ...directFiscalNoMatchSuggestions(
+        requestedParams,
+        input.context,
+        options,
+        'A IA retornou uma classificacao que nao corresponde ao NCM da opcao local.',
+      ),
+    };
+  }
+  const aiSourceIds = Array.isArray(input.aiChoice?.source_ids)
+    ? input.aiChoice.source_ids.map(fiscalString).filter(Boolean)
+    : [];
+  if (!selectedOption.source_id || aiSourceIds.length === 0 || !aiSourceIds.includes(selectedOption.source_id)) {
+    return {
+      ...result,
+      ...directFiscalNoMatchSuggestions(
+        requestedParams,
+        input.context,
+        options,
+        'A IA retornou fonte que nao corresponde a fonte normativa local da opcao escolhida.',
+      ),
+    };
+  }
+  const extraSourceIds = aiSourceIds.filter((id) => id !== selectedOption.source_id);
+  if (extraSourceIds.length > 0) {
+    return {
+      ...result,
+      ...directFiscalNoMatchSuggestions(
+        requestedParams,
+        input.context,
+        options,
+        'A IA retornou fontes que nao pertencem a opcao fiscal local escolhida.',
       ),
     };
   }
@@ -1011,7 +1137,7 @@ export function applyDirectFiscalSuggestionAdapter(input: AdapterInput & { aiCho
     options,
     selectedOption,
     lookup,
-    fiscalString(input.aiChoice?.reason) || null,
+    input.aiChoice || null,
   );
   for (const parameter of requestedParams) {
     const evaluation = fiscalEvaluation(lookup, input.context, classification.status, selectedOption.ncm_code, false);

@@ -42,6 +42,28 @@ function fiscalSourceLabel(response, suggestion, evaluation) {
   return evaluation?.references?.[0]?.source_reference || evaluation?.references?.[0]?.source_id || 'Base normativa fiscal local';
 }
 
+const FIELD_LABELS = {
+  name: 'Nome',
+  description: 'Descricao',
+  category: 'Categoria',
+  account: 'Conta contabil',
+  brand: 'Marca',
+  model: 'Modelo',
+  tax_regime: 'Regime tributario',
+  conservation_state: 'Estado de conservacao',
+  acquisition_value: 'Valor de aquisicao',
+};
+
+function usedFieldsLabel(fields) {
+  if (!Array.isArray(fields)) return '';
+  const labels = [];
+  fields.forEach((field) => {
+    const label = FIELD_LABELS[String(field || '').trim()] || '';
+    if (label && !labels.includes(label)) labels.push(label);
+  });
+  return labels.join(', ');
+}
+
 function FiscalSuggestionLine({ field, suggestion, disabled, onApply }) {
   if (!suggestion?.found) return null;
   return (
@@ -75,6 +97,7 @@ export default function FiscalClassificationRefinement({
   const status = state.loading ? 'LOADING' : state.status || 'IDLE';
   const source = fiscalSourceLabel(state.response, rate || life, evaluation);
   const reason = rate?.reason || life?.reason || classification?.reason || '';
+  const usedFields = usedFieldsLabel(classification?.used_fields);
   const warnings = uniqueSuggestionWarnings([...(rate?.warnings || []), ...(life?.warnings || [])]).slice(0, 3);
   const confirmed = state.classificationConfirmed === true;
   const applyDisabled = state.loading || !confirmed;
@@ -135,6 +158,7 @@ export default function FiscalClassificationRefinement({
             <p><span className="font-medium text-foreground">NCM sugerido pelo catálogo fiscal local:</span> {classification?.confirmed_ncm_code || classification?.options?.[0]?.ncm_display || 'não informado'}</p>
             <p><span className="font-medium text-foreground">Fonte / norma:</span> {source}</p>
             {reason && <p><span className="font-medium text-foreground">Justificativa:</span> {reason}</p>}
+            {usedFields && <p><span className="font-medium text-foreground">Campos usados:</span> {usedFields}</p>}
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">

@@ -539,11 +539,15 @@ test('AssetForm source integrates fiscal refinement only through explicit user a
   assert.equal(fiscalSource.includes('Confirmar classificação fiscal'), true);
   assert.equal(fiscalSource.includes('NCM sugerido pelo catálogo fiscal local'), true);
   assert.equal(fiscalSource.includes('Tipo identificado'), true);
+  assert.equal(fiscalSource.includes('Campos usados'), true);
+  assert.equal(fiscalSource.includes('FIELD_LABELS'), true);
   assert.equal(fiscalSource.includes('refinement_state_token'), false);
   assert.equal(fiscalSource.includes('candidate_ref'), false);
   assert.equal(fiscalSource.includes('question_fingerprint'), false);
   assert.equal(fiscalSource.includes('Sugestão Automática'), true);
   assert.equal(fiscalSource.includes('valor residual fiscal'), true);
+  assert.equal(source.includes('Revise nome, categoria'), false);
+  assert.equal(source.includes('NCM seguro no catálogo local'), true);
 });
 
 test('frontend fiscal refinement files do not contain common mojibake patterns', async () => {

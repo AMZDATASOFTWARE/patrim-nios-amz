@@ -336,7 +336,7 @@ export default function AssetForm() {
         ...prev,
         loading: false,
         error: friendlySuggestionError(error).includes('Preencha os dados indicados')
-          ? 'Revise nome, categoria, descrição, conta contábil, marca, modelo e regime tributário para gerar uma sugestão fiscal mais segura.'
+          ? 'Não foi possível relacionar este bem a um NCM seguro no catálogo local.'
           : 'Não foi possível consultar a sugestão fiscal agora. Tente novamente em instantes.',
         status: 'ERROR',
         contextKey,
@@ -349,15 +349,6 @@ export default function AssetForm() {
   const handleStartFiscalSuggestion = () => {
     setFiscalRefinement(createEmptyFiscalRefinementState());
     runFiscalRefinementRequest('CLASSIFY_DIRECT', { refinementStateToken: null, resetState: true });
-  };
-
-  const handleContinueFiscalRefinement = () => {
-    const question = fiscalRefinement.currentQuestion;
-    if (!question?.question_id || !fiscalRefinement.selectedOption) return;
-    runFiscalRefinementRequest('REFINE_OPTIONS', {
-      questionId: question.question_id,
-      answerValue: fiscalRefinement.selectedOption,
-    });
   };
 
   const handleConfirmFiscalOption = (option) => {
@@ -375,12 +366,6 @@ export default function AssetForm() {
       applied: { ...prev.applied, [field]: true },
     }));
     toast.success('Sugestão fiscal aplicada. Revise antes de salvar.');
-  };
-
-  const resetFiscalRefinement = () => {
-    fiscalRequestSeqRef.current += 1;
-    fiscalInFlightRef.current = false;
-    setFiscalRefinement(createEmptyFiscalRefinementState());
   };
 
   const handleRefreshSuggestion = (field) => {
@@ -1349,11 +1334,8 @@ export default function AssetForm() {
             taxRegime={fiscalTaxRegime}
             onTaxRegimeChange={setFiscalTaxRegime}
             onStart={handleStartFiscalSuggestion}
-            onSelectOption={(value) => setFiscalRefinement((prev) => ({ ...prev, selectedOption: value }))}
-            onContinue={handleContinueFiscalRefinement}
             onConfirm={handleConfirmFiscalOption}
             onApply={handleApplyFiscalSuggestion}
-            onReset={resetFiscalRefinement}
           />
         </div>
 
