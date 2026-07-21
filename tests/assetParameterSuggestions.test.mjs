@@ -4,6 +4,7 @@ import { test } from 'node:test';
 
 import {
   DEPRECIATION_SUGGESTION_FIELDS,
+  FISCAL_DEPRECIATION_SUGGESTION_FIELDS,
   INSUFFICIENT_EVIDENCE_MESSAGE,
   MANAGEMENT_WARNING,
   SUGGESTION_NOTICE_WARNINGS,
@@ -12,8 +13,16 @@ import {
   applySuggestionValue,
   applyUsefulLifeInput,
   buildSuggestAssetParametersPayload,
+  buildFiscalRefinementContext,
+  buildNextFiscalRefinementState,
   buildSuggestionContext,
+  createEmptyFiscalRefinementState,
   createEmptySuggestionState,
+  fiscalClassificationFromSuggestions,
+  fiscalCurrentQuestion,
+  fiscalReadyOption,
+  fiscalRefinementToken,
+  fiscalSuggestionsFromResponse,
   friendlySuggestionError,
   formatConsultedAt,
   getSuggestionEligibility,
@@ -32,6 +41,7 @@ import {
 
 const ASSET_FORM_PATH = new URL('../src/pages/AssetForm.jsx', import.meta.url);
 const SETTINGS_PATH = new URL('../src/pages/Settings.jsx', import.meta.url);
+const FISCAL_REFINEMENT_PATH = new URL('../src/components/assets/FiscalClassificationRefinement.jsx', import.meta.url);
 
 test('frontend helper initializes suggestions without loading, errors, or auto results', () => {
   const state = createEmptySuggestionState();
@@ -65,6 +75,8 @@ test('frontend helper builds limited asset context and excludes sensitive/unrela
       category: 'Veículos',
       description: 'Uso em campo',
       account: 'Ativo imobilizado',
+      brand: 'Toyota',
+      model: 'Hilux',
       acquisition_value: '120000',
       plaqueta: 'PAT-001',
       rfid_tag_id: 'RFID-001',
@@ -84,6 +96,8 @@ test('frontend helper builds limited asset context and excludes sensitive/unrela
 
   assert.equal(context.name, 'Caminhonete operacional');
   assert.equal(context.category, 'Veículos');
+  assert.equal(context.brand, 'Toyota');
+  assert.equal(context.model, 'Hilux');
   assert.equal(context.acquisition_value, 120000);
   assert.equal(context.branch_name, 'Matriz');
   assert.equal(context.sector_name, 'Operacao');
@@ -111,6 +125,135 @@ test('frontend helper builds suggestAssetParameters payload for creation and edi
     requested_parameters: ['residual_value'],
     asset_context: context,
   });
+});
+
+test('frontend helper builds fiscal refinement payload without exposing NCM as decision', () => {
+  const baseContext = { name: 'Freezer comercial', category: 'Equipamentos' };
+  const state = createEmptyFiscalRefinementState();
+  const suggestContext = buildFiscalRefinementContext(baseContext, state, 'SUGGEST_OPTIONS', { taxRegime: 'LUCRO_REAL' });
+  assert.equal(suggestContext.fiscal_classification_action, 'SUGGEST_OPTIONS');
+  assert.equal(suggestContext.tax_regime, 'LUCRO_REAL');
+  assert.equal('fiscal_refinement_state_token' in suggestContext, false);
+
+  const questionState = {
+    ...state,
+    refinementStateToken: 'token-2',
+    answers: { AI_Q_001: 'REFRIGERATION' },
+  };
+  const refineContext = buildFiscalRefinementContext(baseContext, questionState, 'REFINE_OPTIONS', {
+    questionId: 'AI_Q_002',
+    answerValue: 'COMMERCIAL_FREEZER',
+    taxRegime: 'LUCRO_REAL',
+  });
+  assert.equal(refineContext.fiscal_refinement_state_token, 'token-2');
+  assert.deepEqual(refineContext.fiscal_classification_answers, {
+    AI_Q_001: 'REFRIGERATION',
+    AI_Q_002: 'COMMERCIAL_FREEZER',
+  });
+
+  const option = {
+    option_id: 'REFRIGERATION_EQUIPMENT_PENDING_V1',
+    classification_catalog_version: 'v1',
+    option_fingerprint: 'fp-1',
+    display_name: 'Freezer ou congelador comercial',
+    ncm_code: '84185090',
+  };
+  const confirmContext = buildFiscalRefinementContext(baseContext, questionState, 'CONFIRM_OPTION', {
+    selectedOption: option,
+    taxRegime: 'LUCRO_REAL',
+  });
+  assert.equal(confirmContext.ncm_source, 'CLASSIFICATION_OPTION');
+  assert.equal(confirmContext.ncm_classification_status, 'CONFIRMED_BY_USER');
+  assert.equal(confirmContext.selected_fiscal_classification_option_id, option.option_id);
+  assert.equal(confirmContext.selected_fiscal_classification_catalog_version, option.classification_catalog_version);
+  assert.equal(confirmContext.selected_fiscal_classification_option_fingerprint, option.option_fingerprint);
+  assert.equal(confirmContext.selected_fiscal_classification_name, option.display_name);
+  assert.equal('ncm_code' in confirmContext, false);
+});
+
+test('frontend helper extracts fiscal questions, tokens, options and suggestions defensively', () => {
+  const response = normalizeSuggestionFunctionResponse({
+    ok: true,
+    suggestions: {
+      fiscal_depreciation_rate: {
+        found: true,
+        value: 10,
+        fiscal_classification: {
+          questions: [{ question_id: 'AI_Q_001', question: 'Qual funcao?', options: [{ value: 'A', label: 'Opcao A' }] }],
+          options: [{ option_id: 'OPT_1', display_name: 'Freezer comercial', can_release_fiscal_rule: true }],
+          refinement_state: {
+            status: 'READY_FOR_CONFIRMATION',
+            refinement_state_token: 'token-3',
+            current_question: null,
+          },
+        },
+      },
+      fiscal_useful_life_years: { found: true, value: 10 },
+      fiscal_residual_value: { found: false, value: null },
+    },
+  });
+  const fiscalSuggestions = fiscalSuggestionsFromResponse(response);
+  const classification = fiscalClassificationFromSuggestions(fiscalSuggestions);
+  assert.equal(fiscalSuggestions.fiscal_depreciation_rate.value, 10);
+  assert.equal(fiscalSuggestions.fiscal_residual_value, undefined);
+  assert.equal(fiscalRefinementToken(classification), 'token-3');
+  assert.equal(fiscalCurrentQuestion(classification).question_id, 'AI_Q_001');
+  assert.equal(fiscalReadyOption(classification).option_id, 'OPT_1');
+  assert.equal(FISCAL_DEPRECIATION_SUGGESTION_FIELDS.includes('fiscal_residual_value'), false);
+});
+
+test('frontend helper does not expose pending fiscal option as ready for confirmation', () => {
+  const classification = {
+    refinement_state: { status: 'READY_FOR_CONFIRMATION' },
+    options: [{ option_id: 'OPT_PENDING', display_name: 'Equipamento genérico', can_release_fiscal_rule: false }],
+  };
+  assert.equal(fiscalReadyOption(classification), null);
+  assert.equal(
+    fiscalReadyOption({
+      ...classification,
+      options: [{ option_id: 'OPT_READY', display_name: 'Equipamento liberado', can_release_fiscal_rule: true }],
+    }).option_id,
+    'OPT_READY',
+  );
+  assert.equal(
+    fiscalReadyOption({
+      refinement_state: { status: 'NEEDS_MORE_INFORMATION' },
+      options: [{ option_id: 'OPT_READY', display_name: 'Equipamento liberado', can_release_fiscal_rule: true }],
+    }),
+    null,
+  );
+});
+
+test('frontend helper replaces or clears fiscal refinement token from backend response', () => {
+  const previous = { ...createEmptyFiscalRefinementState(), refinementStateToken: 'token-1' };
+  const withToken = buildNextFiscalRefinementState(previous, {
+    suggestions: {
+      fiscal_depreciation_rate: {
+        found: false,
+        fiscal_classification: {
+          refinement_state: {
+            status: 'NEEDS_MORE_INFORMATION',
+            refinement_state_token: 'token-2',
+          },
+        },
+      },
+    },
+  }, 'ctx-1');
+  assert.equal(withToken.refinementStateToken, 'token-2');
+
+  const withoutToken = buildNextFiscalRefinementState(previous, {
+    suggestions: {
+      fiscal_depreciation_rate: {
+        found: false,
+        fiscal_classification: {
+          refinement_state: {
+            status: 'REQUIRES_HUMAN_REVIEW',
+          },
+        },
+      },
+    },
+  }, 'ctx-2');
+  assert.equal(withoutToken.refinementStateToken, null);
 });
 
 test('frontend helper maps clicked fields to the expected request fields', () => {
@@ -321,6 +464,46 @@ test('AssetForm source uses one shared depreciation button and keeps residual se
   assert.equal(source.includes('INSUFFICIENT_EVIDENCE_MESSAGE'), true);
   assert.equal(source.includes('const reason = suggestion.reason === INSUFFICIENT_EVIDENCE_MESSAGE'), true);
   assert.equal(source.includes('dangerouslySetInnerHTML'), false);
+});
+
+test('AssetForm source integrates fiscal refinement only through explicit user actions', async () => {
+  const source = await readFile(ASSET_FORM_PATH, 'utf8');
+  const fiscalSource = await readFile(FISCAL_REFINEMENT_PATH, 'utf8');
+
+  assert.equal(source.includes('FiscalClassificationRefinement'), true);
+  assert.equal(source.includes("runFiscalRefinementRequest('SUGGEST_OPTIONS'"), true);
+  assert.equal(source.includes("runFiscalRefinementRequest('REFINE_OPTIONS'"), true);
+  assert.equal(source.includes("runFiscalRefinementRequest('CONFIRM_OPTION'"), true);
+  assert.equal(source.includes('FISCAL_DEPRECIATION_SUGGESTION_FIELDS'), true);
+  assert.equal(source.includes("['fiscal_residual_value']"), false);
+  assert.equal(source.includes('localStorage'), false);
+  assert.equal(source.includes('sessionStorage'), false);
+  assert.equal(source.includes('VITE_FISCAL_REFINEMENT_STATE_SECRET'), false);
+  assert.equal(fiscalSource.includes('Confirmar tipo do item'), true);
+  assert.equal(fiscalSource.includes('refinement_state_token'), false);
+  assert.equal(fiscalSource.includes('candidate_ref'), false);
+  assert.equal(fiscalSource.includes('question_fingerprint'), false);
+  assert.equal(fiscalSource.includes('Sugest\\u00e3o Autom\\u00e1tica'), true);
+  assert.equal(fiscalSource.includes('valor residual fiscal'), true);
+});
+
+test('frontend fiscal refinement files do not contain common mojibake patterns', async () => {
+  const files = [ASSET_FORM_PATH, FISCAL_REFINEMENT_PATH, new URL('../src/lib/assetParameterSuggestions.js', import.meta.url)];
+  const mojibakePatterns = [
+    [0xc3, 0x192, 0xc2, 0xa3],
+    [0xc3, 0x192, 0xc2, 0xa7],
+    [0xc3, 0x192, 0xc2, 0xa9],
+    [0xc3, 0x192, 0xc2, 0xaa],
+    [0xc3, 0x192, 0xc2, 0xad],
+    [0xc3, 0x192, 0xc2, 0xb3],
+    [0xc3, 0x192, 0xc2, 0xba],
+  ].map((codes) => String.fromCharCode(...codes));
+  for (const file of files) {
+    const source = await readFile(file, 'utf8');
+    for (const pattern of mojibakePatterns) {
+      assert.equal(source.includes(pattern), false, `${file.pathname} contains ${pattern}`);
+    }
+  }
 });
 
 test('Settings source includes informational trusted sources without management actions', async () => {
