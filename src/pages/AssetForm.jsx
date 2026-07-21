@@ -196,6 +196,8 @@ export default function AssetForm() {
       account: suggestionContext.account || '',
       brand: suggestionContext.brand || '',
       model: suggestionContext.model || '',
+      conservation_state: suggestionContext.conservation_state || '',
+      tax_regime: fiscalTaxRegime || '',
     }),
     [
       suggestionContext.name,
@@ -204,6 +206,8 @@ export default function AssetForm() {
       suggestionContext.account,
       suggestionContext.brand,
       suggestionContext.model,
+      suggestionContext.conservation_state,
+      fiscalTaxRegime,
     ]
   );
 
@@ -294,12 +298,29 @@ export default function AssetForm() {
 
   const runFiscalRefinementRequest = async (action, options = {}) => {
     if (fiscalInFlightRef.current) return;
-    if (!suggestionEligibility.depreciation.enabled) {
-      setFiscalRefinement((prev) => ({ ...prev, error: suggestionEligibility.depreciation.reason }));
+
+    const contextKey = fiscalClassificationContextKey;
+    if (!String(fiscalTaxRegime || '').trim()) {
+      setFiscalRefinement((prev) => ({
+        ...prev,
+        loading: false,
+        error: 'Informe o regime tributário para gerar a sugestão fiscal.',
+        status: 'ERROR',
+        contextKey,
+      }));
+      return;
+    }
+    if (!String(suggestionContext.name || '').trim()) {
+      setFiscalRefinement((prev) => ({
+        ...prev,
+        loading: false,
+        error: 'Informe a descrição do bem para iniciar a análise fiscal.',
+        status: 'ERROR',
+        contextKey,
+      }));
       return;
     }
 
-    const contextKey = fiscalClassificationContextKey;
     const stateForRequest = options.resetState ? createEmptyFiscalRefinementState() : fiscalRefinement;
     const context = buildFiscalRefinementContext(suggestionContext, stateForRequest, action, {
       ...options,
@@ -720,8 +741,15 @@ export default function AssetForm() {
   useEffect(() => {
     setFiscalRefinement((prev) => {
       if (!prev.contextKey || prev.contextKey === fiscalClassificationContextKey) return prev;
-      if (!prev.refinementStateToken && !prev.currentQuestion && Object.keys(prev.answers || {}).length === 0) return prev;
-      return createEmptyFiscalRefinementState();
+      const hasFiscalState = prev.status !== 'IDLE'
+        || !!prev.error
+        || !!prev.response
+        || Object.keys(prev.suggestions || {}).length > 0
+        || !!prev.refinementStateToken
+        || !!prev.currentQuestion
+        || Object.keys(prev.answers || {}).length > 0
+        || prev.classificationConfirmed === true;
+      return hasFiscalState ? createEmptyFiscalRefinementState() : prev;
     });
   }, [fiscalClassificationContextKey]);
 

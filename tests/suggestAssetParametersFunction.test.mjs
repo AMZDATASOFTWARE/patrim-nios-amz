@@ -726,6 +726,17 @@ test('backend helper validates AI suggestions and never accepts formatted values
     validateSuggestion('residual_value', { ...validAiResponse().suggestions.residual_value, unit: 'R$' }, validContext(), allowedFields, ['residual_value'], validEvidence()).unit,
     'BRL',
   );
+  const residualWithoutUnit = validateSuggestion(
+    'residual_value',
+    { ...validAiResponse().suggestions.residual_value, unit: undefined },
+    validContext(),
+    allowedFields,
+    ['residual_value'],
+    validEvidence(),
+  );
+  assert.equal(residualWithoutUnit.found, true);
+  assert.equal(residualWithoutUnit.unit, 'BRL');
+  assert.match(residualWithoutUnit.warnings.join(' '), /Unidade monetaria assumida como BRL/);
   assert.equal(
     validateSuggestion('fiscal_depreciation_rate', { ...validAiResponse().suggestions.depreciation_rate, unit: '% ao ano' }, validContext(), allowedFields, ['fiscal_depreciation_rate'], validEvidence()).unit,
     'percent_per_year',
@@ -768,6 +779,10 @@ test('backend helper validates AI suggestions and never accepts formatted values
   );
   assert.equal(
     validateSuggestion('residual_value', { ...validAiResponse().suggestions.residual_value, unit: 'USD' }, validContext(), allowedFields, ['residual_value'], validEvidence()).found,
+    false,
+  );
+  assert.equal(
+    validateSuggestion('residual_value', { ...validAiResponse().suggestions.residual_value, unit: '%' }, validContext(), allowedFields, ['residual_value'], validEvidence()).found,
     false,
   );
 });
@@ -2542,7 +2557,9 @@ test('backend handler allows managerial estimate when no trusted source is usabl
     true,
     JSON.stringify(result.body.suggestions.depreciation_rate),
   );
+  assert.equal(result.body.suggestions.depreciation_rate.confidence, 'medium');
   assert.deepEqual(Array.from(result.body.suggestions.depreciation_rate.source_ids), []);
+  assert.match(result.body.suggestions.depreciation_rate.warnings.join(' '), /Sugestao gerencial estimada/);
   assert.equal(invoked, true);
 });
 
@@ -2647,7 +2664,7 @@ test('backend direct fiscal classification rejects nonexistent AI catalog option
   assert.equal(invalid.status, 200);
   assert.equal(invalid.body.suggestions.fiscal_depreciation_rate.found, false);
   assert.equal(invalid.body.suggestions.fiscal_depreciation_rate.fiscal_classification.status, 'UNKNOWN');
-  assert.match(invalid.body.suggestions.fiscal_depreciation_rate.reason, /NCM seguro/);
+  assert.match(invalid.body.suggestions.fiscal_depreciation_rate.reason, /opcao que nao existe/);
 
   const validOption = loaded.buildDirectFiscalCatalogOptions(baseContext)[0];
   configureBase44(loaded.context, {
@@ -2667,7 +2684,7 @@ test('backend direct fiscal classification rejects nonexistent AI catalog option
   });
   assert.equal(divergentNcm.status, 200);
   assert.equal(divergentNcm.body.suggestions.fiscal_depreciation_rate.found, false);
-  assert.match(divergentNcm.body.suggestions.fiscal_depreciation_rate.reason, /nao corresponde ao NCM/);
+  assert.match(divergentNcm.body.suggestions.fiscal_depreciation_rate.reason, /NCM divergente/);
 
   configureBase44(loaded.context, {
     aiResponse: {
@@ -2709,7 +2726,52 @@ test('backend direct fiscal classification rejects nonexistent AI catalog option
   assert.equal(simples.body.suggestions.fiscal_residual_value, undefined);
 });
 
-test('backend handler rejects source ids invented by the AI', async () => {
+test('backend direct fiscal classification explains missing minimum context and null AI choice', async () => {
+  const loaded = await loadFunctionModule();
+  configureBase44(loaded.context);
+
+  const noName = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
+    asset_context: validFiscalContext({
+      name: '',
+      tax_regime: 'LUCRO_REAL',
+      fiscal_classification_action: 'CLASSIFY_DIRECT',
+    }),
+  });
+  assert.equal(noName.status, 200);
+  assert.equal(noName.body.suggestions.fiscal_depreciation_rate.found, false);
+  assert.match(noName.body.suggestions.fiscal_depreciation_rate.reason, /descricao do bem/);
+
+  const noRegime = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
+    asset_context: validFiscalContext({
+      name: 'Notebook Dell Latitude',
+      tax_regime: '',
+      fiscal_classification_action: 'CLASSIFY_DIRECT',
+    }),
+  });
+  assert.equal(noRegime.status, 200);
+  assert.equal(noRegime.body.suggestions.fiscal_depreciation_rate.found, false);
+  assert.match(noRegime.body.suggestions.fiscal_depreciation_rate.reason, /regime tributario/);
+
+  configureBase44(loaded.context, { aiResponse: null });
+  const noSelection = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
+    asset_context: validFiscalContext({
+      name: 'Notebook Dell Latitude',
+      tax_regime: 'LUCRO_REAL',
+      fiscal_classification_action: 'CLASSIFY_DIRECT',
+    }),
+  });
+  assert.equal(noSelection.status, 200);
+  assert.equal(noSelection.body.suggestions.fiscal_depreciation_rate.found, false);
+  assert.match(noSelection.body.suggestions.fiscal_depreciation_rate.reason, /nao selecionou uma opcao segura/);
+});
+
+test('backend handler discards invented source ids for managerial estimates without rejecting valid values', async () => {
   const loaded = await loadFunctionModule();
   configureBase44(loaded.context, {
     aiResponse: validAiResponse({ depreciation_rate: { source_ids: ['fonte_inventada'] } }),
@@ -2721,8 +2783,10 @@ test('backend handler rejects source ids invented by the AI', async () => {
   });
 
   assert.equal(result.status, 200);
-  assert.equal(result.body.suggestions.depreciation_rate.found, false);
+  assert.equal(result.body.suggestions.depreciation_rate.found, true);
   assert.deepEqual(Array.from(result.body.suggestions.depreciation_rate.source_ids), []);
+  assert.match(result.body.suggestions.depreciation_rate.warnings.join(' '), /Fonte informada pela IA foi descartada/);
+  assert.match(result.body.suggestions.depreciation_rate.warnings.join(' '), /Sugestao gerencial estimada/);
 });
 
 test('backend handler sanitizes malformed AI output and handles integration failure', async () => {
