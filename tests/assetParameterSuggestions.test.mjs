@@ -23,6 +23,8 @@ import {
   fiscalReadyOption,
   fiscalRefinementToken,
   fiscalSuggestionsFromResponse,
+  fiscalUserMessage,
+  formatSuggestionValue,
   friendlySuggestionError,
   formatConsultedAt,
   getSuggestionEligibility,
@@ -256,10 +258,56 @@ test('frontend helper replaces or clears fiscal refinement token from backend re
   assert.equal(withoutToken.refinementStateToken, null);
 });
 
+test('frontend helper exposes fiscal refinement states with actionable messages', () => {
+  assert.match(fiscalUserMessage('REQUIRES_HUMAN_REVIEW'), /revis|Revise/i);
+  assert.match(fiscalUserMessage('NO_SAFE_CANDIDATE'), /classifica/i);
+
+  const previous = createEmptyFiscalRefinementState();
+  const withQuestion = buildNextFiscalRefinementState(previous, {
+    suggestions: {
+      fiscal_depreciation_rate: {
+        found: false,
+        fiscal_classification: {
+          refinement_state: {
+            status: 'NEEDS_MORE_INFORMATION',
+            current_question: { question_id: 'Q1', question: 'Qual o tipo?', options: [{ value: 'A', label: 'Tipo A' }] },
+            refinement_state_token: 'token-question',
+          },
+        },
+      },
+    },
+  }, 'ctx-question');
+  assert.equal(withQuestion.status, 'NEEDS_MORE_INFORMATION');
+  assert.equal(withQuestion.currentQuestion.question_id, 'Q1');
+
+  const ready = buildNextFiscalRefinementState(previous, {
+    suggestions: {
+      fiscal_depreciation_rate: {
+        found: false,
+        fiscal_classification: {
+          refinement_state: { status: 'READY_FOR_CONFIRMATION', refinement_state_token: 'token-ready' },
+          options: [{ option_id: 'OPT_READY', display_name: 'Notebook', can_release_fiscal_rule: true }],
+        },
+      },
+    },
+  }, 'ctx-ready');
+  assert.equal(ready.status, 'READY_FOR_CONFIRMATION');
+  assert.equal(ready.readyOption.option_id, 'OPT_READY');
+});
+
 test('frontend helper maps clicked fields to the expected request fields', () => {
   assert.deepEqual(requestFieldsForSuggestion('depreciation_rate'), ['depreciation_rate', 'useful_life_years']);
   assert.deepEqual(requestFieldsForSuggestion('useful_life_years'), ['depreciation_rate', 'useful_life_years']);
   assert.deepEqual(requestFieldsForSuggestion('residual_value'), ['residual_value']);
+});
+
+test('frontend helper formats accounting and fiscal suggestion values with user-facing units', () => {
+  assert.equal(formatSuggestionValue('depreciation_rate', 10), '10% ao ano');
+  assert.equal(formatSuggestionValue('useful_life_years', 10), '10 anos');
+  assert.match(formatSuggestionValue('residual_value', 0), /R\$\s?0,00/);
+  assert.equal(formatSuggestionValue('fiscal_depreciation_rate', 20), '20% ao ano');
+  assert.equal(formatSuggestionValue('fiscal_useful_life_years', 5), '5 anos');
+  assert.equal(FISCAL_DEPRECIATION_SUGGESTION_FIELDS.includes('fiscal_residual_value'), false);
 });
 
 test('frontend helper applies each suggestion only to the target field', () => {
@@ -454,7 +502,7 @@ test('AssetForm source uses one shared depreciation button and keeps residual se
   assert.equal(source.includes('SUGGESTION_NOTICE_WARNINGS'), true);
   assert.equal(source.includes('{renderSuggestionNotices(DEPRECIATION_SUGGESTION_FIELDS)}'), true);
   assert.equal(source.includes("{renderSuggestionNotices(['residual_value'])}"), true);
-  assert.equal(source.includes('Referência fiscal:'), true);
+  assert.equal(source.includes('Referência fiscal:'), false);
   assert.equal(source.includes('Sugestão gerada com base nos dados informados e nas fontes consultadas.'), false);
   assert.equal(source.includes('if (!payload.ok) {'), true);
   assert.equal(source.includes('Object.assign(new Error(rawPayload?.error'), true);
@@ -483,13 +531,19 @@ test('AssetForm source integrates fiscal refinement only through explicit user a
   assert.equal(fiscalSource.includes('refinement_state_token'), false);
   assert.equal(fiscalSource.includes('candidate_ref'), false);
   assert.equal(fiscalSource.includes('question_fingerprint'), false);
-  assert.equal(fiscalSource.includes('Sugest\\u00e3o Autom\\u00e1tica'), true);
+  assert.equal(fiscalSource.includes('Sugestão Automática'), true);
   assert.equal(fiscalSource.includes('valor residual fiscal'), true);
 });
 
 test('frontend fiscal refinement files do not contain common mojibake patterns', async () => {
   const files = [ASSET_FORM_PATH, FISCAL_REFINEMENT_PATH, new URL('../src/lib/assetParameterSuggestions.js', import.meta.url)];
-  const mojibakePatterns = [
+  const forbiddenPatterns = [
+    String.fromCharCode(92) + 'u00',
+    `sugest${String.fromCharCode(63)}o`,
+    `classifica${String.fromCharCode(63)}${String.fromCharCode(63)}o`,
+    `Sugest${String.fromCharCode(92)}ão`,
+    `Autom${String.fromCharCode(92)}ática`,
+    ...[
     [0xc3, 0x192, 0xc2, 0xa3],
     [0xc3, 0x192, 0xc2, 0xa7],
     [0xc3, 0x192, 0xc2, 0xa9],
@@ -497,10 +551,11 @@ test('frontend fiscal refinement files do not contain common mojibake patterns',
     [0xc3, 0x192, 0xc2, 0xad],
     [0xc3, 0x192, 0xc2, 0xb3],
     [0xc3, 0x192, 0xc2, 0xba],
-  ].map((codes) => String.fromCharCode(...codes));
+  ].map((codes) => String.fromCharCode(...codes)),
+  ];
   for (const file of files) {
     const source = await readFile(file, 'utf8');
-    for (const pattern of mojibakePatterns) {
+    for (const pattern of forbiddenPatterns) {
       assert.equal(source.includes(pattern), false, `${file.pathname} contains ${pattern}`);
     }
   }

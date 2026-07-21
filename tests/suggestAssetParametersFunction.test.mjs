@@ -688,7 +688,35 @@ test('backend helper validates AI suggestions and never accepts formatted values
     false,
   );
   assert.equal(
-    validateSuggestion('residual_value', { ...validAiResponse().suggestions.residual_value, unit: 'R$' }, validContext(), allowedFields, ['residual_value'], validEvidence()).found,
+    validateSuggestion('depreciation_rate', { ...validAiResponse().suggestions.depreciation_rate, unit: '% ao ano' }, validContext(), allowedFields, ['depreciation_rate'], validEvidence()).unit,
+    'percent_per_year',
+  );
+  assert.equal(
+    validateSuggestion('useful_life_years', { ...validAiResponse().suggestions.useful_life_years, unit: 'anos' }, validContext(), allowedFields, ['useful_life_years'], validEvidence()).unit,
+    'years',
+  );
+  assert.equal(
+    validateSuggestion('residual_value', { ...validAiResponse().suggestions.residual_value, unit: 'R$' }, validContext(), allowedFields, ['residual_value'], validEvidence()).unit,
+    'BRL',
+  );
+  assert.equal(
+    validateSuggestion('fiscal_depreciation_rate', { ...validAiResponse().suggestions.depreciation_rate, unit: '% ao ano' }, validContext(), allowedFields, ['fiscal_depreciation_rate'], validEvidence()).unit,
+    'percent_per_year',
+  );
+  assert.equal(
+    validateSuggestion('fiscal_useful_life_years', { ...validAiResponse().suggestions.useful_life_years, unit: 'anos' }, validContext(), allowedFields, ['fiscal_useful_life_years'], validEvidence()).unit,
+    'years',
+  );
+  assert.equal(
+    validateSuggestion('useful_life_years', { ...validAiResponse().suggestions.useful_life_years, unit: 'meses' }, validContext(), allowedFields, ['useful_life_years'], validEvidence()).found,
+    false,
+  );
+  assert.equal(
+    validateSuggestion('depreciation_rate', { ...validAiResponse().suggestions.depreciation_rate, unit: 'percent_per_month' }, validContext(), allowedFields, ['depreciation_rate'], validEvidence()).found,
+    false,
+  );
+  assert.equal(
+    validateSuggestion('residual_value', { ...validAiResponse().suggestions.residual_value, unit: 'USD' }, validContext(), allowedFields, ['residual_value'], validEvidence()).found,
     false,
   );
 });

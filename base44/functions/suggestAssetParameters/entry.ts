@@ -381,6 +381,37 @@ function defaultUnit(parameter: ParameterName): string {
   return 'BRL';
 }
 
+function normalizeUnitText(value: unknown): string {
+  return String(value ?? '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ')
+    .replace(/[./]/g, '')
+    .replace(/_/g, ' ');
+}
+
+function normalizeSuggestionUnit(parameter: ParameterName, value: unknown): string | null {
+  const unit = normalizeUnitText(value);
+  if (!unit) return null;
+
+  if (parameter === 'depreciation_rate' || parameter === 'fiscal_depreciation_rate') {
+    if (['percent per year', 'percentage per year', 'percent per ano', 'percentual ao ano', 'percent', 'percentage', '%', '% ao ano'].includes(unit)) {
+      return 'percent_per_year';
+    }
+    return null;
+  }
+
+  if (parameter === 'useful_life_years' || parameter === 'fiscal_useful_life_years') {
+    if (['years', 'year', 'anos', 'ano'].includes(unit)) return 'years';
+    return null;
+  }
+
+  if (['brl', 'r$', 'real', 'reais'].includes(unit)) return 'BRL';
+  return null;
+}
+
 function isCorporateParameter(parameter: ParameterName): parameter is typeof CORPORATE_PARAMETERS[number] {
   return (CORPORATE_PARAMETERS as readonly string[]).includes(parameter);
 }
@@ -586,7 +617,8 @@ function validateSuggestion(
     return notFound(parameter, 'A IA nao citou uma fonte confiavel utilizada para este parametro.', warnings);
   }
 
-  if (rawSuggestion.unit !== expectedUnit) {
+  const normalizedUnit = normalizeSuggestionUnit(parameter, rawSuggestion.unit);
+  if (normalizedUnit !== expectedUnit) {
     return notFound(parameter, `Unidade invalida para ${parameter}.`, warnings);
   }
 
@@ -621,7 +653,7 @@ function validateSuggestion(
   return {
     found: true,
     value,
-    unit: expectedUnit,
+    unit: normalizedUnit,
     confidence,
     reason: reason || 'Estimativa gerencial baseada nos dados informados do ativo.',
     based_on: basedOn,

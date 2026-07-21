@@ -335,7 +335,9 @@ export default function AssetForm() {
       setFiscalRefinement((prev) => ({
         ...prev,
         loading: false,
-        error: friendlySuggestionError(error).replace('sugestão', 'sugestão fiscal'),
+        error: friendlySuggestionError(error).includes('Preencha os dados indicados')
+          ? 'Revise nome, categoria, descrição, conta contábil, marca, modelo e regime tributário para gerar uma sugestão fiscal mais segura.'
+          : 'Não foi possível consultar a sugestão fiscal agora. Tente novamente em instantes.',
         status: 'ERROR',
         contextKey,
       }));
@@ -496,19 +498,12 @@ export default function AssetForm() {
   };
 
   const renderSourcesConsulted = (response) => {
-    const fiscalReference = response?.fiscal_reference;
-    if (!response?.has_failed_sources && !fiscalReference) return null;
+    if (!response?.has_failed_sources) return null;
 
     return (
       <div className="mt-2 space-y-2 rounded-md bg-muted/20 p-2 text-xs">
         {response?.has_failed_sources && (
           <p className="text-muted-foreground">Algumas fontes não puderam ser consultadas.</p>
-        )}
-        {fiscalReference && (
-          <div className="rounded-md bg-background/70 p-2">
-            <p className="font-medium text-foreground">Referência fiscal: {fiscalReference.value}% ao ano</p>
-            <p className="text-muted-foreground">{fiscalReference.warning}</p>
-          </div>
         )}
       </div>
     );

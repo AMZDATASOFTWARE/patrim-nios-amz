@@ -1,9 +1,9 @@
 export const SUGGESTION_PARAMETERS = {
-  depreciation_rate: { label: 'Taxa de Deprecia\u00e7\u00e3o Anual', unit: '% ao ano' },
-  useful_life_years: { label: 'Vida \u00datil', unit: 'anos' },
+  depreciation_rate: { label: 'Taxa de Depreciação Anual', unit: '% ao ano' },
+  useful_life_years: { label: 'Vida Útil', unit: 'anos' },
   residual_value: { label: 'Valor Residual', unit: 'R$' },
   fiscal_depreciation_rate: { label: 'Taxa Fiscal Anual', unit: '% ao ano' },
-  fiscal_useful_life_years: { label: 'Vida \u00datil Fiscal', unit: 'anos' },
+  fiscal_useful_life_years: { label: 'Vida Útil Fiscal', unit: 'anos' },
   fiscal_residual_value: { label: 'Valor Residual Fiscal', unit: 'R$' },
 };
 
@@ -33,7 +33,7 @@ export const TRUSTED_AI_SOURCES_INFO = [
   { name: 'BNDES', purpose: 'Catálogo de máquinas e equipamentos.', application: 'Equipamentos.' },
 ];
 
-const CATEGORIES = ['Im\u00f3veis', 'Ve\u00edculos', 'Equipamentos', 'Investimentos', 'Intang\u00edveis'];
+const CATEGORIES = ['Imóveis', 'Veículos', 'Equipamentos', 'Investimentos', 'Intangíveis'];
 
 export function createEmptySuggestionState() {
   return ['depreciation_rate', 'useful_life_years', 'residual_value'].reduce((acc, field) => {
@@ -125,20 +125,20 @@ export function getSuggestionEligibility(context) {
   const hasName = cleanText(context.name).length >= 3;
   const hasCategory = CATEGORIES.includes(context.category);
   const missingBase = [];
-  if (!hasName) missingBase.push('preencha a descri\u00e7\u00e3o do bem com pelo menos 3 caracteres');
-  if (!hasCategory) missingBase.push('selecione um grupo patrimonial v\u00e1lido');
+  if (!hasName) missingBase.push('preencha a descrição do bem com pelo menos 3 caracteres');
+  if (!hasCategory) missingBase.push('selecione um grupo patrimonial válido');
 
   const depreciationEnabled = missingBase.length === 0;
   const hasAcquisitionValue = typeof context.acquisition_value === 'number' && context.acquisition_value > 0;
   const residualMissing = [...missingBase];
-  if (!hasAcquisitionValue) residualMissing.push('informe um valor de aquisi\u00e7\u00e3o maior que zero');
+  if (!hasAcquisitionValue) residualMissing.push('informe um valor de aquisição maior que zero');
 
   return {
     depreciation: {
       enabled: depreciationEnabled,
       reason: depreciationEnabled
         ? ''
-        : `Para sugerir taxa e vida \u00fatil, ${missingBase.join(' e ')}.`,
+        : `Para sugerir taxa e vida útil, ${missingBase.join(' e ')}.`,
     },
     residual: {
       enabled: residualMissing.length === 0,

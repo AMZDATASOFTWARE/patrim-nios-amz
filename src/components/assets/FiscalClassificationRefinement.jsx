@@ -30,14 +30,43 @@ function ActionButton({ children, className = '', variant = 'primary', ...props 
 
 function fiscalStatusLabel(status) {
   if (status === 'READY_FOR_CONFIRMATION') return 'Tipo identificado';
-  if (status === 'NEEDS_MORE_INFORMATION') return 'Refinando identifica\u00e7\u00e3o';
-  if (status === 'NO_SAFE_CANDIDATE') return 'Sem classifica\u00e7\u00e3o segura';
-  if (status === 'REQUIRES_HUMAN_REVIEW') return 'Revis\u00e3o necess\u00e1ria';
-  return 'An\u00e1lise fiscal';
+  if (status === 'NEEDS_MORE_INFORMATION') return 'Refinando identificação';
+  if (status === 'NO_SAFE_CANDIDATE') return 'Sem classificação segura';
+  if (status === 'REQUIRES_HUMAN_REVIEW') return 'Revisão necessária';
+  return 'Análise fiscal';
 }
 
 function optionDescription(option) {
   return option?.plain_description || option?.description || '';
+}
+
+function missingDataForFiscalSuggestions(suggestions) {
+  const items = [];
+  FISCAL_DEPRECIATION_SUGGESTION_FIELDS.forEach((field) => {
+    const missing = suggestions?.[field]?.missing_data;
+    if (!Array.isArray(missing)) return;
+    missing.forEach((item) => {
+      const text = String(item || '').trim();
+      if (text && !items.includes(text)) items.push(text);
+    });
+  });
+  return items.slice(0, 4);
+}
+
+function fiscalFallbackMessage(status, suggestions) {
+  if (status === 'ERROR') return 'Não foi possível consultar a sugestão fiscal agora. Tente novamente em instantes.';
+  if (status === 'REQUIRES_HUMAN_REVIEW') {
+    return 'A classificação fiscal precisa de revisão humana antes de sugerir taxa ou vida útil.';
+  }
+  if (status === 'NO_SAFE_CANDIDATE') {
+    return 'Não encontramos uma classificação fiscal segura para este bem com as informações disponíveis.';
+  }
+  if (status === 'NEEDS_MORE_INFORMATION') {
+    const missing = missingDataForFiscalSuggestions(suggestions);
+    if (missing.length > 0) return `Preencha ou revise: ${missing.join(', ')}.`;
+    return 'Informe uma descrição mais detalhada, a conta contábil, marca ou modelo para melhorar a classificação fiscal.';
+  }
+  return '';
 }
 
 function TechnicalDetails({ option, classification, suggestions, response }) {
@@ -51,12 +80,12 @@ function TechnicalDetails({ option, classification, suggestions, response }) {
       <summary className="cursor-pointer font-medium text-foreground">Saiba mais</summary>
       <div className="mt-2 space-y-1 text-muted-foreground">
         {option?.display_name && <p><span className="font-medium text-foreground">Tipo:</span> {option.display_name}</p>}
-        {option?.ncm_display && <p><span className="font-medium text-foreground">Detalhe t\u00e9cnico fiscal:</span> {option.ncm_display}</p>}
+        {option?.ncm_display && <p><span className="font-medium text-foreground">Detalhe técnico fiscal:</span> {option.ncm_display}</p>}
         {rate?.found && <p><span className="font-medium text-foreground">Taxa fiscal:</span> {formatSuggestionValue('fiscal_depreciation_rate', rate.value)}</p>}
-        {life?.found && <p><span className="font-medium text-foreground">Vida \u00fatil fiscal:</span> {formatSuggestionValue('fiscal_useful_life_years', life.value)}</p>}
+        {life?.found && <p><span className="font-medium text-foreground">Vida útil fiscal:</span> {formatSuggestionValue('fiscal_useful_life_years', life.value)}</p>}
         {source && <p><span className="font-medium text-foreground">Fonte normativa:</span> {source}</p>}
         {(rate?.reason || life?.reason) && <p><span className="font-medium text-foreground">Justificativa:</span> {rate?.reason || life?.reason}</p>}
-        {(rate?.confidence || life?.confidence) && <p><span className="font-medium text-foreground">Confian\u00e7a:</span> {confidenceValueLabel(rate?.confidence || life?.confidence)}</p>}
+        {(rate?.confidence || life?.confidence) && <p><span className="font-medium text-foreground">Confiança:</span> {confidenceValueLabel(rate?.confidence || life?.confidence)}</p>}
         {classification?.refinement_state?.warnings?.length > 0 && (
           <p><span className="font-medium text-foreground">Aviso:</span> {classification.refinement_state.warnings[0]}</p>
         )}
@@ -83,27 +112,28 @@ export default function FiscalClassificationRefinement({
   const readyOption = state.readyOption || fiscalReadyOption(classification);
   const hasSuggestion = hasFoundSuggestionForFields(suggestions, FISCAL_DEPRECIATION_SUGGESTION_FIELDS);
   const status = state.status || classification?.refinement_state?.status || 'IDLE';
-  const userMessage = state.error || fiscalUserMessage(status, evaluation?.status);
+  const fallbackMessage = !question && !readyOption && !hasSuggestion ? fiscalFallbackMessage(status, suggestions) : '';
+  const userMessage = state.error || fiscalUserMessage(status, evaluation?.status) || fallbackMessage;
   const invalidToken = isInvalidFiscalTokenMessage(classification);
-  const loadingLabel = status === 'CONFIRMING' ? 'Confirmando tipo do item...' : 'Refinando a identifica\u00e7\u00e3o do item...';
+  const loadingLabel = status === 'CONFIRMING' ? 'Confirmando tipo do item...' : 'Refinando a identificação do item...';
   const disabled = state.loading;
 
   return (
     <div className="space-y-3 rounded-lg border border-dashed border-border bg-muted/20 p-3">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="text-sm font-medium text-foreground">Sugest\u00e3o fiscal autom\u00e1tica</p>
-          <p className="text-xs text-muted-foreground">A refer\u00eancia \u00e9 fiscal, exige valida\u00e7\u00e3o profissional e n\u00e3o substitui os par\u00e2metros cont\u00e1beis.</p>
+          <p className="text-sm font-medium text-foreground">Sugestão fiscal automática</p>
+          <p className="text-xs text-muted-foreground">A referência é fiscal, exige validação profissional e não substitui os parâmetros contábeis.</p>
         </div>
         <ActionButton variant="outline" className="gap-2" onClick={onStart} disabled={disabled}>
           {state.loading ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-          {state.loading ? 'Analisando...' : 'Sugest\u00e3o Autom\u00e1tica'}
+          {state.loading ? 'Analisando...' : 'Sugestão Automática'}
         </ActionButton>
       </div>
 
       <div className="grid gap-2 sm:grid-cols-[220px_1fr] sm:items-end">
         <div>
-          <label htmlFor="fiscal_tax_regime" className="text-sm font-medium leading-none">Regime tribut\u00e1rio para an\u00e1lise</label>
+          <label htmlFor="fiscal_tax_regime" className="text-sm font-medium leading-none">Regime tributário para análise</label>
           <select
             id="fiscal_tax_regime"
             className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm"
@@ -111,17 +141,17 @@ export default function FiscalClassificationRefinement({
             onChange={(event) => onTaxRegimeChange(event.target.value)}
             disabled={disabled}
           >
-            <option value="">Selecionar se necess\u00e1rio</option>
+            <option value="">Selecionar se necessário</option>
             <option value="LUCRO_REAL">Lucro Real</option>
             <option value="LUCRO_PRESUMIDO">Lucro Presumido</option>
             <option value="SIMPLES_NACIONAL">Simples Nacional</option>
-            <option value="OTHER">Outro / precisa de an\u00e1lise</option>
+            <option value="OTHER">Outro / precisa de análise</option>
           </select>
         </div>
         {status && status !== 'IDLE' && (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="inline-flex rounded-md border px-2.5 py-0.5 text-xs font-semibold text-foreground">{fiscalStatusLabel(status)}</span>
-            <span>Nada \u00e9 aplicado sem confirma\u00e7\u00e3o.</span>
+            <span>Nada é aplicado sem confirmação.</span>
           </div>
         )}
       </div>
@@ -135,9 +165,9 @@ export default function FiscalClassificationRefinement({
 
       {invalidToken && !state.loading && (
         <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
-          <p>Esta an\u00e1lise expirou ou os dados do bem foram alterados. Vamos iniciar uma nova an\u00e1lise com as informa\u00e7\u00f5es atuais.</p>
+          <p>Esta análise expirou ou os dados do bem foram alterados. Vamos iniciar uma nova análise com as informações atuais.</p>
           <button type="button" className="h-auto px-0 py-1 text-xs font-medium text-amber-900 underline" onClick={onReset}>
-            Reiniciar an\u00e1lise
+            Reiniciar análise
           </button>
         </div>
       )}
@@ -150,7 +180,7 @@ export default function FiscalClassificationRefinement({
 
       {question && !state.loading && !invalidToken && (
         <div className="rounded-md border border-border bg-background p-3">
-          <p className="mb-1 text-xs font-medium uppercase text-muted-foreground">Precisamos de mais uma informa\u00e7\u00e3o</p>
+          <p className="mb-1 text-xs font-medium uppercase text-muted-foreground">Precisamos de mais uma informação</p>
           <p className="text-sm font-medium text-foreground">{question.question}</p>
           {question.reason && <p className="mt-1 text-xs text-muted-foreground">{question.reason}</p>}
           <div className="mt-3 grid gap-2" role="radiogroup" aria-label={question.question}>
@@ -191,13 +221,13 @@ export default function FiscalClassificationRefinement({
               Confirmar tipo do item
             </ActionButton>
           </div>
-          {!taxRegime && <p className="mt-2 text-xs text-muted-foreground">Informe o regime tribut\u00e1rio para confirmar o tipo e consultar a regra fiscal aplic\u00e1vel.</p>}
+          {!taxRegime && <p className="mt-2 text-xs text-muted-foreground">Informe o regime tributário para confirmar o tipo e consultar a regra fiscal aplicável.</p>}
         </div>
       )}
 
       {hasSuggestion && !state.loading && (
         <div className="rounded-md border border-primary/20 bg-primary/5 p-3">
-          <p className="text-sm font-semibold text-foreground">Sugest\u00e3o fiscal</p>
+          <p className="text-sm font-semibold text-foreground">Sugestão fiscal</p>
           <div className="mt-2 grid gap-3 sm:grid-cols-2">
             {FISCAL_DEPRECIATION_SUGGESTION_FIELDS.map((field) => {
               const suggestion = suggestions[field];
@@ -206,24 +236,24 @@ export default function FiscalClassificationRefinement({
               return (
                 <div key={field} className="rounded-md bg-background/80 p-3 text-xs">
                   <p className="text-[11px] font-medium uppercase text-muted-foreground">
-                    {field === 'fiscal_depreciation_rate' ? 'Taxa fiscal' : 'Vida \u00fatil fiscal'}
+                    {field === 'fiscal_depreciation_rate' ? 'Taxa fiscal' : 'Vida útil fiscal'}
                   </p>
                   <p className="text-base font-semibold text-foreground">{formatSuggestionValue(field, suggestion.value)}</p>
-                  <p className="mt-1 text-muted-foreground">Confian\u00e7a: {confidenceValueLabel(suggestion.confidence)}</p>
+                  <p className="mt-1 text-muted-foreground">Confiança: {confidenceValueLabel(suggestion.confidence)}</p>
                   {warnings.length > 0 && <p className="mt-1 text-muted-foreground">{warnings[0]}</p>}
                   <ActionButton variant="outline" className="mt-3" onClick={() => onApply(field)} disabled={disabled}>
-                    Usar sugest\u00e3o
+                    Usar sugestão
                   </ActionButton>
                 </div>
               );
             })}
           </div>
           <TechnicalDetails option={readyOption} classification={classification} suggestions={suggestions} response={state.response} />
-          <p className="mt-2 text-xs text-muted-foreground">A aplica\u00e7\u00e3o \u00e9 manual e cada campo continua edit\u00e1vel.</p>
+          <p className="mt-2 text-xs text-muted-foreground">A aplicação é manual e cada campo continua editável.</p>
         </div>
       )}
 
-      <p className="text-xs text-muted-foreground">A sugest\u00e3o autom\u00e1tica de valor residual fiscal n\u00e3o est\u00e1 dispon\u00edvel. Informe o valor manualmente com orienta\u00e7\u00e3o cont\u00e1bil.</p>
+      <p className="text-xs text-muted-foreground">A sugestão automática de valor residual fiscal não está disponível. Informe o valor manualmente com orientação contábil.</p>
     </div>
   );
 }
