@@ -111,6 +111,7 @@ export type DirectFiscalAiChoice = {
   confidence?: Confidence | null;
   source_ids?: string[] | null;
   used_fields?: string[] | null;
+  alternative_ncm_codes?: string[] | null;
 };
 
 type FiscalOptionTemplate = {
@@ -972,6 +973,18 @@ function directCatalogOptionsFromAliases(context: SanitizedContext): FiscalClass
   return [...byKey.values()];
 }
 
+function directFiscalOptionByNcm(options: FiscalClassificationOption[], ncm: string): FiscalClassificationOption | null {
+  const normalized = normalizeNcm(ncm);
+  if (!normalized) return null;
+  const exact = options.filter((option) => normalizeNcm(option.ncm_code || '') === normalized);
+  if (exact.length === 0) return null;
+  return exact.sort((a, b) => {
+    const releasable = Number(b.can_release_fiscal_rule) - Number(a.can_release_fiscal_rule);
+    if (releasable !== 0) return releasable;
+    return FISCAL_CONFIDENCE_RANK[b.confidence] - FISCAL_CONFIDENCE_RANK[a.confidence];
+  })[0] || null;
+}
+
 export function buildDirectFiscalCatalogOptions(context: SanitizedContext, maxItems = 50): FiscalClassificationOption[] {
   return directCatalogOptionsFromAliases(context)
     .sort((a, b) => {
@@ -1098,19 +1111,19 @@ export function applyDirectFiscalSuggestionAdapter(input: AdapterInput & { aiCho
       ),
     };
   }
-  const selectedId = fiscalString(input.aiChoice?.selected_catalog_option_id || input.aiChoice?.catalog_option_id);
-  if (!input.aiChoice || !selectedId) {
+  const selectedNcm = fiscalCompleteNcm(input.aiChoice?.selected_ncm_code);
+  if (!input.aiChoice || !selectedNcm) {
     return {
       ...result,
       ...directFiscalNoMatchSuggestions(
         requestedParams,
         input.context,
         options,
-        'A IA nao selecionou uma opcao segura do catalogo fiscal local.',
+        'A IA nao selecionou um NCM do catalogo local.',
       ),
     };
   }
-  const selectedOption = options.find((option) => option.option_id === selectedId) || null;
+  const selectedOption = directFiscalOptionByNcm(options, selectedNcm);
   if (!selectedOption) {
     return {
       ...result,
@@ -1118,45 +1131,7 @@ export function applyDirectFiscalSuggestionAdapter(input: AdapterInput & { aiCho
         requestedParams,
         input.context,
         options,
-        'A IA retornou uma opcao que nao existe no catalogo fiscal local enviado.',
-      ),
-    };
-  }
-  const selectedNcm = fiscalCompleteNcm(input.aiChoice?.selected_ncm_code);
-  if (!selectedNcm || selectedNcm !== selectedOption.ncm_code) {
-    return {
-      ...result,
-      ...directFiscalNoMatchSuggestions(
-        requestedParams,
-        input.context,
-        options,
-        'A IA retornou NCM divergente da opcao fiscal local escolhida.',
-      ),
-    };
-  }
-  const aiSourceIds = Array.isArray(input.aiChoice?.source_ids)
-    ? input.aiChoice.source_ids.map(fiscalString).filter(Boolean)
-    : [];
-  if (!selectedOption.source_id || aiSourceIds.length === 0 || !aiSourceIds.includes(selectedOption.source_id)) {
-    return {
-      ...result,
-      ...directFiscalNoMatchSuggestions(
-        requestedParams,
-        input.context,
-        options,
-        'A IA retornou fonte divergente da fonte normativa local da opcao escolhida.',
-      ),
-    };
-  }
-  const extraSourceIds = aiSourceIds.filter((id) => id !== selectedOption.source_id);
-  if (extraSourceIds.length > 0) {
-    return {
-      ...result,
-      ...directFiscalNoMatchSuggestions(
-        requestedParams,
-        input.context,
-        options,
-        'A IA retornou fontes que nao pertencem a opcao fiscal local escolhida.',
+        'O NCM sugerido pela IA nao existe no catalogo local.',
       ),
     };
   }
@@ -1178,7 +1153,7 @@ export function applyDirectFiscalSuggestionAdapter(input: AdapterInput & { aiCho
     if (lookup.status !== 'MATCHED') {
       result[parameter] = fiscalNotFound(
         parameter,
-        'A opcao fiscal escolhida nao possui regra de taxa e vida util aplicavel na base normativa local.',
+        'O NCM foi identificado, mas nao possui taxa fiscal e vida util vinculadas no catalogo local.',
         classification,
         evaluation,
       );
@@ -1186,7 +1161,7 @@ export function applyDirectFiscalSuggestionAdapter(input: AdapterInput & { aiCho
     }
     const value = parameter === 'fiscal_depreciation_rate' ? lookup.annual_rate_percent : lookup.useful_life_years;
     if (typeof value !== 'number' || !Number.isFinite(value)) {
-      result[parameter] = fiscalNotFound(parameter, 'A opcao fiscal escolhida nao possui taxa ou vida util validavel.', classification, evaluation);
+      result[parameter] = fiscalNotFound(parameter, 'O NCM foi identificado, mas nao possui taxa fiscal e vida util vinculadas no catalogo local.', classification, evaluation);
       continue;
     }
     result[parameter] = {

@@ -139,7 +139,7 @@ test('frontend helper builds suggestAssetParameters payload for creation and edi
   });
 });
 
-test('frontend helper builds fiscal refinement payload without exposing NCM as decision', () => {
+test('frontend helper builds fiscal direct payload without exposing NCM as decision', () => {
   const baseContext = { name: 'Freezer comercial', category: 'Equipamentos' };
   const state = createEmptyFiscalRefinementState();
   const suggestContext = buildFiscalRefinementContext(baseContext, state, 'CLASSIFY_DIRECT', { taxRegime: 'LUCRO_REAL' });
@@ -148,41 +148,6 @@ test('frontend helper builds fiscal refinement payload without exposing NCM as d
   assert.equal('fiscal_refinement_state_token' in suggestContext, false);
   assert.equal('fiscal_classification_answers' in suggestContext, false);
   assert.equal('selected_fiscal_classification_option_id' in suggestContext, false);
-
-  const questionState = {
-    ...state,
-    refinementStateToken: 'token-2',
-    answers: { AI_Q_001: 'REFRIGERATION' },
-  };
-  const refineContext = buildFiscalRefinementContext(baseContext, questionState, 'REFINE_OPTIONS', {
-    questionId: 'AI_Q_002',
-    answerValue: 'COMMERCIAL_FREEZER',
-    taxRegime: 'LUCRO_REAL',
-  });
-  assert.equal(refineContext.fiscal_refinement_state_token, 'token-2');
-  assert.deepEqual(refineContext.fiscal_classification_answers, {
-    AI_Q_001: 'REFRIGERATION',
-    AI_Q_002: 'COMMERCIAL_FREEZER',
-  });
-
-  const option = {
-    option_id: 'REFRIGERATION_EQUIPMENT_PENDING_V1',
-    classification_catalog_version: 'v1',
-    option_fingerprint: 'fp-1',
-    display_name: 'Freezer ou congelador comercial',
-    ncm_code: '84185090',
-  };
-  const confirmContext = buildFiscalRefinementContext(baseContext, questionState, 'CONFIRM_OPTION', {
-    selectedOption: option,
-    taxRegime: 'LUCRO_REAL',
-  });
-  assert.equal(confirmContext.ncm_source, 'CLASSIFICATION_OPTION');
-  assert.equal(confirmContext.ncm_classification_status, 'CONFIRMED_BY_USER');
-  assert.equal(confirmContext.selected_fiscal_classification_option_id, option.option_id);
-  assert.equal(confirmContext.selected_fiscal_classification_catalog_version, option.classification_catalog_version);
-  assert.equal(confirmContext.selected_fiscal_classification_option_fingerprint, option.option_fingerprint);
-  assert.equal(confirmContext.selected_fiscal_classification_name, option.display_name);
-  assert.equal('ncm_code' in confirmContext, false);
 });
 
 test('frontend helper extracts fiscal questions, tokens, options and suggestions defensively', () => {
@@ -238,8 +203,8 @@ test('frontend helper does not expose pending fiscal option as ready for confirm
   );
 });
 
-test('frontend helper replaces or clears fiscal refinement token from backend response', () => {
-  const previous = { ...createEmptyFiscalRefinementState(), refinementStateToken: 'token-1' };
+test('frontend helper stores fiscal direct response without refinement token state', () => {
+  const previous = createEmptyFiscalRefinementState();
   const withToken = buildNextFiscalRefinementState(previous, {
     suggestions: {
       fiscal_depreciation_rate: {
@@ -253,7 +218,7 @@ test('frontend helper replaces or clears fiscal refinement token from backend re
       },
     },
   }, 'ctx-1');
-  assert.equal(withToken.refinementStateToken, 'token-2');
+  assert.equal('refinementStateToken' in withToken, false);
 
   const withoutToken = buildNextFiscalRefinementState(previous, {
     suggestions: {
@@ -267,7 +232,7 @@ test('frontend helper replaces or clears fiscal refinement token from backend re
       },
     },
   }, 'ctx-2');
-  assert.equal(withoutToken.refinementStateToken, null);
+  assert.equal('refinementStateToken' in withoutToken, false);
 });
 
 test('frontend helper exposes fiscal refinement states with actionable messages', () => {
@@ -291,7 +256,7 @@ test('frontend helper exposes fiscal refinement states with actionable messages'
   }, 'ctx-classified');
   assert.equal(classified.status, 'CLASSIFIED');
   assert.equal(classified.classificationConfirmed, false);
-  assert.equal(classified.currentQuestion, null);
+  assert.equal('currentQuestion' in classified, false);
 
   const noSafeMatch = buildNextFiscalRefinementState(previous, {
     suggestions: {
