@@ -33,7 +33,7 @@ function fiscalPanelMessage(status, evaluationStatus) {
   if (evaluationStatus === 'REQUIRES_TAX_REGIME_CONFIRMATION') {
     return 'Informe o regime tributário para analisar a sugestão fiscal.';
   }
-  return 'Não foi possível relacionar este bem a um NCM seguro no catálogo local.';
+  return 'A IA não encontrou uma classificação fiscal suficientemente forte. Informe mais detalhes do bem, como tipo, finalidade de uso, marca ou modelo, para melhorar a sugestão.';
 }
 
 function fiscalSourceLabel(response, suggestion, evaluation) {
