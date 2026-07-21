@@ -357,7 +357,7 @@ export default function AssetForm() {
         ...prev,
         loading: false,
         error: friendlySuggestionError(error).includes('Preencha os dados indicados')
-          ? 'Não foi possível relacionar este bem a um NCM seguro no catálogo local.'
+          ? 'A IA não encontrou uma classificação fiscal suficientemente forte. Informe mais detalhes do bem, como tipo, finalidade de uso, marca ou modelo, para melhorar a sugestão.'
           : 'Não foi possível consultar a sugestão fiscal agora. Tente novamente em instantes.',
         status: 'ERROR',
         contextKey,
@@ -372,8 +372,8 @@ export default function AssetForm() {
     runFiscalRefinementRequest('CLASSIFY_DIRECT', { resetState: true });
   };
 
-  const handleConfirmFiscalOption = (option) => {
-    setFiscalRefinement((prev) => ({ ...prev, classificationConfirmed: true, readyOption: option || prev.readyOption }));
+  const handleConfirmFiscalOption = () => {
+    setFiscalRefinement((prev) => ({ ...prev, classificationConfirmed: true }));
     toast.success('Classificação fiscal confirmada. Revise antes de usar os valores.');
   };
 

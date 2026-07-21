@@ -55,8 +55,6 @@ export function createEmptyFiscalRefinementState() {
     loading: false,
     error: '',
     status: 'IDLE',
-    selectedOption: '',
-    readyOption: null,
     suggestions: {},
     response: null,
     applied: {},
@@ -176,31 +174,6 @@ export function fiscalEvaluationFromSuggestions(suggestions = {}) {
     .find(Boolean) || null;
 }
 
-export function fiscalRefinementStateFromClassification(classification) {
-  return classification?.refinement_state || null;
-}
-
-export function fiscalCurrentQuestion(classification) {
-  const refinement = fiscalRefinementStateFromClassification(classification);
-  if (refinement?.current_question) return refinement.current_question;
-  return Array.isArray(classification?.questions) ? classification.questions[0] || null : null;
-}
-
-export function fiscalRefinementToken(classification) {
-  return fiscalRefinementStateFromClassification(classification)?.refinement_state_token || null;
-}
-
-export function fiscalReadyOption(classification) {
-  if (!classification || !Array.isArray(classification.options)) return null;
-  const status = classification?.refinement_state?.status || classification?.status || '';
-  if (status !== 'READY_FOR_CONFIRMATION') return null;
-  const confirmed = classification.confirmed_option_id
-    ? classification.options.find((option) => option.option_id === classification.confirmed_option_id)
-    : null;
-  if (confirmed?.can_release_fiscal_rule === true) return confirmed;
-  return classification.options.find((option) => option.option_id !== 'NONE_OF_THE_OPTIONS' && option.can_release_fiscal_rule === true) || null;
-}
-
 export function fiscalUserMessage(status, evaluationStatus = '') {
   if (status === 'REQUIRES_HUMAN_REVIEW') {
     return 'Não foi possível concluir esta classificação automaticamente. Revise os dados do bem ou solicite análise do responsável fiscal/contábil.';
@@ -217,30 +190,21 @@ export function fiscalUserMessage(status, evaluationStatus = '') {
   return '';
 }
 
-export function isInvalidFiscalTokenMessage(classification) {
-  const warnings = classification?.refinement_state?.warnings || [];
-  return warnings.some((warning) => /estado assinado|expir|invalido|inválido/i.test(String(warning || '')));
-}
-
 export function buildNextFiscalRefinementState(prev, payload, contextKey, fallbackStatus = '') {
   const suggestions = fiscalSuggestionsFromResponse(payload);
   const classification = fiscalClassificationFromSuggestions(suggestions);
-  const refinement = classification?.refinement_state || null;
-  const readyOption = fiscalReadyOption(classification);
   const hasFiscalSuggestion = hasFoundSuggestionForFields(suggestions, FISCAL_DEPRECIATION_SUGGESTION_FIELDS);
   const status = hasFiscalSuggestion
     ? 'CLASSIFIED'
     : classification?.status === 'UNKNOWN'
       ? 'NO_SAFE_MATCH'
-      : refinement?.status || fallbackStatus || classification?.status || 'NO_SAFE_MATCH';
+      : fallbackStatus || classification?.status || 'NO_SAFE_MATCH';
 
   return {
     ...prev,
     loading: false,
     error: '',
     status,
-    selectedOption: '',
-    readyOption,
     suggestions,
     classification,
     response: payload,
@@ -250,13 +214,12 @@ export function buildNextFiscalRefinementState(prev, payload, contextKey, fallba
   };
 }
 
-export function buildFiscalRefinementContext(baseContext, _state, action, options = {}) {
-  const context = {
+export function buildFiscalRefinementContext(baseContext, _state, _action, options = {}) {
+  return {
     ...baseContext,
-    fiscal_classification_action: action,
+    fiscal_classification_action: 'CLASSIFY_DIRECT',
+    tax_regime: options.taxRegime || baseContext.tax_regime || '',
   };
-  if (options.taxRegime) context.tax_regime = options.taxRegime;
-  return context;
 }
 
 export function requestFieldsForSuggestion(field) {
