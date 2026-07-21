@@ -361,6 +361,10 @@ test('frontend helper converts technical errors to friendly messages', () => {
     friendlySuggestionError({ response: { data: { error: 'Parametro solicitado nao suportado.' } } }),
     'Preencha os dados indicados para gerar uma sugestão mais segura.',
   );
+  assert.equal(
+    friendlySuggestionError({ response: { data: { error: 'Unidade inválida para depreciation_rate.' } } }),
+    'Não foi possível validar a unidade retornada pela sugestão. Tente novamente.',
+  );
 });
 
 test('frontend helper normalizes consulted sources defensively', () => {
@@ -489,11 +493,16 @@ test('AssetForm source uses one shared depreciation button and keeps residual se
   const source = await readFile(ASSET_FORM_PATH, 'utf8');
 
   assert.equal(source.includes('grid grid-cols-1 md:grid-cols-2'), true);
+  assert.equal(source.includes('Informações Financeiras'), true);
+  assert.equal(source.includes('Depreciação societária / gerencial'), true);
+  assert.equal(source.includes('Sugestão gerencial automática'), true);
+  assert.equal(source.includes('Depreciação Fiscal (opcional)'), true);
   assert.equal(source.includes('Sugerir taxa e vida útil'), true);
   assert.equal(source.includes('Sugerir valor residual'), true);
   assert.equal((source.match(/renderSuggestionButton\('depreciation_rate'/g) || []).length, 0);
   assert.equal((source.match(/renderSuggestionButton\('useful_life_years'/g) || []).length, 0);
   assert.equal((source.match(/renderSuggestionButton\('residual_value'/g) || []).length, 1);
+  assert.equal(source.indexOf('Sugestão gerencial automática') > source.indexOf('Depreciação societária / gerencial'), true);
   assert.equal(source.includes('Consultando fontes confiáveis e analisando os dados do ativo'), true);
   assert.equal(source.includes(`Fonte:</span> {sourceSummary || 'não informada'}`), true);
   assert.equal(source.includes('Avisos específicos'), true);
@@ -503,6 +512,7 @@ test('AssetForm source uses one shared depreciation button and keeps residual se
   assert.equal(source.includes('{renderSuggestionNotices(DEPRECIATION_SUGGESTION_FIELDS)}'), true);
   assert.equal(source.includes("{renderSuggestionNotices(['residual_value'])}"), true);
   assert.equal(source.includes('Referência fiscal:'), false);
+  assert.equal(source.includes('NCM'), false);
   assert.equal(source.includes('Sugestão gerada com base nos dados informados e nas fontes consultadas.'), false);
   assert.equal(source.includes('if (!payload.ok) {'), true);
   assert.equal(source.includes('Object.assign(new Error(rawPayload?.error'), true);

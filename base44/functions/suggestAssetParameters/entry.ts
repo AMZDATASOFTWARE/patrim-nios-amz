@@ -388,7 +388,7 @@ function normalizeUnitText(value: unknown): string {
     .trim()
     .toLowerCase()
     .replace(/\s+/g, ' ')
-    .replace(/[./]/g, '')
+    .replace(/[./]/g, ' ')
     .replace(/_/g, ' ');
 }
 
@@ -397,7 +397,32 @@ function normalizeSuggestionUnit(parameter: ParameterName, value: unknown): stri
   if (!unit) return null;
 
   if (parameter === 'depreciation_rate' || parameter === 'fiscal_depreciation_rate') {
-    if (['percent per year', 'percentage per year', 'percent per ano', 'percentual ao ano', 'percent', 'percentage', '%', '% ao ano'].includes(unit)) {
+    if ([
+      'percent per year',
+      'percentage per year',
+      'percent year',
+      'percentage year',
+      'percent per annum',
+      'percentage per annum',
+      'annual percent',
+      'annual percentage',
+      'annual rate',
+      'percent per ano',
+      'percentual anual',
+      'percentual ao ano',
+      'porcentagem anual',
+      'porcentagem ao ano',
+      'por cento ao ano',
+      'porcento ao ano',
+      'percent',
+      'percentage',
+      '%',
+      '% ao ano',
+      '% a a',
+      '% aa',
+      '% ano',
+      '% per year',
+    ].includes(unit)) {
       return 'percent_per_year';
     }
     return null;
@@ -754,9 +779,14 @@ function buildPrompt(params: ParameterName[], context: SanitizedContext, evidenc
     '- Valor residual deve ser estimado a partir dos dados disponiveis do ativo quando houver base minima.',
     '- Nao inclua em missing_data o proprio parametro solicitado, outro parametro tambem solicitado na mesma requisicao ou um valor derivado que esta tarefa deve estimar.',
     '- Nao use nomes tecnicos internos ou snake_case em reason, missing_data ou warnings.',
+    '- Responda sempre em portugues do Brasil.',
+    '- Todos os campos textuais devem estar em portugues do Brasil.',
+    '- reason, based_on e warnings devem estar em portugues do Brasil.',
+    '- Nao retorne justificativas em ingles nem mensagens parcialmente em ingles.',
     '- Sugestoes parciais sao permitidas.',
     '- Nao preencha valores apenas para satisfazer o schema.',
     '- Valores devem ser numeros brutos, sem simbolos e sem texto.',
+    '- A unidade deve ser exatamente percent_per_year para taxas anuais, years para vida util e BRL para valor residual.',
     '- Informe justificativa curta, confianca, dados considerados, dados ausentes e alertas.',
     '- Toda sugestao valida deve avisar que e uma estimativa gerencial e precisa de validacao contabil.',
     '- O resultado nao e orientacao fiscal ou contabil definitiva.',
@@ -784,7 +814,7 @@ function responseSchema(params: ParameterName[]) {
     properties: {
       found: { type: 'boolean' },
       value: { type: ['number', 'null'] },
-      unit: { type: 'string' },
+      unit: { type: 'string', enum: ['percent_per_year', 'years', 'BRL'] },
       confidence: { type: 'string', enum: ['low', 'medium', 'high'] },
       reason: { type: 'string' },
       based_on: { type: 'array', items: { type: 'string' } },
