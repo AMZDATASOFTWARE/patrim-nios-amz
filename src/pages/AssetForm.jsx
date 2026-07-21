@@ -1175,7 +1175,7 @@ export default function AssetForm() {
         {/* Financial Info */}
         <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
           <h2 className="text-lg font-semibold text-card-foreground">Informações Financeiras</h2>
-          
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <Label htmlFor="acquisition_value">Valor de Aquisição (R$) *</Label>
@@ -1210,46 +1210,45 @@ export default function AssetForm() {
                 onChange={(e) => setForm({ ...form, depreciation_start_date: e.target.value })}
               />
             </div>
-            
-            <div className="sm:col-span-2 space-y-3">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="depreciation_rate">Taxa de Depreciação Anual (%)</Label>
-                  <Input
-                    id="depreciation_rate"
-                    type="number"
-                    step="0.1"
-                    value={form.depreciation_rate}
-                    onChange={(e) => handleDepreciationRateChange(e.target.value)}
-                    placeholder="10"
-                    className="mt-1"
-                  />
-                  {renderSuggestionBox('depreciation_rate')}
-                </div>
+          </div>
+        </div>
 
-                <div>
-                  <Label htmlFor="useful_life_years">Vida Útil (anos)</Label>
-                  <Input
-                    id="useful_life_years"
-                    type="number"
-                    step="0.1"
-                    value={form.useful_life_years}
-                    onChange={(e) => handleUsefulLifeChange(e.target.value)}
-                    placeholder="10"
-                    className="mt-1"
-                  />
-                  {renderSuggestionBox('useful_life_years')}
-                </div>
-              </div>
-              {renderDepreciationSuggestionButton()}
-              {renderSuggestionOutcome(DEPRECIATION_SUGGESTION_FIELDS)}
-              {renderSuggestionNotices(DEPRECIATION_SUGGESTION_FIELDS)}
-              {renderSourcesConsulted(getSuggestionResponse(DEPRECIATION_SUGGESTION_FIELDS))}
-            </div>
-            
+        {/* Management depreciation and suggestions */}
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.85fr)]">
+          <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
             <div>
-              <Label htmlFor="residual_value">Valor Residual (R$)</Label>
-              <div className="flex gap-2">
+              <h2 className="text-lg font-semibold text-card-foreground">Depreciação societária / gerencial</h2>
+              <p className="text-sm text-muted-foreground">Parâmetros contábeis editáveis usados no cálculo gerencial do ativo.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="depreciation_rate">Taxa de Depreciação Anual (%)</Label>
+                <Input
+                  id="depreciation_rate"
+                  type="number"
+                  step="0.1"
+                  value={form.depreciation_rate}
+                  onChange={(e) => handleDepreciationRateChange(e.target.value)}
+                  placeholder="10"
+                  className="mt-1"
+                />
+              </div>
+
+              <div>
+                <Label htmlFor="useful_life_years">Vida Útil (anos)</Label>
+                <Input
+                  id="useful_life_years"
+                  type="number"
+                  step="0.1"
+                  value={form.useful_life_years}
+                  onChange={(e) => handleUsefulLifeChange(e.target.value)}
+                  placeholder="10"
+                  className="mt-1"
+                />
+              </div>
+
+              <div className="md:col-span-2">
+                <Label htmlFor="residual_value">Valor Residual (R$)</Label>
                 <Input
                   id="residual_value"
                   type="number"
@@ -1257,16 +1256,37 @@ export default function AssetForm() {
                   value={form.residual_value}
                   onChange={(e) => handleResidualValueChange(e.target.value)}
                   placeholder="0,00"
-                  className="min-w-0"
+                  className="mt-1"
                 />
-                {renderSuggestionButton('residual_value', 'Sugerir valor residual')}
               </div>
+            </div>
+          </div>
+
+          <div className="bg-card rounded-xl border border-primary/20 p-4 sm:p-6 shadow-sm space-y-4">
+            <div>
+              <h2 className="text-lg font-semibold text-card-foreground">Sugestão gerencial automática</h2>
+              <p className="text-sm text-muted-foreground">A IA sugere taxa, vida útil e residual com base nos dados do ativo. Nada é aplicado sem confirmação.</p>
+            </div>
+            <div className="space-y-3">
+              {renderDepreciationSuggestionButton()}
+              {renderSuggestionBox('depreciation_rate')}
+              {renderSuggestionBox('useful_life_years')}
+              {renderSuggestionOutcome(DEPRECIATION_SUGGESTION_FIELDS)}
+              {renderSuggestionNotices(DEPRECIATION_SUGGESTION_FIELDS)}
+              {renderSourcesConsulted(getSuggestionResponse(DEPRECIATION_SUGGESTION_FIELDS))}
+            </div>
+            <div className="border-t border-border pt-3 space-y-3">
+              {renderSuggestionButton('residual_value', 'Sugerir valor residual')}
               {renderSuggestionBox('residual_value')}
-              {renderSuggestionOutcome(['residual_value'], 'mt-2 text-xs text-muted-foreground')}
+              {renderSuggestionOutcome(['residual_value'], 'text-xs text-muted-foreground')}
               {renderSuggestionNotices(['residual_value'])}
               {renderSourcesConsulted(getSuggestionResponse(['residual_value']))}
             </div>
           </div>
+        </div>
+
+        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+          As sugestões são estimativas gerenciais e fiscais de apoio. Revise com o responsável contábil/fiscal antes de salvar ou utilizar os parâmetros.
         </div>
 
         {/* Supplier & Fiscal */}
@@ -1296,29 +1316,31 @@ export default function AssetForm() {
         </div>
 
         {/* Depreciação Fiscal (opcional) */}
-        <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
-          <div>
-            <h2 className="text-lg font-semibold text-card-foreground">Depreciação Fiscal (opcional)</h2>
-            <p className="text-sm text-muted-foreground">Preencha apenas se a taxa fiscal (Receita Federal) diferir da societária/gerencial acima. Em branco, o livro fiscal espelha o societário.</p>
-          </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(340px,0.85fr)]">
+          <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
             <div>
-              <Label htmlFor="fiscal_depreciation_rate">Taxa Fiscal Anual (%)</Label>
-              <Input id="fiscal_depreciation_rate" type="number" step="0.1" value={form.fiscal_depreciation_rate}
-                onChange={(e) => setForm({ ...form, fiscal_depreciation_rate: e.target.value, fiscal_useful_life_years: e.target.value > 0 ? (100 / parseFloat(e.target.value)).toFixed(1) : '' })} placeholder="Ex: 25" />
+              <h2 className="text-lg font-semibold text-card-foreground">Depreciação Fiscal (opcional)</h2>
+              <p className="text-sm text-muted-foreground">Preencha apenas se a taxa fiscal diferir da gerencial/societária. Em branco, o livro fiscal espelha o gerencial quando aplicável.</p>
             </div>
-            <div>
-              <Label htmlFor="fiscal_useful_life_years">Vida Útil Fiscal (anos)</Label>
-              <Input id="fiscal_useful_life_years" type="number" step="0.1" value={form.fiscal_useful_life_years}
-                onChange={(e) => setForm({ ...form, fiscal_useful_life_years: e.target.value, fiscal_depreciation_rate: e.target.value > 0 ? (100 / parseFloat(e.target.value)).toFixed(1) : '' })} placeholder="Ex: 4" />
-            </div>
-            <div>
-              <Label htmlFor="fiscal_residual_value">Valor Residual Fiscal (R$)</Label>
-              <Input id="fiscal_residual_value" type="number" step="0.01" value={form.fiscal_residual_value} onChange={(e) => setForm({ ...form, fiscal_residual_value: e.target.value })} placeholder="0,00" />
-            </div>
-            <div>
-              <Label htmlFor="fiscal_depreciation_start_date">Início da Depreciação Fiscal</Label>
-              <Input id="fiscal_depreciation_start_date" type="date" value={form.fiscal_depreciation_start_date} onChange={(e) => setForm({ ...form, fiscal_depreciation_start_date: e.target.value })} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="fiscal_depreciation_rate">Taxa Fiscal Anual (%)</Label>
+                <Input id="fiscal_depreciation_rate" type="number" step="0.1" value={form.fiscal_depreciation_rate}
+                  onChange={(e) => setForm({ ...form, fiscal_depreciation_rate: e.target.value, fiscal_useful_life_years: e.target.value > 0 ? (100 / parseFloat(e.target.value)).toFixed(1) : '' })} placeholder="Ex: 25" />
+              </div>
+              <div>
+                <Label htmlFor="fiscal_useful_life_years">Vida Útil Fiscal (anos)</Label>
+                <Input id="fiscal_useful_life_years" type="number" step="0.1" value={form.fiscal_useful_life_years}
+                  onChange={(e) => setForm({ ...form, fiscal_useful_life_years: e.target.value, fiscal_depreciation_rate: e.target.value > 0 ? (100 / parseFloat(e.target.value)).toFixed(1) : '' })} placeholder="Ex: 4" />
+              </div>
+              <div>
+                <Label htmlFor="fiscal_residual_value">Valor Residual Fiscal (R$)</Label>
+                <Input id="fiscal_residual_value" type="number" step="0.01" value={form.fiscal_residual_value} onChange={(e) => setForm({ ...form, fiscal_residual_value: e.target.value })} placeholder="0,00" />
+              </div>
+              <div>
+                <Label htmlFor="fiscal_depreciation_start_date">Início da Depreciação Fiscal</Label>
+                <Input id="fiscal_depreciation_start_date" type="date" value={form.fiscal_depreciation_start_date} onChange={(e) => setForm({ ...form, fiscal_depreciation_start_date: e.target.value })} />
+              </div>
             </div>
           </div>
           <FiscalClassificationRefinement

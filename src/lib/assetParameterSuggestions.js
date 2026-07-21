@@ -512,6 +512,9 @@ export function friendlySuggestionError(error) {
   if (/permission|permiss|unauthorized|forbidden|403|401/i.test(message)) {
     return 'Você não tem permissão para gerar sugestões neste cadastro.';
   }
+  if (/unidade invalida|unidade inválida|invalid unit/i.test(message)) {
+    return 'Não foi possível validar a unidade retornada pela sugestão. Tente novamente.';
+  }
   if (/payload|context|category|categoria|parameter|parametro/i.test(message)) {
     return 'Preencha os dados indicados para gerar uma sugestão mais segura.';
   }
