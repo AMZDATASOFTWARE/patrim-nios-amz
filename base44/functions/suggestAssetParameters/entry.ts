@@ -28,8 +28,7 @@ const ALLOWED_PARAMETERS = [...CORPORATE_PARAMETERS, ...FISCAL_PARAMETERS] as co
 const CONFIDENCE = ['low', 'medium', 'high'] as const;
 const MANAGEMENT_WARNING = 'Estimativa gerencial baseada nos dados informados. Valide com o responsavel contabil antes de utilizar.';
 const SOURCELESS_MANAGEMENT_WARNING = 'Sugestao gerencial estimada. Revise com o responsavel contabil antes de aplicar.';
-const ASSUMED_BRL_WARNING = 'Unidade monetaria assumida como BRL para valor residual.';
-const ASSUMED_ANNUAL_RATE_WARNING = 'Unidade anual assumida para taxa de depreciacao gerencial.';
+const ASSUMED_FIELD_UNIT_WARNING = 'Unidade ajustada automaticamente a partir do campo solicitado.';
 
 type ParameterName = typeof ALLOWED_PARAMETERS[number];
 type Confidence = typeof CONFIDENCE[number];
@@ -296,7 +295,9 @@ function normalizeUnitText(value: unknown): string {
     .toLowerCase()
     .replace(/\s+/g, ' ')
     .replace(/[./]/g, ' ')
-    .replace(/_/g, ' ');
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function isMissingUnit(value: unknown): boolean {
@@ -307,7 +308,42 @@ function normalizeSuggestionUnit(parameter: ParameterName, value: unknown): stri
   const unit = normalizeUnitText(value);
   if (!unit) return null;
 
-  if (parameter === 'depreciation_rate' || parameter === 'fiscal_depreciation_rate') {
+  if (parameter === 'depreciation_rate') {
+    if ([
+      'percent per year',
+      'percentage per year',
+      'percent year',
+      'percentage year',
+      'percent per annum',
+      'percentage per annum',
+      'annual percent',
+      'annual percentage',
+      'annual rate',
+      'percent per ano',
+      'percentual anual',
+      'percentual ao ano',
+      'porcentagem anual',
+      'porcentagem ao ano',
+      'por cento ao ano',
+      'porcento ao ano',
+      'percent',
+      'percentage',
+      '%',
+      '% ao ano',
+      '% a a',
+      '% aa',
+      '% ano',
+      '% per year',
+      'aa',
+      'a a',
+      'ao ano',
+    ].includes(unit)) {
+      return 'percent_per_year';
+    }
+    return null;
+  }
+
+  if (parameter === 'fiscal_depreciation_rate') {
     if ([
       'percent per year',
       'percentage per year',
@@ -570,13 +606,10 @@ function validateSuggestion(
     validationWarnings.push('Fonte informada pela IA foi descartada porque nao existe nas evidencias fornecidas.');
   }
 
-  const assumedResidualBrl = parameter === 'residual_value' && isMissingUnit(rawSuggestion.unit);
-  const assumedAnnualDepreciationRate = parameter === 'depreciation_rate' && isMissingUnit(rawSuggestion.unit);
-  const normalizedUnit = assumedResidualBrl
-    ? 'BRL'
-    : assumedAnnualDepreciationRate
-      ? 'percent_per_year'
-      : normalizeSuggestionUnit(parameter, rawSuggestion.unit);
+  const assumedFieldUnit = isCorporateParameter(parameter) && isMissingUnit(rawSuggestion.unit);
+  const normalizedUnit = assumedFieldUnit
+    ? expectedUnit
+    : normalizeSuggestionUnit(parameter, rawSuggestion.unit);
   if (normalizedUnit !== expectedUnit) {
     return notFound(parameter, `Unidade invalida para ${parameter}.`, warnings);
   }
@@ -598,9 +631,6 @@ function validateSuggestion(
   }
 
   if (parameter === 'residual_value') {
-    if (assumedResidualBrl) {
-      validationWarnings.push(ASSUMED_BRL_WARNING);
-    }
     const acquisition = context.acquisition_value;
     if (typeof acquisition !== 'number' || !Number.isFinite(acquisition) || acquisition <= 0) {
       validationWarnings.push('Custo reconhecido ausente; o limite superior do residual nao pode ser validado.');
@@ -608,8 +638,8 @@ function validateSuggestion(
       return notFound(parameter, 'Valor residual fora do intervalo permitido.', warnings);
     }
   }
-  if (assumedAnnualDepreciationRate) {
-    validationWarnings.push(ASSUMED_ANNUAL_RATE_WARNING);
+  if (assumedFieldUnit) {
+    validationWarnings.push(ASSUMED_FIELD_UNIT_WARNING);
   }
 
   const sourcelessManagementEstimate = isCorporateParameter(parameter) && sourceIds.length === 0;
@@ -980,6 +1010,7 @@ Deno.serve(async (req) => {
         requestedParams: fiscalParams,
         suggestions,
         aiChoice,
+        catalogOptions,
       }) as Partial<Record<ParameterName, Suggestion>>;
       addFiscalSourceFailureWarning(suggestions, fiscalSourceResult);
     }

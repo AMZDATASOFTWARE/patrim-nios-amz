@@ -175,6 +175,12 @@ export function fiscalEvaluationFromSuggestions(suggestions = {}) {
 }
 
 export function fiscalUserMessage(status, evaluationStatus = '') {
+  if (status === 'NO_HYPOTHESIS') {
+    return 'A IA nao encontrou uma hipotese fiscal util. Informe mais detalhes do bem, como tipo, finalidade de uso, marca ou modelo.';
+  }
+  if (status === 'CLASSIFIED_REVIEW_ONLY') {
+    return 'Classificacao provavel. Revise com responsavel fiscal antes de aplicar qualquer parametro.';
+  }
   if (status === 'REQUIRES_HUMAN_REVIEW') {
     return 'Não foi possível concluir esta classificação automaticamente. Revise os dados do bem ou solicite análise do responsável fiscal/contábil.';
   }
@@ -194,11 +200,13 @@ export function buildNextFiscalRefinementState(prev, payload, contextKey, fallba
   const suggestions = fiscalSuggestionsFromResponse(payload);
   const classification = fiscalClassificationFromSuggestions(suggestions);
   const hasFiscalSuggestion = hasFoundSuggestionForFields(suggestions, FISCAL_DEPRECIATION_SUGGESTION_FIELDS);
-  const status = hasFiscalSuggestion
-    ? 'CLASSIFIED'
-    : classification?.status === 'UNKNOWN'
-      ? 'NO_SAFE_MATCH'
-      : fallbackStatus || classification?.status || 'NO_SAFE_MATCH';
+  const status = classification?.status === 'CLASSIFIED_APPLICABLE' || hasFiscalSuggestion
+    ? 'CLASSIFIED_APPLICABLE'
+    : classification?.status === 'CLASSIFIED_REVIEW_ONLY'
+      ? 'CLASSIFIED_REVIEW_ONLY'
+      : classification?.status === 'NO_HYPOTHESIS' || classification?.status === 'UNKNOWN'
+        ? 'NO_HYPOTHESIS'
+        : fallbackStatus || classification?.status || 'NO_HYPOTHESIS';
 
   return {
     ...prev,
