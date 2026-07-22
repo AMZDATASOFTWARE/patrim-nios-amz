@@ -17,6 +17,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { useWorkspace } from '@/lib/WorkspaceContext';
 import { getPlan } from '@/lib/plans';
 import { logAudit } from '@/lib/audit';
+import { canUseAssetAutomaticSuggestions } from '@/lib/permissions';
 import {
   DEPRECIATION_SUGGESTION_FIELDS,
   FISCAL_DEPRECIATION_SUGGESTION_FIELDS,
@@ -84,6 +85,7 @@ export default function AssetForm() {
   const AuditEntity = useWorkspaceEntity('AuditLog');
   const { user } = useAuth();
   const { workspace } = useWorkspace();
+  const canUseAutomaticSuggestions = canUseAssetAutomaticSuggestions(user, workspace);
   const [brandOptions, setBrandOptions] = useState([]);
   const [modelOptions, setModelOptions] = useState([]);
   const [sinapiReference, setSinapiReference] = useState(null);
@@ -212,6 +214,7 @@ export default function AssetForm() {
   );
 
   const runSuggestionRequest = async (params, context) => {
+    if (!canUseAutomaticSuggestions) return;
     const requestKey = stableStringify({ params, context });
     if (aiInFlightKeyRef.current) return;
 
@@ -297,6 +300,7 @@ export default function AssetForm() {
   };
 
   const runFiscalRefinementRequest = async (action, options = {}) => {
+    if (!canUseAutomaticSuggestions) return;
     if (fiscalInFlightRef.current) return;
 
     const contextKey = fiscalClassificationContextKey;
@@ -1273,6 +1277,7 @@ export default function AssetForm() {
             </div>
           </div>
 
+          {canUseAutomaticSuggestions && (
           <div className="bg-card rounded-xl border border-primary/20 p-4 sm:p-6 shadow-sm space-y-4">
             <div>
               <h2 className="text-lg font-semibold text-card-foreground">Sugestão gerencial automática</h2>
@@ -1294,11 +1299,14 @@ export default function AssetForm() {
               {renderSourcesConsulted(getSuggestionResponse(['residual_value']))}
             </div>
           </div>
+          )}
         </div>
 
+        {canUseAutomaticSuggestions && (
         <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
           As sugestões são estimativas gerenciais e fiscais de apoio. Revise com o responsável contábil/fiscal antes de salvar ou utilizar os parâmetros.
         </div>
+        )}
 
         {/* Supplier & Fiscal */}
         <div className="bg-card rounded-xl border border-border p-4 sm:p-6 shadow-sm space-y-4">
@@ -1354,6 +1362,7 @@ export default function AssetForm() {
               </div>
             </div>
           </div>
+          {canUseAutomaticSuggestions && (
           <FiscalClassificationRefinement
             state={fiscalRefinement}
             taxRegime={fiscalTaxRegime}
@@ -1362,6 +1371,7 @@ export default function AssetForm() {
             onConfirm={handleConfirmFiscalOption}
             onApply={handleApplyFiscalSuggestion}
           />
+          )}
         </div>
 
         {/* Titularidade / obra em andamento */}

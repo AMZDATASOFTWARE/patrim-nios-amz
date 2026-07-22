@@ -138,6 +138,14 @@ export function canManageBilling(user, workspace) {
   return can(user, 'view_billing') || isWorkspaceOwner(user, workspace);
 }
 
+export function canUseAssetAutomaticSuggestions(user, workspace) {
+  const userEmail = String(user?.email || '').trim().toLowerCase();
+  const ownerEmail = String(workspace?.owner_email || '').trim().toLowerCase();
+  return user?.is_platform_admin === true
+    || user?.role === 'admin'
+    || (!!userEmail && !!ownerEmail && userEmail === ownerEmail);
+}
+
 export function usePermissions(user) {
   const role = user?.role || 'user';
   return {

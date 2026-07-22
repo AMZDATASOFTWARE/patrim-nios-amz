@@ -29,7 +29,6 @@ const CONFIDENCE = ['low', 'medium', 'high'] as const;
 const MANAGEMENT_WARNING = 'Estimativa gerencial baseada nos dados informados. Valide com o responsavel contabil antes de utilizar.';
 const SOURCELESS_MANAGEMENT_WARNING = 'Sugestao gerencial estimada. Revise com o responsavel contabil antes de aplicar.';
 const ASSUMED_FIELD_UNIT_WARNING = 'Unidade ajustada automaticamente a partir do campo solicitado.';
-const FUNCTION_DEBUG_MARKER = 'suggestAssetParameters-parse-v2';
 
 type ParameterName = typeof ALLOWED_PARAMETERS[number];
 type Confidence = typeof CONFIDENCE[number];
@@ -57,16 +56,6 @@ type FiscalReference = {
   unit: string;
   source_ids: string[];
   warning: string;
-};
-
-type RequestedParametersDebug = {
-  raw_requested_parameters: unknown[];
-  rejected_raw: string;
-  rejected_normalized: string;
-  rejected_type: string;
-  rejected_length: number;
-  rejected_char_codes: number[];
-  allowed_parameters: readonly string[];
 };
 
 const FIELD_LIMITS: Record<string, number> = {
@@ -168,6 +157,18 @@ function json(body: unknown, status = 200): Response {
 
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
+}
+
+function normalizeEmail(value: unknown): string {
+  return String(value || '').trim().toLowerCase();
+}
+
+function canUseAssetAutomaticSuggestions(user: Record<string, unknown>, workspace: Record<string, unknown> | null): boolean {
+  if (user.is_platform_admin === true) return true;
+  if (user.role === 'admin') return true;
+  const userEmail = normalizeEmail(user.email);
+  const ownerEmail = normalizeEmail(workspace?.owner_email);
+  return !!userEmail && !!ownerEmail && userEmail === ownerEmail;
 }
 
 function isValidIsoDate(value: string): boolean {
@@ -284,32 +285,16 @@ function normalizeRequestedParameter(value: unknown): string {
     .trim();
 }
 
-function charCodes(value: string): number[] {
-  return Array.from(value).map((char) => char.codePointAt(0) || 0);
-}
-
-function parseRequestedParameters(raw: unknown): { params?: ParameterName[]; error?: string; debug?: RequestedParametersDebug } {
+function parseRequestedParameters(raw: unknown): { params?: ParameterName[]; error?: string } {
   if (!Array.isArray(raw) || raw.length === 0) {
     return { error: 'requested_parameters deve ser uma lista nao vazia.' };
   }
 
   const params: ParameterName[] = [];
   for (const item of raw) {
-    const rawText = String(item);
     const parameter = normalizeRequestedParameter(item);
     if (!ALLOWED_PARAMETERS.includes(parameter as ParameterName)) {
-      return {
-        error: 'Parametro solicitado nao suportado.',
-        debug: {
-          raw_requested_parameters: raw,
-          rejected_raw: rawText,
-          rejected_normalized: parameter,
-          rejected_type: typeof item,
-          rejected_length: parameter.length,
-          rejected_char_codes: charCodes(rawText),
-          allowed_parameters: ALLOWED_PARAMETERS,
-        },
-      };
+      return { error: 'Parametro solicitado nao suportado.' };
     }
     if (!params.includes(parameter as ParameterName)) params.push(parameter as ParameterName);
   }
@@ -1001,8 +986,11 @@ Deno.serve(async (req) => {
 
     const svc = base44.asServiceRole;
     const fresh = (await svc.entities.User.filter({ id: user.id }))[0];
-    if (!fresh?.workspace_id || !['admin', 'manager'].includes(fresh.role)) {
-      return json({ error: 'Voce nao tem permissao para sugerir parametros de ativos.' }, 403);
+    const workspace = fresh?.workspace_id
+      ? (await svc.entities.Workspace.filter({ id: fresh.workspace_id }))[0] || null
+      : null;
+    if (!fresh || (!fresh.is_platform_admin && !fresh.workspace_id) || !canUseAssetAutomaticSuggestions(fresh, workspace)) {
+      return json({ error: 'Voce nao tem permissao para usar sugestoes automaticas de ativos.' }, 403);
     }
 
     const body = await req.json().catch(() => null);
@@ -1010,15 +998,7 @@ Deno.serve(async (req) => {
     if (body.entity_type !== 'Asset') return json({ error: 'entity_type invalido.' }, 400);
 
     const parsedParams = parseRequestedParameters(body.requested_parameters);
-    if (parsedParams.error || !parsedParams.params) {
-      return json({
-        error: parsedParams.error,
-        ...(parsedParams.debug ? {
-          debug_requested_parameters: parsedParams.debug,
-          function_debug_marker: FUNCTION_DEBUG_MARKER,
-        } : {}),
-      }, 400);
-    }
+    if (parsedParams.error || !parsedParams.params) return json({ error: parsedParams.error }, 400);
 
     const assetId = typeof body.asset_id === 'string' ? body.asset_id.trim().slice(0, 100) : '';
     if (body.asset_id !== undefined && body.asset_id !== null && typeof body.asset_id !== 'string') {
@@ -1028,7 +1008,7 @@ Deno.serve(async (req) => {
     if (assetId) {
       const existing = (await svc.entities.Asset.filter({ id: assetId }, '-created_date', 1))[0];
       if (!existing) return json({ error: 'Ativo nao encontrado.' }, 404);
-      if (existing.workspace_id !== fresh.workspace_id) return json({ error: 'Ativo nao pertence ao workspace autorizado.' }, 403);
+      if (!fresh.is_platform_admin && existing.workspace_id !== fresh.workspace_id) return json({ error: 'Ativo nao pertence ao workspace autorizado.' }, 403);
     }
 
     const sanitized = sanitizeContext(body.asset_context, parsedParams.params);
@@ -1037,18 +1017,16 @@ Deno.serve(async (req) => {
     const fiscalParams = parsedParams.params.filter(isFiscalParameter);
     let suggestions: Partial<Record<ParameterName, Suggestion>> = {};
     let fiscalSourceResult: Awaited<ReturnType<typeof collectTrustedSourceEvidence>> | null = null;
-    let debugFiscalDiagnosis: Record<string, unknown> | null = null;
 
     if (fiscalParams.length > 0) {
       const catalogOptions = buildDirectFiscalCatalogOptions(sanitized.context);
       let aiChoice: DirectFiscalAiChoice | null = null;
-      let fiscalPrompt = '';
       const hasFiscalName = typeof sanitized.context.name === 'string' && sanitized.context.name.trim().length > 0;
       const hasFiscalRegime = typeof sanitized.context.tax_regime === 'string' && sanitized.context.tax_regime.trim().length > 0;
       if (hasFiscalName && hasFiscalRegime && catalogOptions.length > 0) {
         fiscalSourceResult = await collectTrustedSourceEvidence(sanitized.context);
         try {
-          fiscalPrompt = buildDirectFiscalPrompt(sanitized.context, catalogOptions, fiscalSourceResult.evidence);
+          const fiscalPrompt = buildDirectFiscalPrompt(sanitized.context, catalogOptions, fiscalSourceResult.evidence);
           aiChoice = normalizeDirectFiscalChoice(await svc.integrations.Core.InvokeLLM({
             prompt: fiscalPrompt,
             response_json_schema: directFiscalResponseSchema(),
@@ -1065,26 +1043,6 @@ Deno.serve(async (req) => {
         catalogOptions,
       }) as Partial<Record<ParameterName, Suggestion>>;
       addFiscalSourceFailureWarning(suggestions, fiscalSourceResult);
-      const firstFiscalSuggestion = fiscalParams.map((param) => suggestions[param]).find(Boolean);
-      const fiscalClassification = isPlainObject(firstFiscalSuggestion?.fiscal_classification)
-        ? firstFiscalSuggestion.fiscal_classification
-        : null;
-      debugFiscalDiagnosis = {
-        fiscal_ai_invoked: Boolean(fiscalPrompt),
-        catalog_options_count: catalogOptions.length,
-        first_catalog_options: catalogOptions.slice(0, 10).map((option) => ({
-          ncm_code: option.ncm_code,
-          display_name: option.display_name,
-          plain_description: option.plain_description,
-        })),
-        prompt_has_weak_hypothesis_rule: fiscalPrompt.includes('Quando estiver em duvida entre retornar null e uma hipotese fraca'),
-        ai_selected_ncm_code: aiChoice?.selected_ncm_code || null,
-        ai_confidence: aiChoice?.confidence || null,
-        ai_reason: aiChoice?.reason || null,
-        final_classification_status: typeof fiscalClassification?.status === 'string' ? fiscalClassification.status : null,
-        final_reason_code: firstFiscalSuggestion?.reason_code || null,
-        final_reason: firstFiscalSuggestion?.reason || null,
-      };
     }
 
     if (corporateParams.length === 0) {
@@ -1103,7 +1061,6 @@ Deno.serve(async (req) => {
           summary: item.summary,
         })),
         sources_failed: fiscalSourceResult?.failed || [],
-        debug_fiscal_diagnosis: debugFiscalDiagnosis,
         requires_user_confirmation: true,
         generated_at: new Date().toISOString(),
       });
