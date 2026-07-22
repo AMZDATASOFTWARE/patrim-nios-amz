@@ -29,6 +29,7 @@ const CONFIDENCE = ['low', 'medium', 'high'] as const;
 const MANAGEMENT_WARNING = 'Estimativa gerencial baseada nos dados informados. Valide com o responsavel contabil antes de utilizar.';
 const SOURCELESS_MANAGEMENT_WARNING = 'Sugestao gerencial estimada. Revise com o responsavel contabil antes de aplicar.';
 const ASSUMED_FIELD_UNIT_WARNING = 'Unidade ajustada automaticamente a partir do campo solicitado.';
+const FUNCTION_DEBUG_MARKER = 'suggestAssetParameters-parse-v2';
 
 type ParameterName = typeof ALLOWED_PARAMETERS[number];
 type Confidence = typeof CONFIDENCE[number];
@@ -56,6 +57,16 @@ type FiscalReference = {
   unit: string;
   source_ids: string[];
   warning: string;
+};
+
+type RequestedParametersDebug = {
+  raw_requested_parameters: unknown[];
+  rejected_raw: string;
+  rejected_normalized: string;
+  rejected_type: string;
+  rejected_length: number;
+  rejected_char_codes: number[];
+  allowed_parameters: readonly string[];
 };
 
 const FIELD_LIMITS: Record<string, number> = {
@@ -267,16 +278,38 @@ function sanitizeContext(raw: unknown, requestedParams: ParameterName[] = []): {
   return { context };
 }
 
-function parseRequestedParameters(raw: unknown): { params?: ParameterName[]; error?: string } {
+function normalizeRequestedParameter(value: unknown): string {
+  return String(value)
+    .replace(/[\u200B\u200C\u200D\uFEFF]/g, '')
+    .trim();
+}
+
+function charCodes(value: string): number[] {
+  return Array.from(value).map((char) => char.codePointAt(0) || 0);
+}
+
+function parseRequestedParameters(raw: unknown): { params?: ParameterName[]; error?: string; debug?: RequestedParametersDebug } {
   if (!Array.isArray(raw) || raw.length === 0) {
     return { error: 'requested_parameters deve ser uma lista nao vazia.' };
   }
 
   const params: ParameterName[] = [];
   for (const item of raw) {
-    const parameter = typeof item === 'string' ? item.trim() : '';
+    const rawText = String(item);
+    const parameter = normalizeRequestedParameter(item);
     if (!ALLOWED_PARAMETERS.includes(parameter as ParameterName)) {
-      return { error: 'Parametro solicitado nao suportado.' };
+      return {
+        error: 'Parametro solicitado nao suportado.',
+        debug: {
+          raw_requested_parameters: raw,
+          rejected_raw: rawText,
+          rejected_normalized: parameter,
+          rejected_type: typeof item,
+          rejected_length: parameter.length,
+          rejected_char_codes: charCodes(rawText),
+          allowed_parameters: ALLOWED_PARAMETERS,
+        },
+      };
     }
     if (!params.includes(parameter as ParameterName)) params.push(parameter as ParameterName);
   }
@@ -977,7 +1010,15 @@ Deno.serve(async (req) => {
     if (body.entity_type !== 'Asset') return json({ error: 'entity_type invalido.' }, 400);
 
     const parsedParams = parseRequestedParameters(body.requested_parameters);
-    if (parsedParams.error || !parsedParams.params) return json({ error: parsedParams.error }, 400);
+    if (parsedParams.error || !parsedParams.params) {
+      return json({
+        error: parsedParams.error,
+        ...(parsedParams.debug ? {
+          debug_requested_parameters: parsedParams.debug,
+          function_debug_marker: FUNCTION_DEBUG_MARKER,
+        } : {}),
+      }, 400);
+    }
 
     const assetId = typeof body.asset_id === 'string' ? body.asset_id.trim().slice(0, 100) : '';
     if (body.asset_id !== undefined && body.asset_id !== null && typeof body.asset_id !== 'string') {

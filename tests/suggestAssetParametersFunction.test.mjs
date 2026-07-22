@@ -515,6 +515,56 @@ test('backend handler accepts real fiscal requested parameters payload', async (
   assert.ok(result.body.debug_fiscal_diagnosis.catalog_options_count > 0);
 });
 
+test('backend handler normalizes fiscal requested parameters with spaces and zero-width chars', async () => {
+  const loaded = await loadFunctionModule();
+  configureBase44(loaded.context);
+  configureFetch(loaded.context);
+
+  const result = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: [' fiscal_depreciation_rate ', 'fiscal_useful_life_years\u200B'],
+    asset_context: validContext({
+      name: 'Freezer horizontal comercial',
+      description: 'Equipamento de refrigeracao usado para armazenamento em baixa temperatura',
+      category: 'Equipamentos',
+      account: 'Maquinas e equipamentos',
+      tax_regime: 'LUCRO_REAL',
+    }),
+  });
+
+  assert.notEqual(result.status, 400);
+  assert.notEqual(result.body.error, 'Parametro solicitado nao suportado.');
+  assert.equal(result.status, 200);
+  assert.ok(result.body.suggestions.fiscal_depreciation_rate);
+  assert.ok(result.body.suggestions.fiscal_useful_life_years);
+});
+
+test('backend handler reports debug details for unsupported requested parameter', async () => {
+  const loaded = await loadFunctionModule();
+  configureBase44(loaded.context);
+  configureFetch(loaded.context);
+
+  const result = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['fiscal_depreciation_rate', 'campo_invalido'],
+    asset_context: validContext(),
+  });
+
+  assert.equal(result.status, 400);
+  assert.equal(result.body.error, 'Parametro solicitado nao suportado.');
+  assert.equal(result.body.function_debug_marker, 'suggestAssetParameters-parse-v2');
+  assert.equal(result.body.debug_requested_parameters.rejected_raw, 'campo_invalido');
+  assert.equal(result.body.debug_requested_parameters.rejected_normalized, 'campo_invalido');
+  assert.equal(result.body.debug_requested_parameters.rejected_type, 'string');
+  assert.equal(result.body.debug_requested_parameters.rejected_length, 'campo_invalido'.length);
+  assert.deepEqual(
+    result.body.debug_requested_parameters.rejected_char_codes,
+    Array.from('campo_invalido').map((char) => char.codePointAt(0)),
+  );
+  assert.ok(result.body.debug_requested_parameters.allowed_parameters.includes('fiscal_depreciation_rate'));
+  assert.ok(result.body.debug_requested_parameters.allowed_parameters.includes('fiscal_useful_life_years'));
+});
+
 test('backend handler invokes fiscal AI with broad catalog when alias catalog is weak', async () => {
   const loaded = await loadFunctionModule();
   let invoked = false;
