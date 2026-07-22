@@ -143,12 +143,13 @@ function validContext(overrides = {}) {
   };
 }
 
-function configureBase44(context, { llm, userRecord, assetRecord } = {}) {
+function configureBase44(context, { llm, userRecord, assetRecord, workspaceRecord } = {}) {
   context.__createClientFromRequest = () => ({
     auth: { me: async () => ({ id: 'user-1' }) },
     asServiceRole: {
       entities: {
-        User: { filter: async () => [userRecord || { id: 'user-1', workspace_id: 'ws-1', role: 'manager' }] },
+        User: { filter: async () => [userRecord || { id: 'user-1', email: 'admin@example.com', workspace_id: 'ws-1', role: 'admin' }] },
+        Workspace: { filter: async () => [workspaceRecord || { id: 'ws-1', owner_email: 'owner@example.com' }] },
         Asset: { filter: async () => (assetRecord ? [assetRecord] : []) },
       },
       integrations: {
@@ -473,8 +474,6 @@ test('backend handler returns direct fiscal suggestions with consulted source ev
   assert.equal(result.body.suggestions.fiscal_depreciation_rate.value, 20);
   assert.equal(result.body.suggestions.fiscal_useful_life_years.value, 5);
   assert.equal(Array.isArray(result.body.sources_consulted), true);
-  assert.equal(typeof result.body.debug_fiscal_diagnosis.catalog_options_count, 'number');
-  assert.equal(result.body.debug_fiscal_diagnosis.ai_selected_ncm_code, '8471');
 });
 
 test('backend handler accepts real fiscal requested parameters payload', async () => {
@@ -509,10 +508,7 @@ test('backend handler accepts real fiscal requested parameters payload', async (
   assert.equal(result.status, 200);
   assert.ok(result.body.suggestions.fiscal_depreciation_rate);
   assert.ok(result.body.suggestions.fiscal_useful_life_years);
-  assert.ok(result.body.debug_fiscal_diagnosis);
-  assert.equal(result.body.debug_fiscal_diagnosis.fiscal_ai_invoked, true);
-  assert.equal(typeof result.body.debug_fiscal_diagnosis.catalog_options_count, 'number');
-  assert.ok(result.body.debug_fiscal_diagnosis.catalog_options_count > 0);
+  assert.equal(result.body.suggestions.fiscal_depreciation_rate.fiscal_classification.status, 'CLASSIFIED_APPLICABLE');
 });
 
 test('backend handler normalizes fiscal requested parameters with spaces and zero-width chars', async () => {
@@ -539,7 +535,7 @@ test('backend handler normalizes fiscal requested parameters with spaces and zer
   assert.ok(result.body.suggestions.fiscal_useful_life_years);
 });
 
-test('backend handler reports debug details for unsupported requested parameter', async () => {
+test('backend handler returns clean error for unsupported requested parameter', async () => {
   const loaded = await loadFunctionModule();
   configureBase44(loaded.context);
   configureFetch(loaded.context);
@@ -551,18 +547,7 @@ test('backend handler reports debug details for unsupported requested parameter'
   });
 
   assert.equal(result.status, 400);
-  assert.equal(result.body.error, 'Parametro solicitado nao suportado.');
-  assert.equal(result.body.function_debug_marker, 'suggestAssetParameters-parse-v2');
-  assert.equal(result.body.debug_requested_parameters.rejected_raw, 'campo_invalido');
-  assert.equal(result.body.debug_requested_parameters.rejected_normalized, 'campo_invalido');
-  assert.equal(result.body.debug_requested_parameters.rejected_type, 'string');
-  assert.equal(result.body.debug_requested_parameters.rejected_length, 'campo_invalido'.length);
-  assert.deepEqual(
-    result.body.debug_requested_parameters.rejected_char_codes,
-    Array.from('campo_invalido').map((char) => char.codePointAt(0)),
-  );
-  assert.ok(result.body.debug_requested_parameters.allowed_parameters.includes('fiscal_depreciation_rate'));
-  assert.ok(result.body.debug_requested_parameters.allowed_parameters.includes('fiscal_useful_life_years'));
+  assert.deepEqual(result.body, { error: 'Parametro solicitado nao suportado.' });
 });
 
 test('backend handler invokes fiscal AI with broad catalog when alias catalog is weak', async () => {
@@ -726,14 +711,13 @@ test('backend handler keeps accounting suggestions separate from fiscal suggesti
   assert.equal(result.status, 200);
   assert.equal(result.body.suggestions.depreciation_rate.found, true);
   assert.equal(result.body.suggestions.fiscal_depreciation_rate, undefined);
-  assert.equal(result.body.debug_fiscal_diagnosis, undefined);
 });
 
 test('backend handler rejects unauthorized users before invoking the AI', async () => {
   const loaded = await loadFunctionModule();
   let invoked = false;
   configureBase44(loaded.context, {
-    userRecord: { id: 'user-1', workspace_id: 'ws-1', role: 'viewer' },
+    userRecord: { id: 'user-1', email: 'manager@example.com', workspace_id: 'ws-1', role: 'manager' },
     llm: async () => {
       invoked = true;
       return {};
@@ -748,5 +732,38 @@ test('backend handler rejects unauthorized users before invoking the AI', async 
   });
 
   assert.equal(result.status, 403);
+  assert.equal(result.body.error, 'Voce nao tem permissao para usar sugestoes automaticas de ativos.');
   assert.equal(invoked, false);
+});
+
+test('backend handler allows workspace admin to invoke automatic suggestions', async () => {
+  const loaded = await loadFunctionModule();
+  configureBase44(loaded.context, {
+    userRecord: { id: 'user-1', email: 'admin@example.com', workspace_id: 'ws-1', role: 'admin' },
+  });
+  configureFetch(loaded.context);
+
+  const result = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
+    asset_context: validContext(),
+  });
+
+  assert.equal(result.status, 200);
+});
+
+test('backend handler allows platform admin to invoke automatic suggestions', async () => {
+  const loaded = await loadFunctionModule();
+  configureBase44(loaded.context, {
+    userRecord: { id: 'user-1', email: 'platform@example.com', is_platform_admin: true, role: 'user' },
+  });
+  configureFetch(loaded.context);
+
+  const result = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
+    asset_context: validContext(),
+  });
+
+  assert.equal(result.status, 200);
 });

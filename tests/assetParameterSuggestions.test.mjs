@@ -28,6 +28,7 @@ import {
   uniqueSuggestionWarnings,
   uniqueWarningsForSuggestions,
 } from '../src/lib/assetParameterSuggestions.js';
+import { canUseAssetAutomaticSuggestions } from '../src/lib/permissions.js';
 
 const ASSET_FORM_PATH = new URL('../src/pages/AssetForm.jsx', import.meta.url);
 const SETTINGS_PATH = new URL('../src/pages/Settings.jsx', import.meta.url);
@@ -281,6 +282,20 @@ test('AssetForm keeps AI calls explicit and uses only direct fiscal action', asy
     assert.equal(source.includes(term), false);
   }
   assert.equal(normalized.includes('ncm seguro'), false);
+});
+
+test('AssetForm gates automatic suggestions to account admins and platform admins', async () => {
+  const source = await readFile(ASSET_FORM_PATH, 'utf8');
+  assert.equal(canUseAssetAutomaticSuggestions({ role: 'admin' }, null), true);
+  assert.equal(canUseAssetAutomaticSuggestions({ is_platform_admin: true, role: 'user' }, null), true);
+  assert.equal(canUseAssetAutomaticSuggestions(
+    { role: 'user', email: 'owner@example.com' },
+    { owner_email: 'OWNER@example.com' },
+  ), true);
+  assert.equal(canUseAssetAutomaticSuggestions({ role: 'manager', email: 'manager@example.com' }, null), false);
+  assert.equal(canUseAssetAutomaticSuggestions({ role: 'user', email: 'user@example.com' }, null), false);
+  assert.equal(source.includes('canUseAutomaticSuggestions &&'), true);
+  assert.equal(source.includes('if (!canUseAutomaticSuggestions) return;'), true);
 });
 
 test('FiscalClassificationRefinement shows direct suggestion and keeps manual confirmation', async () => {
