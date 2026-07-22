@@ -143,13 +143,13 @@ function validContext(overrides = {}) {
   };
 }
 
-function configureBase44(context, { llm, userRecord } = {}) {
+function configureBase44(context, { llm, userRecord, assetRecord } = {}) {
   context.__createClientFromRequest = () => ({
     auth: { me: async () => ({ id: 'user-1' }) },
     asServiceRole: {
       entities: {
         User: { filter: async () => [userRecord || { id: 'user-1', workspace_id: 'ws-1', role: 'manager' }] },
-        Asset: { filter: async () => [] },
+        Asset: { filter: async () => (assetRecord ? [assetRecord] : []) },
       },
       integrations: {
         Core: {
@@ -475,6 +475,44 @@ test('backend handler returns direct fiscal suggestions with consulted source ev
   assert.equal(Array.isArray(result.body.sources_consulted), true);
   assert.equal(typeof result.body.debug_fiscal_diagnosis.catalog_options_count, 'number');
   assert.equal(result.body.debug_fiscal_diagnosis.ai_selected_ncm_code, '8471');
+});
+
+test('backend handler accepts real fiscal requested parameters payload', async () => {
+  const loaded = await loadFunctionModule();
+  configureBase44(loaded.context, {
+    assetRecord: { id: 'test-asset', workspace_id: 'ws-1' },
+    llm: async () => ({
+      selected_ncm_code: '8418',
+      confidence: 'low',
+      reason: 'Freezer horizontal comercial pode se relacionar ao catalogo local de refrigeracao.',
+      used_fields: ['name', 'description', 'category', 'account'],
+      alternative_ncm_codes: [],
+    }),
+  });
+  configureFetch(loaded.context);
+
+  const result = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    asset_id: 'test-asset',
+    requested_parameters: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
+    asset_context: {
+      name: 'Freezer horizontal comercial',
+      category: 'Equipamentos',
+      description: 'Equipamento de refrigeracao usado para armazenamento em baixa temperatura',
+      account: 'Maquinas e equipamentos',
+      tax_regime: 'LUCRO_REAL',
+    },
+  });
+
+  assert.notEqual(result.status, 400);
+  assert.notEqual(result.body.error, 'Parametro solicitado nao suportado.');
+  assert.equal(result.status, 200);
+  assert.ok(result.body.suggestions.fiscal_depreciation_rate);
+  assert.ok(result.body.suggestions.fiscal_useful_life_years);
+  assert.ok(result.body.debug_fiscal_diagnosis);
+  assert.equal(result.body.debug_fiscal_diagnosis.fiscal_ai_invoked, true);
+  assert.equal(typeof result.body.debug_fiscal_diagnosis.catalog_options_count, 'number');
+  assert.ok(result.body.debug_fiscal_diagnosis.catalog_options_count > 0);
 });
 
 test('backend handler invokes fiscal AI with broad catalog when alias catalog is weak', async () => {
