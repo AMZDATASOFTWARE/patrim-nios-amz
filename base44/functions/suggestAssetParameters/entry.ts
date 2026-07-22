@@ -44,6 +44,7 @@ type Suggestion = {
   missing_data: string[];
   warnings: string[];
   source_ids: string[];
+  reason_code?: string;
   corporate_evaluation?: unknown;
   fiscal_classification?: unknown;
   fiscal_evaluation?: unknown;
@@ -994,17 +995,20 @@ Deno.serve(async (req) => {
     const fiscalParams = parsedParams.params.filter(isFiscalParameter);
     let suggestions: Partial<Record<ParameterName, Suggestion>> = {};
     let fiscalSourceResult: Awaited<ReturnType<typeof collectTrustedSourceEvidence>> | null = null;
+    let debugFiscalDiagnosis: Record<string, unknown> | null = null;
 
     if (fiscalParams.length > 0) {
       const catalogOptions = buildDirectFiscalCatalogOptions(sanitized.context);
       let aiChoice: DirectFiscalAiChoice | null = null;
+      let fiscalPrompt = '';
       const hasFiscalName = typeof sanitized.context.name === 'string' && sanitized.context.name.trim().length > 0;
       const hasFiscalRegime = typeof sanitized.context.tax_regime === 'string' && sanitized.context.tax_regime.trim().length > 0;
       if (hasFiscalName && hasFiscalRegime && catalogOptions.length > 0) {
         fiscalSourceResult = await collectTrustedSourceEvidence(sanitized.context);
         try {
+          fiscalPrompt = buildDirectFiscalPrompt(sanitized.context, catalogOptions, fiscalSourceResult.evidence);
           aiChoice = normalizeDirectFiscalChoice(await svc.integrations.Core.InvokeLLM({
-            prompt: buildDirectFiscalPrompt(sanitized.context, catalogOptions, fiscalSourceResult.evidence),
+            prompt: fiscalPrompt,
             response_json_schema: directFiscalResponseSchema(),
           }));
         } catch (_) {
@@ -1019,6 +1023,26 @@ Deno.serve(async (req) => {
         catalogOptions,
       }) as Partial<Record<ParameterName, Suggestion>>;
       addFiscalSourceFailureWarning(suggestions, fiscalSourceResult);
+      const firstFiscalSuggestion = fiscalParams.map((param) => suggestions[param]).find(Boolean);
+      const fiscalClassification = isPlainObject(firstFiscalSuggestion?.fiscal_classification)
+        ? firstFiscalSuggestion.fiscal_classification
+        : null;
+      debugFiscalDiagnosis = {
+        fiscal_ai_invoked: Boolean(fiscalPrompt),
+        catalog_options_count: catalogOptions.length,
+        first_catalog_options: catalogOptions.slice(0, 10).map((option) => ({
+          ncm_code: option.ncm_code,
+          display_name: option.display_name,
+          plain_description: option.plain_description,
+        })),
+        prompt_has_weak_hypothesis_rule: fiscalPrompt.includes('Quando estiver em duvida entre retornar null e uma hipotese fraca'),
+        ai_selected_ncm_code: aiChoice?.selected_ncm_code || null,
+        ai_confidence: aiChoice?.confidence || null,
+        ai_reason: aiChoice?.reason || null,
+        final_classification_status: typeof fiscalClassification?.status === 'string' ? fiscalClassification.status : null,
+        final_reason_code: firstFiscalSuggestion?.reason_code || null,
+        final_reason: firstFiscalSuggestion?.reason || null,
+      };
     }
 
     if (corporateParams.length === 0) {
@@ -1037,6 +1061,7 @@ Deno.serve(async (req) => {
           summary: item.summary,
         })),
         sources_failed: fiscalSourceResult?.failed || [],
+        debug_fiscal_diagnosis: debugFiscalDiagnosis,
         requires_user_confirmation: true,
         generated_at: new Date().toISOString(),
       });

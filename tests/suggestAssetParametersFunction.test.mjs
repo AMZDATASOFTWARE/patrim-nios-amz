@@ -473,6 +473,8 @@ test('backend handler returns direct fiscal suggestions with consulted source ev
   assert.equal(result.body.suggestions.fiscal_depreciation_rate.value, 20);
   assert.equal(result.body.suggestions.fiscal_useful_life_years.value, 5);
   assert.equal(Array.isArray(result.body.sources_consulted), true);
+  assert.equal(typeof result.body.debug_fiscal_diagnosis.catalog_options_count, 'number');
+  assert.equal(result.body.debug_fiscal_diagnosis.ai_selected_ncm_code, '8471');
 });
 
 test('backend handler invokes fiscal AI with broad catalog when alias catalog is weak', async () => {
@@ -636,6 +638,7 @@ test('backend handler keeps accounting suggestions separate from fiscal suggesti
   assert.equal(result.status, 200);
   assert.equal(result.body.suggestions.depreciation_rate.found, true);
   assert.equal(result.body.suggestions.fiscal_depreciation_rate, undefined);
+  assert.equal(result.body.debug_fiscal_diagnosis, undefined);
 });
 
 test('backend handler rejects unauthorized users before invoking the AI', async () => {
