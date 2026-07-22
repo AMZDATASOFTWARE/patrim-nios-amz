@@ -274,10 +274,11 @@ function parseRequestedParameters(raw: unknown): { params?: ParameterName[]; err
 
   const params: ParameterName[] = [];
   for (const item of raw) {
-    if (typeof item !== 'string' || !ALLOWED_PARAMETERS.includes(item as ParameterName)) {
+    const parameter = typeof item === 'string' ? item.trim() : '';
+    if (!ALLOWED_PARAMETERS.includes(parameter as ParameterName)) {
       return { error: 'Parametro solicitado nao suportado.' };
     }
-    if (!params.includes(item as ParameterName)) params.push(item as ParameterName);
+    if (!params.includes(parameter as ParameterName)) params.push(parameter as ParameterName);
   }
   return { params };
 }
