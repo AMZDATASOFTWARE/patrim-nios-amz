@@ -517,6 +517,52 @@ test('backend handler invokes fiscal AI with broad catalog when alias catalog is
   assert.equal(result.body.ok, true);
 });
 
+test('backend handler asks fiscal AI for weak hypothesis instead of null when broad catalog exists', async () => {
+  const loaded = await loadFunctionModule();
+  let invoked = false;
+  let prompt = '';
+  configureBase44(loaded.context, {
+    llm: async (input) => {
+      invoked = true;
+      prompt = input.prompt;
+      const match = prompt.match(/"ncm_code":\s*"(\d+)"/);
+      return {
+        selected_ncm_code: match?.[1] || null,
+        confidence: 'low',
+        reason: 'Hipotese fraca baseada no nome e descricao do freezer.',
+        used_fields: ['name', 'description', 'category', 'account'],
+        alternative_ncm_codes: [],
+      };
+    },
+  });
+  configureFetch(loaded.context);
+
+  const result = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
+    asset_context: validContext({
+      name: 'Freezer horizontal comercial',
+      description: 'Equipamento de refrigeracao usado para armazenamento em baixa temperatura',
+      category: 'Equipamentos',
+      account: 'Maquinas e equipamentos',
+      brand: '',
+      model: '',
+      tax_regime: 'LUCRO_REAL',
+    }),
+  });
+
+  const rate = result.body.suggestions.fiscal_depreciation_rate;
+  const status = rate.fiscal_classification.status;
+  assert.equal(result.status, 200);
+  assert.equal(invoked, true);
+  assert.match(prompt, /Quando estiver em duvida entre retornar null e uma hipotese fraca/);
+  assert.equal(prompt.includes('Freezer horizontal comercial'), true);
+  assert.equal(prompt.includes('local_ncm_catalog:'), true);
+  assert.notEqual(status, 'NO_HYPOTHESIS');
+  assert.ok(['CLASSIFIED_APPLICABLE', 'CLASSIFIED_REVIEW_ONLY'].includes(status));
+  assert.equal(rate.reason.includes('classificacao fiscal suficientemente forte'), false);
+});
+
 test('backend handler does not block fiscal suggestion when approved source fetch fails', async () => {
   const loaded = await loadFunctionModule();
   configureBase44(loaded.context);
