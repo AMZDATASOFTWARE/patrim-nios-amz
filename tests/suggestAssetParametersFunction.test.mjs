@@ -256,10 +256,95 @@ test('backend direct fiscal prompt sends asset context, local catalog and source
   assert.equal(prompt.includes('Notebook Dell Latitude'), true);
 });
 
+test('backend direct fiscal catalog falls back to a broad local catalog when aliases are empty', async () => {
+  const loaded = await loadFunctionModule();
+  const context = validContext({
+    name: 'Equipamento patrimonial sem alias especifico',
+    description: 'Descricao administrativa generica do bem',
+    category: 'Equipamentos',
+    account: 'Ativo imobilizado',
+    brand: '',
+    model: '',
+  });
+
+  const catalog = loaded.buildDirectFiscalCatalogOptions(context);
+
+  assert.equal(catalog.length > 0, true);
+  assert.equal(catalog.length <= 100, true);
+  assert.equal(catalog.every((item) => typeof item.ncm_code === 'string' && item.ncm_code.length > 0), true);
+});
+
 test('backend fiscal schema requires only selected NCM choice from AI', async () => {
   const entry = await readFile(ENTRY_PATH, 'utf8');
   assert.match(entry, /selected_ncm_code/);
   assert.equal(entry.includes(['selected', 'catalog', 'option', 'id'].join('_')), false);
+});
+
+test('backend normalizes empty and common management units by requested field', async () => {
+  const loaded = await loadFunctionModule();
+  const allowed = new Set(['name', 'category']);
+  const params = ['depreciation_rate', 'useful_life_years', 'residual_value'];
+  const context = validContext({ acquisition_value: 1000 });
+  const base = {
+    found: true,
+    confidence: 'medium',
+    reason: 'Estimativa gerencial.',
+    based_on: ['name', 'category'],
+    missing_data: [],
+    warnings: [],
+    source_ids: [],
+  };
+
+  const rateWithoutUnit = loaded.validateSuggestion('depreciation_rate', { ...base, value: 10, unit: null }, context, allowed, params, []);
+  assert.equal(rateWithoutUnit.found, true);
+  assert.equal(rateWithoutUnit.unit, 'percent_per_year');
+  assert.match(rateWithoutUnit.warnings.join(' '), /Unidade ajustada automaticamente/);
+
+  const lifeWithoutUnit = loaded.validateSuggestion('useful_life_years', { ...base, value: 5, unit: '' }, context, allowed, params, []);
+  assert.equal(lifeWithoutUnit.found, true);
+  assert.equal(lifeWithoutUnit.unit, 'years');
+  assert.match(lifeWithoutUnit.warnings.join(' '), /Unidade ajustada automaticamente/);
+
+  const residualWithoutUnit = loaded.validateSuggestion('residual_value', { ...base, value: 320, unit: undefined }, context, allowed, params, []);
+  assert.equal(residualWithoutUnit.found, true);
+  assert.equal(residualWithoutUnit.unit, 'BRL');
+  assert.match(residualWithoutUnit.warnings.join(' '), /Unidade ajustada automaticamente/);
+
+  const ratePercentAa = loaded.validateSuggestion('depreciation_rate', { ...base, value: 10, unit: '% a.a.' }, context, allowed, params, []);
+  assert.equal(ratePercentAa.found, true);
+  assert.equal(ratePercentAa.unit, 'percent_per_year');
+
+  const lifeYears = loaded.validateSuggestion('useful_life_years', { ...base, value: 5, unit: 'anos' }, context, allowed, params, []);
+  assert.equal(lifeYears.found, true);
+  assert.equal(lifeYears.unit, 'years');
+
+  const residualBrl = loaded.validateSuggestion('residual_value', { ...base, value: 320, unit: 'R$' }, context, allowed, params, []);
+  assert.equal(residualBrl.found, true);
+  assert.equal(residualBrl.unit, 'BRL');
+});
+
+test('backend rejects incompatible management units after normalization', async () => {
+  const loaded = await loadFunctionModule();
+  const allowed = new Set(['name', 'category']);
+  const params = ['depreciation_rate', 'residual_value'];
+  const context = validContext({ acquisition_value: 1000 });
+  const base = {
+    found: true,
+    confidence: 'medium',
+    reason: 'Estimativa gerencial.',
+    based_on: ['name', 'category'],
+    missing_data: [],
+    warnings: [],
+    source_ids: [],
+  };
+
+  const monthlyRate = loaded.validateSuggestion('depreciation_rate', { ...base, value: 10, unit: 'percent_per_month' }, context, allowed, params, []);
+  assert.equal(monthlyRate.found, false);
+  assert.match(monthlyRate.reason, /Unidade invalida/);
+
+  const usdResidual = loaded.validateSuggestion('residual_value', { ...base, value: 320, unit: 'USD' }, context, allowed, params, []);
+  assert.equal(usdResidual.found, false);
+  assert.match(usdResidual.reason, /Unidade invalida/);
 });
 
 test('backend direct fiscal adapter resolves AI-selected local NCM to fiscal rate and life', async () => {
@@ -280,6 +365,7 @@ test('backend direct fiscal adapter resolves AI-selected local NCM to fiscal rat
   assert.equal(suggestions.fiscal_useful_life_years.found, true);
   assert.equal(suggestions.fiscal_useful_life_years.value, 5);
   assert.equal(suggestions.fiscal_depreciation_rate.fiscal_classification.action, 'CLASSIFY_DIRECT');
+  assert.equal(suggestions.fiscal_depreciation_rate.fiscal_classification.status, 'CLASSIFIED_APPLICABLE');
   assert.equal(suggestions.fiscal_depreciation_rate.fiscal_classification.confirmed_ncm_code, '8471');
 });
 
@@ -299,7 +385,73 @@ test('backend direct fiscal adapter returns useful no-match reasons', async () =
     aiChoice: { selected_ncm_code: '99999999' },
   });
   assert.equal(invalidNcm.fiscal_depreciation_rate.found, false);
-  assert.match(invalidNcm.fiscal_depreciation_rate.reason, /nao existe no catalogo local/);
+  assert.equal(invalidNcm.fiscal_depreciation_rate.fiscal_classification.status, 'CLASSIFIED_REVIEW_ONLY');
+  assert.equal(invalidNcm.fiscal_depreciation_rate.fiscal_classification.confirmed_ncm_code, '99999999');
+  assert.match(invalidNcm.fiscal_depreciation_rate.reason, /Classificacao fiscal provavel/);
+
+  const emptyCatalog = loaded.applyDirectFiscalSuggestionAdapter({
+    context: validContext(),
+    requestedParams: ['fiscal_depreciation_rate'],
+    aiChoice: { selected_ncm_code: '8471' },
+    catalogOptions: [],
+  });
+  assert.equal(emptyCatalog.fiscal_depreciation_rate.found, false);
+  assert.equal(emptyCatalog.fiscal_depreciation_rate.reason_code, 'NO_LOCAL_NCM_CATALOG');
+  assert.match(emptyCatalog.fiscal_depreciation_rate.reason, /NO_LOCAL_NCM_CATALOG/);
+  assert.equal(emptyCatalog.fiscal_depreciation_rate.reason.includes('classificacao fiscal suficientemente forte'), false);
+});
+
+test('backend direct fiscal adapter keeps review-only hypothesis when local rule is not applicable', async () => {
+  const loaded = await loadFunctionModule();
+  const suggestions = loaded.applyDirectFiscalSuggestionAdapter({
+    context: validContext(),
+    requestedParams: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
+    aiChoice: {
+      selected_ncm_code: '99999999',
+      confidence: 'low',
+      reason: 'A descricao sugere uma classificacao fiscal provavel, mas nao ha regra local.',
+      used_fields: ['name', 'description'],
+    },
+    catalogOptions: [{
+      display_name: 'Equipamento fiscal sem regra local',
+      plain_description: 'Hipotese fiscal para revisao.',
+      ncm_code: '99999999',
+      ncm_display: '9999.99.99',
+      candidate_type: 'TEST_REVIEW_ONLY',
+      confidence: 'LOW',
+      matched_terms: ['equipamento'],
+      missing_attributes: [],
+      source_id: null,
+      source_reference: null,
+      official_description: null,
+      requires_human_confirmation: true,
+    }],
+  });
+
+  assert.equal(suggestions.fiscal_depreciation_rate.found, false);
+  assert.equal(suggestions.fiscal_useful_life_years.found, false);
+  assert.equal(suggestions.fiscal_depreciation_rate.fiscal_classification.status, 'CLASSIFIED_REVIEW_ONLY');
+  assert.equal(suggestions.fiscal_depreciation_rate.fiscal_classification.confirmed_ncm_code, '99999999');
+  assert.match(suggestions.fiscal_depreciation_rate.warnings.join(' '), /Confianca baixa/);
+  assert.match(suggestions.fiscal_depreciation_rate.warnings.join(' '), /Fonte fiscal aplicavel nao identificada/);
+});
+
+test('backend direct fiscal adapter reports no hypothesis when AI does not choose NCM', async () => {
+  const loaded = await loadFunctionModule();
+  const suggestions = loaded.applyDirectFiscalSuggestionAdapter({
+    context: validContext(),
+    requestedParams: ['fiscal_depreciation_rate'],
+    aiChoice: {
+      selected_ncm_code: null,
+      confidence: 'low',
+      reason: 'Sem hipotese util.',
+      used_fields: ['name'],
+    },
+  });
+
+  assert.equal(suggestions.fiscal_depreciation_rate.found, false);
+  assert.equal(suggestions.fiscal_depreciation_rate.reason_code, 'NO_HYPOTHESIS');
+  assert.equal(suggestions.fiscal_depreciation_rate.fiscal_classification.status, 'NO_HYPOTHESIS');
 });
 
 test('backend handler returns direct fiscal suggestions with consulted source evidence', async () => {
@@ -321,6 +473,48 @@ test('backend handler returns direct fiscal suggestions with consulted source ev
   assert.equal(result.body.suggestions.fiscal_depreciation_rate.value, 20);
   assert.equal(result.body.suggestions.fiscal_useful_life_years.value, 5);
   assert.equal(Array.isArray(result.body.sources_consulted), true);
+});
+
+test('backend handler invokes fiscal AI with broad catalog when alias catalog is weak', async () => {
+  const loaded = await loadFunctionModule();
+  let invoked = false;
+  let prompt = '';
+  configureBase44(loaded.context, {
+    llm: async (input) => {
+      invoked = true;
+      prompt = input.prompt;
+      const match = prompt.match(/"ncm_code":\s*"(\d+)"/);
+      return {
+        selected_ncm_code: match?.[1] || null,
+        confidence: 'low',
+        reason: 'Analise fiscal feita com catalogo local amplo.',
+        used_fields: ['name', 'description', 'category'],
+        alternative_ncm_codes: [],
+      };
+    },
+  });
+  configureFetch(loaded.context);
+
+  const result = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['fiscal_depreciation_rate', 'fiscal_useful_life_years'],
+    asset_context: validContext({
+      name: 'Equipamento patrimonial sem alias especifico',
+      description: 'Freezer horizontal comercial para conservacao de produtos',
+      category: 'Equipamentos',
+      account: 'Maquinas e Equipamentos',
+      brand: '',
+      model: '',
+    }),
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(invoked, true);
+  assert.equal(prompt.includes('asset_context:'), true);
+  assert.equal(prompt.includes('local_ncm_catalog:'), true);
+  assert.equal(prompt.includes('source_evidence:'), true);
+  assert.equal(prompt.includes('Freezer horizontal comercial'), true);
+  assert.equal(result.body.ok, true);
 });
 
 test('backend handler does not block fiscal suggestion when approved source fetch fails', async () => {

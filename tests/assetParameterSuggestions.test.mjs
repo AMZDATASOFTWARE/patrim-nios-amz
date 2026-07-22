@@ -130,7 +130,7 @@ test('frontend helper interprets direct fiscal response without old refinement s
         reason: 'NCM provavel escolhido pela IA.',
         warnings: ['Revise a classificacao fiscal.'],
         fiscal_classification: {
-          status: 'CLASSIFIED_BY_AI',
+          status: 'CLASSIFIED_APPLICABLE',
           confirmed_display_name: 'Computador portatil',
           confirmed_ncm_code: '84713012',
           used_fields: ['name', 'category'],
@@ -148,10 +148,41 @@ test('frontend helper interprets direct fiscal response without old refinement s
   };
 
   const next = buildNextFiscalRefinementState(createEmptyFiscalRefinementState(), response, 'ctx-1');
-  assert.equal(next.status, 'CLASSIFIED');
+  assert.equal(next.status, 'CLASSIFIED_APPLICABLE');
   assert.equal(next.classificationConfirmed, false);
   assert.equal(next.suggestions.fiscal_depreciation_rate.value, 20);
   for (const term of legacyTerms()) assert.equal(JSON.stringify(next).includes(term), false);
+});
+
+test('frontend helper keeps fiscal hypothesis visible when values are review-only', () => {
+  const response = {
+    suggestions: {
+      fiscal_depreciation_rate: {
+        found: false,
+        reason: 'Classificacao fiscal provavel identificada, mas sem regra fiscal local aplicavel.',
+        warnings: ['Classificacao provavel. Revise com responsavel fiscal antes de aplicar qualquer parametro.'],
+        fiscal_classification: {
+          status: 'CLASSIFIED_REVIEW_ONLY',
+          action: 'CLASSIFY_DIRECT',
+          confirmed_display_name: 'Classificacao fiscal provavel',
+          confirmed_ncm_code: '99999999',
+          ncm_display: '9999.99.99',
+          confidence: 'LOW',
+          reason: 'A IA encontrou uma hipotese provavel.',
+          used_fields: ['name', 'description'],
+        },
+      },
+      fiscal_useful_life_years: {
+        found: false,
+        reason: 'Classificacao fiscal provavel identificada, mas sem regra fiscal local aplicavel.',
+      },
+    },
+  };
+
+  const next = buildNextFiscalRefinementState(createEmptyFiscalRefinementState(), response, 'ctx-review');
+  assert.equal(next.status, 'CLASSIFIED_REVIEW_ONLY');
+  assert.equal(next.classification.confirmed_ncm_code, '99999999');
+  assert.equal(hasFoundSuggestionForFields(next.suggestions, FISCAL_DEPRECIATION_SUGGESTION_FIELDS), false);
 });
 
 test('frontend helper marks direct fiscal response as no safe match when nothing is found', () => {
@@ -160,13 +191,13 @@ test('frontend helper marks direct fiscal response as no safe match when nothing
       fiscal_depreciation_rate: {
         found: false,
         reason: 'A IA nao selecionou um NCM do catalogo local.',
-        fiscal_classification: { status: 'UNKNOWN', action: 'CLASSIFY_DIRECT' },
+        fiscal_classification: { status: 'NO_HYPOTHESIS', action: 'CLASSIFY_DIRECT' },
       },
       fiscal_useful_life_years: { found: false, reason: 'Sem classificacao.' },
     },
   };
   const next = buildNextFiscalRefinementState(createEmptyFiscalRefinementState(), response, 'ctx-2');
-  assert.equal(next.status, 'NO_SAFE_MATCH');
+  assert.equal(next.status, 'NO_HYPOTHESIS');
   assert.equal(next.classificationConfirmed, false);
 });
 
@@ -230,12 +261,12 @@ test('frontend helper exposes fiscal classification and evaluation from suggesti
   const suggestions = {
     fiscal_depreciation_rate: {
       found: true,
-      fiscal_classification: { status: 'CLASSIFIED_BY_AI', action: 'CLASSIFY_DIRECT' },
+      fiscal_classification: { status: 'CLASSIFIED_APPLICABLE', action: 'CLASSIFY_DIRECT' },
       fiscal_evaluation: { status: 'MATCHED' },
     },
   };
   assert.equal(fiscalSuggestionsFromResponse({ suggestions }).fiscal_depreciation_rate.found, true);
-  assert.equal(fiscalClassificationFromSuggestions(suggestions).status, 'CLASSIFIED_BY_AI');
+  assert.equal(fiscalClassificationFromSuggestions(suggestions).status, 'CLASSIFIED_APPLICABLE');
   assert.equal(fiscalEvaluationFromSuggestions(suggestions).status, 'MATCHED');
   assert.equal(hasFoundSuggestionForFields(suggestions, FISCAL_DEPRECIATION_SUGGESTION_FIELDS), true);
 });
@@ -249,7 +280,6 @@ test('AssetForm keeps AI calls explicit and uses only direct fiscal action', asy
   for (const term of legacyTerms().filter((item) => item !== 'CLASSIFY_DIRECT')) {
     assert.equal(source.includes(term), false);
   }
-  assert.equal(normalized.includes('a ia nao encontrou uma classificacao fiscal suficientemente forte'), true);
   assert.equal(normalized.includes('ncm seguro'), false);
 });
 
@@ -257,11 +287,15 @@ test('FiscalClassificationRefinement shows direct suggestion and keeps manual co
   const source = await readFile(FISCAL_REFINEMENT_PATH, 'utf8');
   const normalized = text(source);
   assert.equal(normalized.includes('sugestao automatica'), true);
+  assert.equal(normalized.includes('a ia escolhe uma opcao do catalogo fiscal local'), false);
+  assert.equal(normalized.includes('a ia analisa os dados do bem, compara com o catalogo fiscal local'), true);
   assert.equal(normalized.includes('confirmar classificacao fiscal'), true);
+  assert.equal(source.includes('{applicable && ('), true);
   assert.equal(source.includes("Usar {field === 'fiscal_depreciation_rate'"), true);
   assert.equal(source.includes("field === 'fiscal_depreciation_rate' ? 'taxa fiscal'"), true);
+  assert.equal(normalized.includes('classificacao provavel para revisao'), true);
+  assert.equal(normalized.includes('esta classificacao e apenas uma hipotese fiscal'), true);
   assert.equal(normalized.includes('valor residual fiscal'), true);
-  assert.equal(normalized.includes('classificacao fiscal suficientemente forte'), true);
   for (const term of legacyTerms()) assert.equal(source.includes(term), false);
 });
 
