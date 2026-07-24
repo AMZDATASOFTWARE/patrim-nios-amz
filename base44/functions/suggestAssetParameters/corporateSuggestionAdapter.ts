@@ -57,6 +57,7 @@ const BLOCKING_STATUSES = new Set([
   'ROUTE_TO_LEASE_POLICY',
   'ROUTE_TO_INVESTMENT_PROPERTY_POLICY',
 ]);
+const RATE_RECALCULATED_WARNING = 'Taxa anual recalculada a partir da vida util estimada.';
 
 function stripAccents(value: string): string {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -305,13 +306,16 @@ export function applyCorporateSuggestionAdapter(input: AdapterInput): Partial<Re
     } else if (rate == null) {
       result.depreciation_rate = { ...notFound('depreciation_rate', 'Vida util societaria insuficiente para calcular a taxa linear.', base, commonWarnings), corporate_evaluation: metadata };
     } else {
+      const rateWarnings = Math.abs((base.value || 0) - rate) > 0.01
+        ? [...base.warnings, RATE_RECALCULATED_WARNING]
+        : base.warnings;
       result.depreciation_rate = {
         ...base,
         found: true,
         value: rate,
         unit: 'percent_per_year',
         reason: `Taxa linear calculada a partir da vida util societaria estimada de ${usefulLife} anos.`,
-        warnings: [...new Set([...base.warnings, ...evaluation.warnings])],
+        warnings: [...new Set([...rateWarnings, ...evaluation.warnings])],
         corporate_evaluation: metadata,
       };
     }
@@ -321,7 +325,13 @@ export function applyCorporateSuggestionAdapter(input: AdapterInput): Partial<Re
     const base = result.residual_value;
     const residualValue = validResidual(base.value);
     const cost = acquisitionCost(context);
-    if (blocksSuggestion(evaluation) && assetNature !== 'FINITE_INTANGIBLE') {
+    if (!base.found) {
+      result.residual_value = {
+        ...base,
+        warnings: [...new Set([...base.warnings, ...evaluation.warnings])],
+        corporate_evaluation: metadata,
+      };
+    } else if (blocksSuggestion(evaluation) && assetNature !== 'FINITE_INTANGIBLE') {
       result.residual_value = { ...notFound('residual_value', evaluation.blocking_reasons[0] || 'Natureza societaria exige revisao antes do residual.', base, commonWarnings), corporate_evaluation: metadata };
     } else if (assetNature === 'FINITE_INTANGIBLE' && residualValue != null && residualValue > 0) {
       result.residual_value = {

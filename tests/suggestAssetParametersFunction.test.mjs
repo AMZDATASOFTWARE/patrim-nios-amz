@@ -74,6 +74,7 @@ globalThis.__testExports = {
   sanitizeContext,
   parseRequestedParameters,
   validateSuggestion,
+  findCorporateLocalReferenceHints,
   buildPrompt,
   buildDirectFiscalPrompt,
   buildDirectFiscalCatalogOptions,
@@ -281,6 +282,170 @@ test('backend fiscal schema requires only selected NCM choice from AI', async ()
   assert.equal(entry.includes(['selected', 'catalog', 'option', 'id'].join('_')), false);
 });
 
+test('backend corporate prompt exposes weighted real asset fields', async () => {
+  const loaded = await loadFunctionModule();
+  const sanitized = loaded.sanitizeContext({
+    name: 'Freezer horizontal comercial',
+    category: 'Equipamentos',
+    description: 'Uso diario em ambiente operacional',
+    account: 'Maquinas e equipamentos',
+    conservation_state: 'Novo',
+    notes: 'Equipamento usado para armazenamento em baixa temperatura',
+    acquisition_value: 3200,
+    purchase_date: '2026-01-01',
+    depreciation_start_date: '2026-01-02',
+    brand: 'Metalfrio',
+    model: 'HF40',
+    sector_name: 'Farmacia',
+    location: 'Sala fria',
+    regulatory_registration_type: 'anvisa',
+  }, ['depreciation_rate', 'useful_life_years']);
+
+  assert.equal(sanitized.error, undefined);
+  assert.equal(sanitized.context.regulatory_registration_type, 'anvisa');
+  const prompt = loaded.buildPrompt(['depreciation_rate', 'useful_life_years'], sanitized.context, []);
+
+  assert.match(prompt, /decision_fields/);
+  assert.match(prompt, /high_weight/);
+  assert.match(prompt, /medium_weight/);
+  assert.match(prompt, /peso alto/i);
+  assert.match(prompt, /peso medio/i);
+  assert.match(prompt, /plaqueta, numero de serie ou RFID/i);
+  assert.match(prompt, /Nao use regra fiscal, NCM ou tabela fiscal para depreciacao gerencial/i);
+  assert.match(prompt, /regulatory_registration_type/);
+  assert.match(prompt, /Metalfrio/);
+  assert.match(prompt, /Farmacia/);
+});
+
+test('backend corporate prompt includes optional local reference hints when context matches', async () => {
+  const loaded = await loadFunctionModule();
+  const sanitized = loaded.sanitizeContext({
+    name: 'Freezer horizontal comercial',
+    category: 'Equipamentos',
+    description: 'Equipamento de refrigeracao usado para armazenamento em baixa temperatura',
+    account: 'Maquinas e equipamentos',
+    conservation_state: 'Novo',
+    acquisition_value: 3200,
+  }, ['depreciation_rate', 'useful_life_years']);
+
+  assert.equal(sanitized.error, undefined);
+  const hints = loaded.findCorporateLocalReferenceHints(sanitized.context);
+  assert.equal(hints.some((hint) => hint.id === 'equipment_refrigeration_commercial'), true);
+
+  const prompt = loaded.buildPrompt(['depreciation_rate', 'useful_life_years'], sanitized.context, []);
+
+  assert.match(prompt, /local_reference_hints/);
+  assert.match(prompt, /equipment_refrigeration_commercial/);
+  assert.match(prompt, /apoio tecnico, nao regra obrigatoria/i);
+  assert.match(prompt, /Ausencia de referencia local gerencial nunca deve gerar found:false/i);
+});
+
+test('backend corporate suggestion continues without local reference matches', async () => {
+  const loaded = await loadFunctionModule();
+  const context = validContext({
+    name: 'Bem patrimonial generico',
+    category: 'Equipamentos',
+    description: 'Ativo operacional sem familia tecnica especifica',
+    account: 'Ativo imobilizado',
+    brand: '',
+    model: '',
+  });
+  const sanitized = loaded.sanitizeContext(context, ['depreciation_rate', 'useful_life_years']);
+
+  assert.equal(sanitized.error, undefined);
+  assert.equal(loaded.findCorporateLocalReferenceHints(sanitized.context).length, 0);
+
+  configureBase44(loaded.context, {
+    llm: async () => ({
+      suggestions: {
+        useful_life_years: {
+          found: true,
+          value: 10,
+          unit: 'years',
+          confidence: 'low',
+          reason: 'Estimativa gerencial com base no nome e categoria informados.',
+          based_on: ['name', 'category'],
+          missing_data: [],
+          warnings: [],
+          source_ids: [],
+        },
+        depreciation_rate: {
+          found: true,
+          value: 10,
+          unit: 'percent_per_year',
+          confidence: 'low',
+          reason: 'Taxa linear derivada da vida util estimada.',
+          based_on: ['name', 'category'],
+          missing_data: [],
+          warnings: [],
+          source_ids: [],
+        },
+      },
+    }),
+  });
+  configureFetch(loaded.context);
+
+  const result = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['depreciation_rate', 'useful_life_years'],
+    asset_context: context,
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.suggestions.useful_life_years.found, true);
+  assert.equal(result.body.suggestions.depreciation_rate.found, true);
+});
+
+test('backend corporate local references do not force useful life ranges', async () => {
+  const loaded = await loadFunctionModule();
+  configureBase44(loaded.context, {
+    llm: async () => ({
+      suggestions: {
+        useful_life_years: {
+          found: true,
+          value: 20,
+          unit: 'years',
+          confidence: 'low',
+          reason: 'Vida util maior estimada pelo uso esporadico e boa conservacao informados.',
+          based_on: ['name', 'category', 'description', 'conservation_state'],
+          missing_data: [],
+          warnings: ['Uso pouco frequente deve ser validado pelo responsavel contabil.'],
+          source_ids: [],
+        },
+        depreciation_rate: {
+          found: true,
+          value: 5,
+          unit: 'percent_per_year',
+          confidence: 'low',
+          reason: 'Taxa linear derivada da vida util estimada.',
+          based_on: ['name', 'category', 'description', 'conservation_state'],
+          missing_data: [],
+          warnings: [],
+          source_ids: [],
+        },
+      },
+    }),
+  });
+  configureFetch(loaded.context);
+
+  const result = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['depreciation_rate', 'useful_life_years'],
+    asset_context: validContext({
+      name: 'Freezer horizontal comercial',
+      category: 'Equipamentos',
+      description: 'Equipamento de refrigeracao usado de forma esporadica',
+      account: 'Maquinas e equipamentos',
+      conservation_state: 'Novo',
+    }),
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.suggestions.useful_life_years.found, true);
+  assert.equal(result.body.suggestions.useful_life_years.value, 20);
+  assert.equal(result.body.suggestions.depreciation_rate.value, 5);
+});
+
 test('backend normalizes empty and common management units by requested field', async () => {
   const loaded = await loadFunctionModule();
   const allowed = new Set(['name', 'category']);
@@ -346,6 +511,133 @@ test('backend rejects incompatible management units after normalization', async 
   const usdResidual = loaded.validateSuggestion('residual_value', { ...base, value: 320, unit: 'USD' }, context, allowed, params, []);
   assert.equal(usdResidual.found, false);
   assert.match(usdResidual.reason, /Unidade invalida/);
+});
+
+test('backend corporate suggestion derives depreciation rate from useful life', async () => {
+  const loaded = await loadFunctionModule();
+  configureBase44(loaded.context, {
+    llm: async () => ({
+      suggestions: {
+        useful_life_years: {
+          found: true,
+          value: 10,
+          unit: 'years',
+          confidence: 'medium',
+          reason: 'Vida util estimada pelo uso operacional do freezer.',
+          based_on: ['name', 'category', 'account', 'description', 'conservation_state'],
+          missing_data: [],
+          warnings: [],
+          source_ids: [],
+        },
+        depreciation_rate: {
+          found: true,
+          value: 15,
+          unit: 'percent_per_year',
+          confidence: 'medium',
+          reason: 'Taxa estimada pela IA.',
+          based_on: ['name', 'category', 'account', 'description', 'conservation_state'],
+          missing_data: [],
+          warnings: [],
+          source_ids: [],
+        },
+      },
+    }),
+  });
+  configureFetch(loaded.context);
+
+  const result = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['depreciation_rate', 'useful_life_years'],
+    asset_context: validContext({
+      name: 'Freezer horizontal comercial',
+      category: 'Equipamentos',
+      account: 'Maquinas e equipamentos',
+      conservation_state: 'Novo',
+      description: 'Uso diario em ambiente operacional',
+      acquisition_value: 3200,
+      purchase_date: '2026-01-01',
+      depreciation_start_date: '2026-01-02',
+    }),
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.suggestions.useful_life_years.value, 10);
+  assert.equal(result.body.suggestions.depreciation_rate.value, 10);
+  assert.match(result.body.suggestions.depreciation_rate.warnings.join(' '), /Taxa anual recalculada a partir da vida util estimada/);
+});
+
+test('backend corporate residual rejects value above acquisition cost', async () => {
+  const loaded = await loadFunctionModule();
+  configureBase44(loaded.context, {
+    llm: async () => ({
+      suggestions: {
+        residual_value: {
+          found: true,
+          value: 5000,
+          unit: 'BRL',
+          confidence: 'medium',
+          reason: 'Residual estimado pela IA.',
+          based_on: ['name', 'category', 'account', 'acquisition_value'],
+          missing_data: [],
+          warnings: [],
+          source_ids: [],
+        },
+      },
+    }),
+  });
+  configureFetch(loaded.context);
+
+  const result = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['residual_value'],
+    asset_context: validContext({
+      name: 'Freezer horizontal comercial',
+      category: 'Equipamentos',
+      account: 'Maquinas e equipamentos',
+      acquisition_value: 3200,
+    }),
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.suggestions.residual_value.found, false);
+  assert.match(result.body.suggestions.residual_value.reason, /Valor residual fora do intervalo permitido|Valor residual nao pode superar/);
+});
+
+test('backend corporate residual requires acquisition value', async () => {
+  const loaded = await loadFunctionModule();
+  configureBase44(loaded.context, {
+    llm: async () => ({
+      suggestions: {
+        residual_value: {
+          found: true,
+          value: 500,
+          unit: 'BRL',
+          confidence: 'medium',
+          reason: 'Residual estimado pela IA.',
+          based_on: ['name', 'category', 'account'],
+          missing_data: [],
+          warnings: [],
+          source_ids: [],
+        },
+      },
+    }),
+  });
+  configureFetch(loaded.context);
+
+  const result = await callHandler(loaded.handler, {
+    entity_type: 'Asset',
+    requested_parameters: ['residual_value'],
+    asset_context: validContext({
+      name: 'Freezer horizontal comercial',
+      category: 'Equipamentos',
+      account: 'Maquinas e equipamentos',
+      acquisition_value: '',
+    }),
+  });
+
+  assert.equal(result.status, 200);
+  assert.equal(result.body.suggestions.residual_value.found, false);
+  assert.match(result.body.suggestions.residual_value.reason, /Valor de aquisicao e necessario/);
 });
 
 test('backend direct fiscal adapter resolves AI-selected local NCM to fiscal rate and life', async () => {

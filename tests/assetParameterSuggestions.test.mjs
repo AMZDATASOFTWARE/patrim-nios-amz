@@ -89,6 +89,7 @@ test('frontend helper builds sanitized asset context with name as primary descri
     account: 'Maquinas e Equipamentos',
     brand: 'Dell',
     model: 'Latitude 5440',
+    regulatory_registration_type: 'anvisa',
     acquisition_value: '5000',
     purchase_date: '2026-01-01',
     depreciation_start_date: '2026-01-15',
@@ -102,6 +103,7 @@ test('frontend helper builds sanitized asset context with name as primary descri
   assert.equal(context.category, 'Equipamentos');
   assert.equal(context.brand, 'Dell');
   assert.equal(context.model, 'Latitude 5440');
+  assert.equal(context.regulatory_registration_type, 'anvisa');
   assert.equal(context.acquisition_value, 5000);
   assert.equal('password' in context, false);
 });
