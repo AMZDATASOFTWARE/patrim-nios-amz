@@ -165,6 +165,7 @@ export default function AssetForm() {
       form.account,
       form.brand,
       form.model,
+      form.regulatory_registration_type,
       form.acquisition_value,
       form.purchase_date,
       form.depreciation_start_date,

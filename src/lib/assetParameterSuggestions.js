@@ -95,6 +95,7 @@ export function buildSuggestionContext(form, branches = [], sectors = []) {
   addText(context, 'account', form.account, 300);
   addText(context, 'brand', form.brand, 300);
   addText(context, 'model', form.model, 300);
+  addText(context, 'regulatory_registration_type', form.regulatory_registration_type, 300);
   addNumber(context, 'acquisition_value', form.acquisition_value);
   addText(context, 'purchase_date', form.purchase_date, 300);
   addText(context, 'depreciation_start_date', form.depreciation_start_date, 300);
